@@ -1,4 +1,4 @@
-# app.py — Universal Trading Terminal (Full Verified Version)
+# app.py — Universal Trading Terminal (Top Toolbar + Diamond Armor V11.3)
 import time
 import datetime
 import requests
@@ -13,7 +13,7 @@ try:
 except ImportError:
     yf = None
 
-# ──────────────────────────── CONFIG ────────────────────────────
+# ──────────────────────────── CONFIG & THEME ────────────────────────────
 st.set_page_config(
     page_title="Diamond Armor Universal",
     page_icon="💎",
@@ -26,8 +26,6 @@ st.markdown("""
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
         background-color: #000000 !important;
     }
-    
-    /* เปิด Header และเว้นพื้นที่ด้านบนให้ Deploy/Menu ไม่ทับกับเนื้อหา */
     [data-testid="stHeader"] {
         background: #000000 !important;
         height: 2.8rem !important;
@@ -41,39 +39,26 @@ st.markdown("""
         display: flex !important;
         visibility: visible !important;
     }
-    .stDeployButton {
+    .stDeployButton, #MainMenu {
         display: inline-block !important;
         visibility: visible !important;
     }
-    #MainMenu {
-        display: inline-block !important;
-        visibility: visible !important;
+    footer, [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+        display: none !important;
     }
-    footer { display: none !important; }
-    [data-testid="stDecoration"] { display: none !important; }
-    [data-testid="stStatusWidget"] { display: none !important; }
 
-    /* ดันพื้นที่หน้าเว็บลงมาใต้ Header ป้องกันไม่ให้ปุ่ม Deploy ทับแถบราคา */
     .block-container,
     [data-testid="stAppViewBlockContainer"],
     [data-testid="stMainBlockContainer"],
     [data-testid="block-container"] {
-        padding-top: 3.2rem !important;
-        padding-bottom: 1rem !important;
-        margin-top: 0rem !important;
+        padding-top: 1.2rem !important;
+        padding-bottom: 0.5rem !important;
         padding-left: 0px !important;
         padding-right: 0px !important;
         margin-left: 0px !important;
         margin-right: 0px !important;
         max-width: 100% !important;
         width: 100% !important;
-    }
-    section.main > div { padding-top: 0rem !important; }
-
-    [data-testid="stSidebarCollapsedControl"],
-    [data-testid="collapsedControl"] {
-        z-index: 1000 !important;
-        top: 0.5rem !important;
     }
 
     [data-testid="stSidebar"] {
@@ -83,36 +68,38 @@ st.markdown("""
     [data-testid="stSidebarContent"] {
         background-color: #050505 !important;
         padding-left: 0.5rem !important; padding-right: 0.5rem !important;
-        padding-top: 1.2rem !important; max-height: 100vh !important; overflow-y: auto !important;
-        overflow-x: hidden !important;
+        padding-top: 1.0rem !important; max-height: 100vh !important;
+        overflow-y: auto !important; overflow-x: hidden !important;
     }
     div[data-testid="stHorizontalBlock"] { gap: 2px !important; }
     div[data-testid="column"] { padding: 0 1px !important; }
-    
+
     .stButton>button {
         background: #101010 !important; color: #D1D4DC !important;
         border: 1px solid #2A2A2A !important; border-radius: 4px !important;
         padding: 2px 4px !important; font-size: 11px !important; font-weight: 500 !important;
         min-height: 24px !important; height: 24px !important; line-height: 1 !important;
-        box-shadow: none !important;
     }
     .stButton>button:hover { border-color: #2962FF !important; color: #FFFFFF !important; background: #1A1A1A !important; }
-    
-    div[data-testid="stExpander"], .stExpander details { border: 1px solid #1E1E1E !important; border-radius: 4px !important; background: #0A0A0A !important; margin-bottom: 4px; }
+
+    div[data-testid="stExpander"], .stExpander details {
+        border: 1px solid #1E1E1E !important; border-radius: 4px !important;
+        background: #0A0A0A !important; margin-bottom: 4px;
+    }
     div[data-testid="stExpander"] summary { padding: 3px 8px !important; font-size: 11px !important; }
     div[data-testid="stExpander"] summary p { font-size: 11px !important; font-weight: 600 !important; }
     div[data-testid="stExpander"] div[data-testid="stExpanderDetails"] { padding: 4px 6px !important; background-color: #0A0A0A !important; }
 
-    [data-testid="stMetric"], div[data-testid="stVerticalBlockBorderWrapper"] { background-color: #0A0A0A !important; border: 1px solid #1A1A1A !important; }
-    input, select, textarea, .stTextInput input, .stSelectbox div[data-baseweb="select"] > div { background-color: #0D0D0D !important; color: #D1D4DC !important; border: 1px solid #222222 !important; }
-    .stDataFrame, [data-testid="stTable"] { background-color: #000000 !important; }
+    input, select, textarea, .stTextInput input, .stSelectbox div[data-baseweb="select"] > div,
+    .stNumberInput input {
+        background-color: #0D0D0D !important; color: #D1D4DC !important; border: 1px solid #222222 !important;
+    }
 
-    .stTabs [data-baseweb="tab-list"] { gap: 2px; background-color: #000000 !important; padding: 2px; border-radius: 6px; border-bottom: 1px solid #1E1E1E !important; }
-    .stTabs [data-baseweb="tab"] { padding: 2px 8px !important; font-size: 11px !important; height: 24px !important; }
+    .stTabs [data-baseweb="tab-list"] { gap: 2px; background-color: #000000 !important; padding: 2px; border-radius: 4px; border-bottom: 1px solid #1E1E1E !important; }
+    .stTabs [data-baseweb="tab"] { padding: 2px 6px !important; font-size: 11px !important; height: 24px !important; }
 
     .tv-wl-header {
-        display: grid; 
-        grid-template-columns: 0.6fr 1.8fr 1.4fr 1.2fr 1.2fr 0.4fr;
+        display: grid; grid-template-columns: 0.4fr 0.6fr 1.6fr 1.3fr 1.1fr 1.1fr 0.4fr;
         padding: 4px 2px; font-size: 10px; font-weight: 600; color: #787b86;
         border-bottom: 1px solid #1E1E1E; margin-bottom: 4px;
     }
@@ -122,9 +109,8 @@ st.markdown("""
         font-family: -apple-system, BlinkMacSystemFont, sans-serif;
         font-size: 11px; font-weight: 600; color: #D1D4DC; margin-top: 2px;
     }
-    div[data-testid="column"]:has(div[data-testid="stExpander"]) {
-        max-height: 89vh !important; overflow-y: auto !important;
-        overflow-x: hidden !important; padding-right: 4px !important;
+    .top-control-bar {
+        background: #080808; border-bottom: 1px solid #1E1E1E; padding: 4px 10px; margin-bottom: 6px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -150,15 +136,19 @@ TF = {
     "5m":  {"sec": 300,     "rule": "5min", "base": None, "yf_iv": "5m",  "yf_range": "60d"},
     "15m": {"sec": 900,     "rule": "15min","base": None, "yf_iv": "15m", "yf_range": "60d"},
     "30m": {"sec": 1800,    "rule": "30min","base": None, "yf_iv": "30m", "yf_range": "60d"},
-    "1h":  {"sec": 3600,    "rule": "1H",   "base": None, "yf_iv": "60m", "yf_range": "730d"},
-    "2h":  {"sec": 7200,    "rule": "2H",   "base": "1h", "yf_iv": "60m", "yf_range": "730d"},
-    "4h":  {"sec": 14400,   "rule": "4H",   "base": None, "yf_iv": "60m", "yf_range": "730d"},
-    "6h":  {"sec": 21600,   "rule": "6H",   "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
-    "8h":  {"sec": 28800,   "rule": "8H",   "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
-    "12h": {"sec": 43200,   "rule": "12H",  "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
+    "1h":  {"sec": 3600,    "rule": "1h",   "base": None, "yf_iv": "60m", "yf_range": "730d"},
+    "2h":  {"sec": 7200,    "rule": "2h",   "base": "1h", "yf_iv": "60m", "yf_range": "730d"},
+    "3h":  {"sec": 10800,   "rule": "3h",   "base": "1h", "yf_iv": "60m", "yf_range": "730d"},
+    "4h":  {"sec": 14400,   "rule": "4h",   "base": None, "yf_iv": "60m", "yf_range": "730d"},
+    "6h":  {"sec": 21600,   "rule": "6h",   "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
+    "8h":  {"sec": 28800,   "rule": "8h",   "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
+    "12h": {"sec": 43200,   "rule": "12h",  "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
     "1d":  {"sec": 86400,   "rule": "1D",   "base": None, "yf_iv": "1d",  "yf_range": "10y"},
-    "3d":  {"sec": 259200,  "rule": "3D",   "base": "1d", "yf_iv": "1d",  "yf_range": "10y"},
     "1w":  {"sec": 604800,  "rule": "1W",   "base": None, "yf_iv": "1wk", "yf_range": "10y"},
+    "1M":  {"sec": 2592000, "rule": "1ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
+    "3M":  {"sec": 7776000, "rule": "3ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
+    "6M":  {"sec": 15552000,"rule": "6ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
+    "1Y":  {"sec": 31536000,"rule": "1YE",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
 }
 
 UP, DOWN = "#26a69a", "#ef5350"
@@ -218,7 +208,7 @@ VN_HNX_SYMBOLS = [
     "VIT", "VLA", "VMC", "VMS", "VNC", "VND", "VNF", "VNR", "VNT", "VTC", "VTH", "VTJ", "VTL", "VTV", "WCS"
 ]
 
-VN_UPCOM_150 = [
+VN_UPCOM_SYMBOLS = [
     "ABB", "ABI", "ACE", "ACV", "AFX", "AGF", "AMP", "AMS", "APF", "APT", "BAB", "BBH", "BCP", "BGF", "BHI",
     "BHT", "BMS", "BOT", "BRG", "BSA", "BSR", "BTH", "BWS", "C4G", "CBI", "CBR", "CC1", "CDO", "CEN", "CFV",
     "CLX", "CMM", "CST", "CTR", "DFF", "DGT", "DRI", "DVN", "FOC", "GDA", "GEE", "GND", "GTH", "GVR", "HAC",
@@ -231,111 +221,64 @@ VN_UPCOM_150 = [
     "VGT", "VIF", "VLG", "VNA", "VNB", "VNP", "VOC", "VPA", "VPK", "VSE", "VTI", "VTR", "VTS", "VWS", "XPH"
 ]
 
+COMMODITY_NAMES = {
+    "GC=F": "ทองคำ (Gold)", "SI=F": "เงิน (Silver)", "HG=F": "ทองแดง (Copper)",
+    "PL=F": "แพลทินัม (Platinum)", "PA=F": "แพลเลเดียม (Palladium)",
+    "CL=F": "น้ำมันดิบ WTI", "BZ=F": "น้ำมันดิบ Brent", "NG=F": "ก๊าซธรรมชาติ",
+    "RB=F": "น้ำมันเบนซิน", "ZC=F": "ข้าวโพด", "ZW=F": "ข้าวสาลี",
+    "ZS=F": "ถั่วเหลือง", "RR=F": "ข้าวเปลือก", "KC=F": "กาแฟ",
+    "CC=F": "โกโก้", "SB=F": "น้ำตาล", "CT=F": "ฝ้าย"
+}
+
+FOREX_NAMES = {
+    "USDTHB=X": "ดอลลาร์ / บาท", "EURTHB=X": "ยูโร / บาท", "JPYTHB=X": "เยน / บาท",
+    "GBPTHB=X": "ปอนด์ / บาท", "CNYTHB=X": "หยวน / บาท", "SGDTHB=X": "ดอลลาร์สิงคโปร์ / บาท",
+    "EURUSD=X": "EUR / USD", "GBPUSD=X": "GBP / USD", "USDJPY=X": "USD / JPY",
+    "USDCHF=X": "USD / CHF", "AUDUSD=X": "AUD / USD", "USDCAD=X": "USD / CAD", "NZDUSD=X": "NZD / USD"
+}
+
 CHINA_STOCK_NAMES = {
-    "002594.SZ": "BYD (บีวายดี - รถยนต์ไฟฟ้าอันดับ 1)",
-    "300750.SZ": "CATL (ผู้ผลิตแบตเตอรี่ลิเธียม EV เบอร์ 1 โลก)",
-    "9866.HK":   "NIO (นีโอ - รถยนต์ไฟฟ้า)",
-    "9868.HK":   "XPeng (เสี่ยวเผิง - รถยนต์ไฟฟ้า AI)",
-    "2015.HK":   "Li Auto (ลี่ออโต้ - รถยนต์ SUV EV)",
-    "1810.HK":   "Xiaomi (เสียวหมี่ - มือถือและ EV)",
-    "600104.SS": "SAIC Motor (เอสเอไอซี ยานยนต์)",
-    "601633.SS": "Great Wall Motor (เกรท วอลล์ มอเตอร์)",
-    "0700.HK":   "Tencent (เทนเซ็นต์ - WeChat / เกม)",
-    "9988.HK":   "Alibaba (อาลีบาบา - อีคอมเมิร์ซ / คลาวด์)",
-    "3690.HK":   "Meituan (เหม่ยถวน - เดลิเวอรี)",
-    "9618.HK":   "JD.com (เจดีดอทคอม)",
-    "9999.HK":   "NetEase (เน็ตอีส)",
-    "9888.HK":   "Baidu (ไป่ตู้ AI)",
-    "688981.SS": "SMIC (เอสเอ็มไอซี - ชิปเบอร์ 1 จีน)",
-    "601138.SS": "Foxconn Industrial (ฟ็อกซ์คอนน์ AI)",
-    "002415.SZ": "Hikvision (ฮิควิชั่น - กล้อง AI)",
-    "600519.SS": "Kweichow Moutai (เหมาไถ สุราขาวอันดับ 1)",
-    "000858.SZ": "Wuliangye (อู่เหลียงเย่ สุราขาว)",
-    "000333.SZ": "Midea Group (ไมเดีย เครื่องใช้ไฟฟ้า)",
-    "000651.SZ": "Gree Electric (กรี แอร์)",
-    "601398.SS": "ICBC (ธนาคารอุตสาหกรรมจีน)",
-    "601939.SS": "CCB (ธนาคารก่อสร้างจีน)",
-    "601288.SS": "ABC (ธนาคารเกษตรจีน)",
-    "601988.SS": "Bank of China (ธนาคารแห่งประเทศจีน)",
-    "600036.SS": "China Merchants Bank",
-    "601318.SS": "Ping An Insurance (ผิงอัน ประกันภัย)",
-    "601857.SS": "PetroChina (ปิโตรไชน่า)",
-    "600028.SS": "Sinopec (ซิโนเปค)",
-    "601088.SS": "China Shenhua (ถ่านหินและไฟฟ้า)",
-    "600900.SS": "Yangtze Power (แยงซี เขื่อนสามผา)",
-    "601899.SS": "Zijin Mining (จื่อจิน เหมืองทอง/ทองแดง)",
-    "600276.SS": "Hengrui Medicine (เหิงรุ่ย ยาต้านมะเร็ง)",
-    "300760.SZ": "Mindray Bio-Medical (มายด์เรย์ การแพทย์)"
+    "002594.SZ": "BYD (บีวายดี EV)", "300750.SZ": "CATL (แบตเตอรี่ EV)",
+    "9866.HK":   "NIO (นีโอ)", "9868.HK":   "XPeng (เสี่ยวเผิง)",
+    "2015.HK":   "Li Auto (ลี่ออโต้)", "1810.HK":   "Xiaomi (เสียวหมี่)",
+    "600104.SS": "SAIC Motor", "601633.SS": "Great Wall Motor",
+    "0700.HK":   "Tencent (เทนเซ็นต์)", "9988.HK":   "Alibaba (อาลีบาบา)",
+    "3690.HK":   "Meituan (เหม่ยถวน)", "9618.HK":   "JD.com",
+    "9999.HK":   "NetEase", "9888.HK":   "Baidu (ไป่ตู้ AI)",
+    "688981.SS": "SMIC (ชิปเบอร์ 1)", "601138.SS": "Foxconn Industrial",
+    "002415.SZ": "Hikvision (กล้อง AI)", "600519.SS": "Kweichow Moutai (เหมาไถ)",
+    "000858.SZ": "Wuliangye (อู่เหลียงเย่)", "000333.SZ": "Midea Group",
+    "000651.SZ": "Gree Electric", "601398.SS": "ICBC ธนาคารจีน",
+    "601939.SS": "CCB ธนาคารก่อสร้าง", "601288.SS": "ABC ธนาคารเกษตร",
+    "601988.SS": "Bank of China", "600036.SS": "China Merchants Bank",
+    "601318.SS": "Ping An Insurance", "601857.SS": "PetroChina",
+    "600028.SS": "Sinopec", "601088.SS": "China Shenhua",
+    "600900.SS": "Yangtze Power", "601899.SS": "Zijin Mining",
+    "600276.SS": "Hengrui Medicine", "300760.SZ": "Mindray Bio-Medical"
 }
 
 SP500_SYMBOLS = [
-    "A", "AAL", "AAPL", "ABBV", "ABNB", "ABT", "ACGL", "ACN", "ADBE", "ADI",
-    "ADM", "ADP", "ADSK", "AEE", "AEP", "AES", "AFL", "AIG", "AIZ", "AJG",
-    "AKAM", "ALB", "ALGN", "ALL", "ALLE", "AMAT", "AMCR", "AMD", "AME", "AMGN",
-    "AMP", "AMT", "AMZN", "ANET", "ANSS", "AON", "AOS", "APA", "APD", "APH",
-    "APTV", "ARE", "ATO", "AVB", "AVGO", "AVY", "AWK", "AXON", "AXP", "AZO",
-    "BA", "BAC", "BALL", "BAX", "BBWI", "BBY", "BDX", "BEN", "BF-B", "BG",
-    "BIIB", "BK", "BKNG", "BKR", "BLDR", "BLK", "BMY", "BR", "BRK-B", "BRO",
-    "BSX", "BWA", "BX", "BXP", "C", "CAG", "CAH", "CARR", "CAT", "CB",
-    "CBOE", "CBRE", "CCI", "CCL", "CDNS", "CDW", "CE", "CEG", "CF", "CFG",
-    "CHD", "CHRW", "CHTR", "CI", "CINF", "CL", "CLX", "CMA", "CMCSA", "CME",
-    "CMG", "CMI", "CMS", "CNC", "CNP", "COF", "COO", "COP", "COR", "COST",
-    "CPAY", "CPB", "CPRT", "CPT", "CRL", "CRM", "CSCO", "CSGP", "CSX", "CTAS",
-    "CTLT", "CTRA", "CTSH", "CTVA", "CVS", "CVX", "CZR", "D", "DAL", "DAY",
-    "DD", "DE", "DECK", "DELL", "DFS", "DG", "DGX", "DHI", "DHR", "DIS",
-    "DLR", "DLTR", "DOC", "DOV", "DOW", "DPZ", "DRI", "DTE", "DUK", "DVA",
-    "DVN", "DXCM", "EA", "EBAY", "ECL", "ED", "EFX", "EG", "EIX", "EL",
-    "ELV", "EMN", "EMR", "ENPH", "EOG", "EPAM", "EQIX", "EQR", "EQT", "ERIE",
-    "ES", "ESS", "ETN", "ETR", "ETSY", "EVRG", "EW", "EXC", "EXPD", "EXPE",
-    "EXR", "F", "FANG", "FAST", "FCX", "FDS", "FDX", "FE", "FFIV", "FI",
-    "FICO", "FIS", "FITB", "FLT", "FMC", "FOX", "FOXA", "FRT", "FSLR", "FTNT",
-    "FTV", "GD", "GDDY", "GE", "GEHC", "GEN", "GEV", "GILD", "GIS", "GL",
-    "GLW", "GM", "GNRC", "GOOG", "GOOGL", "GPC", "GPN", "GRMN", "GS", "GWW",
-    "HAL", "HAS", "HBAN", "HCA", "HD", "HES", "HIG", "HII", "HLT", "HOLX",
-    "HON", "HPE", "HPQ", "HRL", "HSIC", "HST", "HSY", "HUBB", "HUM", "HWM",
-    "IBM", "ICE", "IDXX", "IEX", "IFF", "INCY", "INTC", "INTU", "INVH", "IP",
-    "IPG", "IQV", "IR", "IRM", "ISRG", "IT", "ITW", "IVZ", "J", "JBHT",
-    "JBL", "JCI", "JKHY", "JNJ", "JNPR", "JPM", "K", "KDP", "KEY", "KEYS",
-    "KHC", "KIM", "KLAC", "KMB", "KMI", "KMX", "KO", "KR", "KVUE", "L",
-    "LDOS", "LEN", "LH", "LHX", "LIN", "LKQ", "LLY", "LMT", "LNT", "LOW",
-    "LRCX", "LULU", "LUV", "LVS", "LW", "LYB", "LYV", "MA", "MAA", "MAR",
-    "MAS", "MCD", "MCHP", "MCK", "MCO", "MDLZ", "MDT", "MET", "META", "MGM",
-    "MHK", "MKC", "MKTX", "MLM", "MMC", "MMM", "MNST", "MO", "MOH", "MOS",
-    "MPC", "MPWR", "MRK", "MRNA", "MS", "MSCI", "MSFT", "MSI", "MTB", "MTCH",
-    "MTD", "MU", "NCLH", "NDAQ", "NDSN", "NEE", "NEM", "NFLX", "NI", "NKE",
-    "NOC", "NOW", "NRG", "NSC", "NTAP", "NTRS", "NUE", "NVDA", "NVR", "NWS",
-    "NWSA", "NXPI", "O", "ODFL", "OKE", "OMC", "ON", "ORCL", "ORLY", "OTIS",
-    "OXY", "PANW", "PARA", "PAYC", "PAYX", "PCAR", "PCG", "PEG", "PEP", "PFE",
-    "PFG", "PG", "PGR", "PH", "PHM", "PKG", "PLD", "PLTR", "PM", "PNC",
-    "PNR", "PNW", "PODD", "POOL", "PPG", "PPL", "PRU", "PSA", "PSX", "PTC",
-    "PWR", "PYPL", "QCOM", "QRVO", "RCL", "REG", "REGN", "RF", "RHI", "RJF",
-    "RL", "RMD", "ROK", "ROL", "ROP", "ROST", "RSG", "RTX", "RVTY", "SBAC",
-    "SBUX", "SCHW", "SHW", "SJM", "SLB", "SMCI", "SNA", "SNPS", "SO", "SOLV",
-    "SPG", "SPGI", "SRE", "STE", "STLD", "STT", "STX", "STZ", "SWK", "SWKS",
-    "SWN", "SYF", "SYK", "SYY", "T", "TAP", "TDG", "TDY", "TECH", "TEL",
-    "TER", "TFC", "TFX", "TGT", "TJX", "TMO", "TMUS", "TPR", "TRGP", "TRMB",
-    "TROW", "TRV", "TSCO", "TSLA", "TSN", "TT", "TTWO", "TXN", "TXT", "TYL",
-    "UAL", "UBER", "UDR", "UHS", "ULTA", "UNH", "UNP", "UPS", "URI", "USB",
-    "V", "VICI", "VLO", "VLTO", "VMC", "VNO", "VRSK", "VRSN", "VRTX", "VST",
-    "VTR", "VTRS", "VZ", "WAB", "WAT", "WBA", "WBD", "WDC", "WEC", "WELL",
-    "WFC", "WM", "WMB", "WMT", "WRB", "WRK", "WST", "WTW", "WY", "WYNN",
-    "XEL", "XOM", "XYL", "YUM", "ZBH", "ZBRA", "ZTS"
+    "AAPL", "ABBV", "ABNB", "ADBE", "ADI", "AMD", "AMZN", "AVGO", "BA", "BAC",
+    "BRK-B", "C", "CAT", "CRM", "CSCO", "CVX", "DIS", "GOOG", "GOOGL", "GS",
+    "HD", "IBM", "INTC", "JNJ", "JPM", "KO", "LLY", "MA", "MCD", "META",
+    "MSFT", "NFLX", "NKE", "NVDA", "ORCL", "PEP", "PFE", "PG", "PLTR", "QCOM",
+    "SBUX", "TSLA", "TXN", "UNH", "V", "WFC", "WMT", "XOM"
 ]
-
-COMMODITY_NAMES = {
-    "GC=F": "ทองคำ", "SI=F": "เงิน", "CL=F": "น้ำมันWTI",
-    "BZ=F": "น้ำมันBrent", "HG=F": "ทองแดง", "RR=F": "ข้าว", "ZC=F": "ข้าวโพด"
-}
 
 # ──────────────────────────── FETCHERS ────────────────────────────
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_binance_all_symbols() -> list:
     try:
-        r = HTTP_SESSION.get("https://api.binance.com/api/v3/ticker/price", timeout=5)
+        r = HTTP_SESSION.get("https://api.binance.com/api/v3/exchangeInfo", timeout=6)
         if r.status_code == 200:
-            symbols = [i["symbol"] for i in r.json() if i.get("symbol", "").endswith("USDT")]
-            if len(symbols) > 50: return sorted(symbols)
-    except Exception: pass
+            symbols = [
+                s["symbol"] for s in r.json().get("symbols", [])
+                if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING"
+            ]
+            if len(symbols) > 50:
+                return sorted(symbols)
+    except Exception:
+        pass
     return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT", "ADAUSDT", "PEPEUSDT", "NEARUSDT"]
 
 @st.cache_data(ttl=300, show_spinner=False)
@@ -384,23 +327,21 @@ def fetch_mexc_all_symbols() -> list:
 @st.cache_data(ttl=86400, show_spinner=False)
 def fetch_set_all_symbols() -> list:
     thai_all_stocks = [
-        "2S", "7UP", "A", "A5", "AAI", "AAV", "ABM", "ACE", "ADVANC", "AEONTS", "AGE", "AH", "AIE", "AMATA", "AOT",
-        "AP", "ASIAN", "AURA", "AWC", "BA", "BAM", "BANPU", "BAY", "BBIK", "BBL", "BCH", "BCP", "BCPG", "BDMS",
-        "BE8", "BEAUTY", "BEM", "BGRIM", "BH", "BJC", "BLA", "BPP", "BTG", "BTS", "CBG", "CCET", "CENTEL", "CHG",
-        "CK", "CKP", "COM7", "CPALL", "CPAXT", "CPF", "CPN", "CRC", "DELTA", "DOHOME", "EA", "EGCO", "EPG", "ERW",
-        "FORTH", "GLOBAL", "GPSC", "GULF", "GUNKUL", "HANA", "HMPRO", "ICHI", "INTUCH", "ITC", "IVL", "JMART", "JMT",
-        "KAMART", "KBANK", "KCE", "KKP", "KTB", "KTC", "LH", "M", "MAJOR", "MBK", "MC", "MEGA", "MGC", "MINT",
-        "MOSHI", "MTC", "NER", "NEX", "ONEE", "OR", "ORI", "OSP", "PLANB", "PR9", "PRM", "PSH", "PSL", "PTG",
-        "PTT", "PTTEP", "PTTGC", "RATCH", "RBF", "RCL", "SAPPE", "SAWAD", "SCB", "SCC", "SCGP", "SIRI", "SISB",
-        "SPALI", "SPRC", "STA", "STARK", "STEC", "STGT", "TASCO", "TCAP", "TFG", "THANI", "THCOM", "THG", "TIDLOR",
-        "TIPH", "TISCO", "TKN", "TOP", "TRUE", "TTA", "TTB", "TTW", "TU", "VGI", "WARRIX", "WHA", "WHAUP", "XO"
+        "ADVANC", "AOT", "AWC", "BANPU", "BBL", "BCH", "BCP", "BDMS", "BEM", "BGRIM", "BH",
+        "BTS", "CBG", "CCET", "CENTEL", "CPALL", "CPAXT", "CPF", "CPN", "CRC", "DELTA",
+        "EA", "EGCO", "GPSC", "GULF", "HANA", "HMPRO", "INTUCH", "ITC", "IVL", "KBANK",
+        "KCE", "KTB", "KTC", "LH", "MINT", "MTC", "OR", "OSP", "PTT", "PTTEP", "PTTGC",
+        "RATCH", "SAWAD", "SCB", "SCC", "SCGP", "SIRI", "SPALI", "TCAP", "TIDLOR", "TISCO",
+        "TOP", "TRUE", "TTB", "TU", "WHA"
     ]
     return sorted([f"{s}.BK" for s in set(thai_all_stocks)])
 
 DEFAULT_PRESETS = {
-    "🇻🇳 เวียดนาม HOSE (โฮจิมินห์)": sorted([f"{s}.VN" for s in set(VN_HOSE_SYMBOLS)]),
-    "🇻🇳 เวียดนาม HNX (ฮานอย)": sorted([f"{s}.VN" for s in set(VN_HNX_SYMBOLS)]),
-    "🇻🇳 เวียดนาม UPCoM (ตลาดรอง)": sorted([f"{s}.VN" for s in set(VN_UPCOM_150)]),
+    "🇻🇳 หุ้นเวียดนาม (Vietnam)": {
+        "HOSE": sorted([f"{s}.VN" for s in set(VN_HOSE_SYMBOLS)]),
+        "HNX": sorted([f"{s}.VN" for s in set(VN_HNX_SYMBOLS)]),
+        "UPCoM": sorted([f"{s}.VN" for s in set(VN_UPCOM_SYMBOLS)])
+    },
     "🇨🇳 หุ้นจีน (China)": sorted(list(CHINA_STOCK_NAMES.keys())),
     "🇺🇸 หุ้นสหรัฐฯ (S&P 500)": sorted(SP500_SYMBOLS),
     "🟡 คริปโต (Crypto)": {
@@ -411,8 +352,8 @@ DEFAULT_PRESETS = {
         "MEXC": fetch_mexc_all_symbols(),
     },
     "🇹🇭 หุ้นไทย (SET/mai)": fetch_set_all_symbols(),
-    "🟠 สินค้าโภคภัณฑ์ (Commodities)": ["GC=F", "SI=F", "CL=F", "BZ=F", "HG=F", "RR=F", "ZC=F"],
-    "🟢 อัตราแลกเปลี่ยน (Forex)": ["USDTHB=X", "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X"]
+    "🟠 สินค้าโภคภัณฑ์ (Commodities)": sorted(list(COMMODITY_NAMES.keys())),
+    "🟢 อัตราแลกเปลี่ยน (Forex)": sorted(list(FOREX_NAMES.keys()))
 }
 
 STAR_CATEGORIES = {
@@ -426,25 +367,50 @@ STAR_CATEGORIES = {
 # ──────────────────────────── SESSION STATES ────────────────────────────
 if "star_watchlists" not in st.session_state:
     st.session_state["star_watchlists"] = {
-        "🔴 ดาวแดง": ["VNM.VN", "002594.SZ", "NVDA", "BTC_THB"],
-        "🟡 ดาวเหลือง": ["VIC.VN", "0700.HK", "GC=F"],
-        "🟢 ดาวเขียว": ["HPG.VN", "600519.SS", "PTT.BK"],
+        "🔴 ดาวแดง": ["AAA.VN", "GC=F", "NVDA", "BTC_THB"],
+        "🟡 ดาวเหลือง": ["VIC.VN", "0700.HK", "USDTHB=X"],
+        "🟢 ดาวเขียว": ["HPG.VN", "CL=F", "PTT.BK"],
         "🔵 ดาวฟ้า": ["ACV.VN", "TSLA", "BTCUSDT"],
-        "🟣 ดาวม่วง": ["USDTHB=X"]
+        "🟣 ดาวม่วง": ["EURUSD=X"]
     }
 if "custom_symbols" not in st.session_state: st.session_state["custom_symbols"] = []
-if "show_rsi" not in st.session_state: st.session_state["show_rsi"] = True
-if "show_macd" not in st.session_state: st.session_state["show_macd"] = True
 if "pane_order" not in st.session_state: st.session_state["pane_order"] = ["rsi", "macd"]
 if "mobile_mode" not in st.session_state: st.session_state["mobile_mode"] = False
 if "panel_open" not in st.session_state: st.session_state["panel_open"] = True
 if "panel_size" not in st.session_state: st.session_state["panel_size"] = "M"
 
+# Strategy Settings (Persisted)
+if "fast_ema" not in st.session_state: st.session_state["fast_ema"] = 7
+if "slow_ema" not in st.session_state: st.session_state["slow_ema"] = 13
+if "trend_ema" not in st.session_state: st.session_state["trend_ema"] = 45
+if "min_tp" not in st.session_state: st.session_state["min_tp"] = 3.0
+if "warn_pct" not in st.session_state: st.session_state["warn_pct"] = 3.0
+if "danger_pct" not in st.session_state: st.session_state["danger_pct"] = 7.0
+if "show_stars" not in st.session_state: st.session_state["show_stars"] = True
+
+if "show_fast" not in st.session_state: st.session_state["show_fast"] = True
+if "show_slow" not in st.session_state: st.session_state["show_slow"] = True
+if "show_trend" not in st.session_state: st.session_state["show_trend"] = True
+if "show_rsi" not in st.session_state: st.session_state["show_rsi"] = True
+if "show_macd" not in st.session_state: st.session_state["show_macd"] = True
+if "show_sig" not in st.session_state: st.session_state["show_sig"] = True
+if "show_dots" not in st.session_state: st.session_state["show_dots"] = True
+if "ema_opacity" not in st.session_state: st.session_state["ema_opacity"] = 0
+if "trend_opacity" not in st.session_state: st.session_state["trend_opacity"] = 60
+if "line_width" not in st.session_state: st.session_state["line_width"] = 2
+
+# Top Display Toolbar Session States
+if "selected_tf" not in st.session_state: st.session_state["selected_tf"] = "1h"
+if "bars_count" not in st.session_state: st.session_state["bars_count"] = 2500
+if "fill_gaps" not in st.session_state: st.session_state["fill_gaps"] = False
+if "auto_refresh" not in st.session_state: st.session_state["auto_refresh"] = False
+if "refresh_sec" not in st.session_state: st.session_state["refresh_sec"] = 5
+
 # ──────────────────────────── ROUTER ────────────────────────────
 def resolve_route(symbol: str, ui_market: str, ui_exchange: str):
     s = (symbol or "").upper()
     if s.endswith(".BK"): return "🇹🇭 หุ้นไทย (SET/mai)", "Yahoo"
-    if s.endswith(".VN"): return "🇻🇳 เวียดนาม", "Yahoo"
+    if s.endswith(".VN"): return "🇻🇳 หุ้นเวียดนาม (Vietnam)", "Yahoo"
     if s.endswith(".SS") or s.endswith(".SZ") or s.endswith(".HK"): return "🇨🇳 หุ้นจีน (China)", "Yahoo"
     if s.endswith("_THB") or s.startswith("THB_"): return "🟡 คริปโต (Crypto)", "Bitkub"
     if s.endswith("-USDT"): return "🟡 คริปโต (Crypto)", "OKX"
@@ -459,13 +425,23 @@ def route_label(r_market: str, r_exchange: str) -> str:
     if r_market == GLOBAL_MARKET: return "Yahoo"
     return r_market.split()[0]
 
-# ──────────────────────────── RESAMPLE & FETCH OHLCV ────────────────────────────
+# ──────────────────────────── OHLCV FETCHERS ────────────────────────────
 def resample_ohlcv(df: pd.DataFrame, rule: str) -> pd.DataFrame:
-    if df.empty: return df
+    if df is None or df.empty or len(df) < 2 or not rule:
+        return df
+    
     d = df.copy()
-    d["datetime"] = pd.to_datetime(d["time"], unit="s")
+    d["datetime"] = pd.to_datetime(d["time"], unit="s", utc=True)
     d = d.set_index("datetime")
-    out = d.resample(rule).agg({"open": "first", "high": "max", "low": "min", "close": "last", "volume": "sum"}).dropna()
+    
+    out = d.resample(rule, origin="epoch", closed="left", label="left").agg({
+        "open": "first",
+        "high": "max",
+        "low": "min",
+        "close": "last",
+        "volume": "sum"
+    }).dropna(subset=["open", "close"])
+    
     out["time"] = (out.index.astype("int64") // 10**9).astype("int64")
     return out.reset_index(drop=True)
 
@@ -494,7 +470,7 @@ def fetch_bitkub_raw(symbol: str, tf_code: str, sec: int, bars: int) -> pd.DataF
     headers = dict(BROWSER_HEADERS)
     if BITKUB_API_KEY and len(BITKUB_API_KEY) > 20: headers["X-BTK-APIKEY"] = BITKUB_API_KEY
     total, max_loops = 0, 400
-    window, max_window, min_window = sec * 1000, sec * 300000, sec * 500
+    window, max_window = sec * 1000, sec * 300000
     empty_streak, oldest_seen, floor_ts = 0, None, 1451606400
 
     for _ in range(max_loops):
@@ -540,27 +516,39 @@ def fetch_bitkub_raw(symbol: str, tf_code: str, sec: int, bars: int) -> pd.DataF
     return df.dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
 
 def fetch_binance_raw(symbol: str, interval: str, bars: int) -> pd.DataFrame:
-    out, end_ts = [], None
+    out = []
+    end_ts = None
     while len(out) < bars:
         limit = min(1000, bars - len(out))
         params = {"symbol": symbol, "interval": interval, "limit": limit}
-        if end_ts: params["endTime"] = end_ts
+        if end_ts:
+            params["endTime"] = end_ts
         try:
             r = HTTP_SESSION.get("https://api.binance.com/api/v3/klines", params=params, timeout=5)
-            if r.status_code != 200: break
+            if r.status_code != 200:
+                break
             k = r.json()
-            if not k or not isinstance(k, list): break
+            if not k or not isinstance(k, list):
+                break
             out = k + out
             new_end = k[0][0] - 1
-            if end_ts and new_end >= end_ts: break
+            if end_ts and new_end >= end_ts:
+                break
             end_ts = new_end
-            if len(k) < limit: break
-        except Exception: break
-    if not out: return pd.DataFrame()
+            if len(k) < limit:
+                break
+        except Exception:
+            break
+            
+    if not out:
+        return pd.DataFrame()
+        
     df = pd.DataFrame(out, columns=["ot","open","high","low","close","volume","ct","qv","n","tb","tq","ig"])
     df = df[["ot","open","high","low","close","volume"]].astype(float)
     df["time"] = (df["ot"] // 1000).astype("int64")
-    return df[["time","open","high","low","close","volume"]].dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
+    
+    df = df.dropna().drop_duplicates(subset=["time"]).sort_values("time")
+    return df.tail(bars).reset_index(drop=True)
 
 def parse_yahoo_json(j: dict) -> pd.DataFrame:
     try:
@@ -574,10 +562,14 @@ def parse_yahoo_json(j: dict) -> pd.DataFrame:
         rows = []
         for i in range(len(ts)):
             if ts[i] is not None and i < len(c) and c[i] is not None:
-                rows.append({"time": ts[i], "open": o[i] if (i < len(o) and o[i] is not None) else c[i],
-                             "high": h[i] if (i < len(h) and h[i] is not None) else c[i],
-                             "low":  l[i] if (i < len(l) and l[i] is not None) else c[i], "close": c[i],
-                             "volume": v[i] if (i < len(v) and v[i] is not None) else 0.0})
+                rows.append({
+                    "time": int(ts[i]),
+                    "open": float(o[i] if (i < len(o) and o[i] is not None) else c[i]),
+                    "high": float(h[i] if (i < len(h) and h[i] is not None) else c[i]),
+                    "low":  float(l[i] if (i < len(l) and l[i] is not None) else c[i]),
+                    "close": float(c[i]),
+                    "volume": float(v[i] if (i < len(v) and v[i] is not None) else 0.0)
+                })
         return pd.DataFrame(rows)
     except Exception: return pd.DataFrame()
 
@@ -669,7 +661,7 @@ def bitkub_pick(symbol: str) -> dict:
     base = s[4:] if s.startswith("THB_") else s.replace("_THB", "")
     return bk.get(f"{base}_THB", {}) or bk.get(f"THB_{base}", {}) or {}
 
-@st.cache_data(ttl=15, show_spinner=False)
+@st.cache_data(ttl=10, show_spinner=False)
 def fetch_item_quote(sym: str) -> dict:
     try:
         s = (sym or "").upper()
@@ -748,64 +740,13 @@ def fetch_unified_ticker(market_type: str, exchange: str, symbol: str, df_last: 
     except Exception: pass
     return {}
 
-# ──────────────────────────── INDICATORS ────────────────────────────
+# ──────────────────────────── ANALYTICS & INDICATORS ────────────────────────────
 def rsi_wilder(close: pd.Series, period: int = 14) -> pd.Series:
     d = close.diff()
     gain = d.clip(lower=0).ewm(alpha=1/period, adjust=False).mean()
     loss = (-d.clip(upper=0)).ewm(alpha=1/period, adjust=False).mean()
     rs = gain / loss.replace(0, np.nan)
     return (100 - 100 / (1 + rs)).fillna(50)
-
-def calc_bollinger_bands(df: pd.DataFrame, length: int = 20, mult: float = 2.0):
-    df = df.copy()
-    basis = df["close"].rolling(length).mean()
-    dev = df["close"].rolling(length).std() * mult
-    df["bb_upper"] = basis + dev
-    df["bb_lower"] = basis - dev
-    df["bb_basis"] = basis
-    return df
-
-def calc_volume_profile(df: pd.DataFrame, bins_count: int = 30, va_pct: float = 0.70):
-    if df.empty or len(df) < 5:
-        return None, None, None
-    p_min = df["low"].min()
-    p_max = df["high"].max()
-    if p_min == p_max:
-        return None, None, None
-
-    bins = np.linspace(p_min, p_max, bins_count + 1)
-    bin_vols = np.zeros(bins_count)
-    
-    for r in df.itertuples():
-        c_price = r.close
-        v = float(r.volume)
-        idx = int(np.digitize(c_price, bins) - 1)
-        idx = max(0, min(bins_count - 1, idx))
-        bin_vols[idx] += v
-
-    poc_idx = int(np.argmax(bin_vols))
-    poc_price = (bins[poc_idx] + bins[poc_idx + 1]) / 2.0
-
-    total_vol = bin_vols.sum()
-    target_vol = total_vol * va_pct
-    cur_vol = bin_vols[poc_idx]
-    up_idx, dn_idx = poc_idx, poc_idx
-
-    while cur_vol < target_vol and (up_idx < bins_count - 1 or dn_idx > 0):
-        next_up = bin_vols[up_idx + 1] if up_idx < bins_count - 1 else 0
-        next_dn = bin_vols[dn_idx - 1] if dn_idx > 0 else 0
-        if next_up >= next_dn and up_idx < bins_count - 1:
-            up_idx += 1
-            cur_vol += bin_vols[up_idx]
-        elif dn_idx > 0:
-            dn_idx -= 1
-            cur_vol += bin_vols[dn_idx]
-        else:
-            break
-
-    vah_price = bins[up_idx + 1]
-    val_price = bins[dn_idx]
-    return float(poc_price), float(vah_price), float(val_price)
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_market_analytics(market_type: str, exchange: str, symbol: str) -> dict:
@@ -815,16 +756,15 @@ def fetch_market_analytics(market_type: str, exchange: str, symbol: str) -> dict
         elif "คริปโต" in market_type:
             r = HTTP_SESSION.get("https://api.binance.com/api/v3/klines", params={"symbol": symbol, "interval": "1d", "limit": 375}, timeout=5)
             raw = r.json()
-            if not raw: return {}
+            if not raw or not isinstance(raw, list): return {}
             cols = ["ot","open","high","low","close","volume","ct","qv","n","tb","tq","ig"][:len(raw[0])]
             df = pd.DataFrame(raw, columns=cols)[["ot","open","high","low","close","volume"]].astype(float)
             df["time"] = (df["ot"] // 1000).astype("int64")
         else:
             df = fetch_yahoo_rest_api(symbol, "1d", 380)
 
-        if df is None or df.empty: return {}
+        if df is None or df.empty or len(df) < 15: return {}
         df = df.dropna().sort_values("time").reset_index(drop=True)
-        if len(df) < 15: return {}
 
         now_p, n = df.iloc[-1]["close"], len(df)
         def ret(b): return (((now_p / df.iloc[-1-b]["close"]) - 1.0) * 100.0) if n > b else 0.0
@@ -847,26 +787,35 @@ def fetch_market_analytics(market_type: str, exchange: str, symbol: str) -> dict
                 "6M": r6m, "YTD": rytd, "1Y": r1y, "tech_label": lbl, "tech_color": col, "angle": ang}
     except Exception: return {}
 
-def diamond_armor(df: pd.DataFrame, fast=21, slow=55, rsi_len=14):
+def diamond_armor(df: pd.DataFrame, fast=7, slow=13, trend=45, rsi_len=14, macd_f=12, macd_s=26, macd_sig=9, warn_pct=3.0, danger_pct=7.0):
     df = df.copy()
     df["ema_fast"] = df["close"].ewm(span=fast, adjust=False).mean()
     df["ema_slow"] = df["close"].ewm(span=slow, adjust=False).mean()
+    df["ema_trend"] = df["close"].ewm(span=trend, adjust=False).mean()
     df["rsi"] = rsi_wilder(df["close"], rsi_len)
-    df["ema12"] = df["close"].ewm(span=12, adjust=False).mean()
-    df["ema26"] = df["close"].ewm(span=26, adjust=False).mean()
+    df["ema12"] = df["close"].ewm(span=macd_f, adjust=False).mean()
+    df["ema26"] = df["close"].ewm(span=macd_s, adjust=False).mean()
     df["macd"] = df["ema12"] - df["ema26"]
-    df["macd_sig"] = df["macd"].ewm(span=9, adjust=False).mean()
+    df["macd_sig"] = df["macd"].ewm(span=macd_sig, adjust=False).mean()
     df["macd_hist"] = df["macd"] - df["macd_sig"]
 
     up_cross = (df.ema_fast > df.ema_slow) & (df.ema_fast.shift() <= df.ema_slow.shift())
     dn_cross = (df.ema_fast < df.ema_slow) & (df.ema_fast.shift() >= df.ema_slow.shift())
     df["signal"] = np.select([up_cross & (df.rsi > 45), dn_cross & (df.rsi < 55)], ["BUY", "SELL ALL"], default="")
 
+    df["dist_trend_pct"] = ((df["close"] - df["ema_trend"]) / df["ema_trend"]) * 100.0
+    df["dot_warn"] = np.where(df["dist_trend_pct"] >= danger_pct, "RED",
+                     np.where(df["dist_trend_pct"] >= warn_pct, "ORANGE", ""))
+
+    avg_vol = df["volume"].rolling(20).mean().fillna(df["volume"])
+    df["star"] = (df["signal"] == "BUY") & (df["volume"] > avg_vol * 1.15) & (df["close"] > df["ema_trend"])
+
     last, prev = df.iloc[-1], df.iloc[-2]
     stats = {
         "price": last.close, "change_pct": (last.close / prev.close - 1) * 100 if prev.close else 0.0,
         "rsi": last.rsi, "trend": "UP" if last.ema_fast > last.ema_slow else "DOWN",
         "buys": int((df.signal == "BUY").sum()), "sells": int((df.signal == "SELL ALL").sum()), "bars": len(df),
+        "dist_trend": float(last.dist_trend_pct) if "dist_trend_pct" in last else 0.0
     }
     return df, stats
 
@@ -913,7 +862,7 @@ def render_tv_quote_card(tk: dict, an: dict, symbol: str, label_name: str):
     t_angle = an.get("angle", 0) if an else 0
     t_label = an.get("tech_label", "เป็นกลาง") if an else "เป็นกลาง"
     t_color = an.get("tech_color", "#9aa0a6") if an else "#9aa0a6"
-    desc_display = CHINA_STOCK_NAMES.get(symbol, COMMODITY_NAMES.get(symbol, ""))
+    desc_display = CHINA_STOCK_NAMES.get(symbol, COMMODITY_NAMES.get(symbol, FOREX_NAMES.get(symbol, "")))
     sub_title_html = f"<div style='font-size:10px; color:#00bcd4; margin-bottom:4px;'>{desc_display}</div>" if desc_display else ""
 
     st.markdown(f"""<div style="background-color:#0A0A0A; border-radius:6px; padding:8px 6px; color:#D1D4DC; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; border:1px solid #1E1E1E;">
@@ -955,11 +904,9 @@ def render_tv_quote_card(tk: dict, an: dict, symbol: str, label_name: str):
 </div>""", unsafe_allow_html=True)
 
 # ──────────────────────────── CHART BUILDER ────────────────────────────
-def build_charts(df, symbol, tf, show_ema, show_vol, show_sig, label_size,
-                 show_rsi, show_macd, pane_order, main_h, rsi_h, macd_h,
-                 show_bb=False, show_vp=False, poc=None, vah=None, val=None):
+def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
     d = df.copy()
-    d["time"] = d["time"] + (7 * 3600)  # GMT+7
+    d["time"] = d["time"].astype("int64") + (7 * 3600)  # แปลงเป็นเวลาไทย GMT+7
     ts_opts = {
         "borderColor": "#1E1E1E", "timeVisible": True, "secondsVisible": tf in ("1m", "3m", "5m"),
         "fixLeftEdge": False, "rightOffset": 5,
@@ -976,51 +923,67 @@ def build_charts(df, symbol, tf, show_ema, show_vol, show_sig, label_size,
     price_series = [{"type": "Candlestick", "data": candles,
                      "options": {"upColor": UP, "downColor": DOWN, "borderVisible": False, "wickUpColor": UP, "wickDownColor": DOWN}}]
 
-    if show_sig:
-        markers = []
-        for r in d[d.signal != ""].itertuples():
+    markers = []
+    show_sig = st.session_state["show_sig"]
+    show_stars = st.session_state["show_stars"]
+    show_dots = st.session_state["show_dots"]
+
+    for r in d.itertuples():
+        if show_sig and r.signal != "":
             is_buy = r.signal == "BUY"
-            markers.append({"time": int(r.time), "position": "belowBar" if is_buy else "aboveBar",
-                            "color": UP if is_buy else DOWN, "shape": "arrowUp" if is_buy else "arrowDown",
-                            "text": r.signal, "size": label_size})
-        price_series[0]["markers"] = markers
+            markers.append({
+                "time": int(r.time), "position": "belowBar" if is_buy else "aboveBar",
+                "color": UP if is_buy else DOWN, "shape": "arrowUp" if is_buy else "arrowDown",
+                "text": r.signal, "size": 1
+            })
 
-    if show_ema:
-        for col, color in (("ema_fast", "#f5c518"), ("ema_slow", "#8e7bff")):
-            price_series.append({"type": "Line", "data": d[["time", col]].rename(columns={col: "value"}).to_dict("records"),
-                                 "options": {"color": color, "lineWidth": 2, "priceLineVisible": False}})
+        if show_stars and getattr(r, "star", False):
+            markers.append({
+                "time": int(r.time), "position": "aboveBar",
+                "color": "#ffd700", "shape": "arrowUp", "text": "⭐", "size": 2
+            })
 
-    if show_bb and "bb_upper" in d.columns:
-        price_series.append({"type": "Line",
-                             "data": d[["time", "bb_upper"]].dropna().rename(columns={"bb_upper": "value"}).to_dict("records"),
-                             "options": {"color": "rgba(41, 98, 255, 0.6)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False}})
-        price_series.append({"type": "Line",
-                             "data": d[["time", "bb_lower"]].dropna().rename(columns={"bb_lower": "value"}).to_dict("records"),
-                             "options": {"color": "rgba(41, 98, 255, 0.6)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False}})
-        price_series.append({"type": "Line",
-                             "data": d[["time", "bb_basis"]].dropna().rename(columns={"bb_basis": "value"}).to_dict("records"),
-                             "options": {"color": "rgba(255, 152, 0, 0.7)", "lineWidth": 1, "lineStyle": 0, "priceLineVisible": False}})
+        if show_dots and getattr(r, "dot_warn", "") != "":
+            is_red = r.dot_warn == "RED"
+            markers.append({
+                "time": int(r.time), "position": "aboveBar",
+                "color": "#f44336" if is_red else "#ff9800", "shape": "circle",
+                "text": "🔴" if is_red else "🟠", "size": 1
+            })
 
-    if show_vp and poc is not None:
-        def mk_const(val): return [{"time": int(t), "value": float(val)} for t in d["time"]]
-        price_series.append({"type": "Line", "data": mk_const(poc),
-                             "options": {"color": "#e91e63", "lineWidth": 2, "lineStyle": 0, "priceLineVisible": True, "title": "POC"}})
-        if vah is not None:
-            price_series.append({"type": "Line", "data": mk_const(vah),
-                                 "options": {"color": "#00bcd4", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": True, "title": "VAH"}})
-        if val is not None:
-            price_series.append({"type": "Line", "data": mk_const(val),
-                                 "options": {"color": "#00bcd4", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": True, "title": "VAL"}})
+    if markers:
+        price_series[0]["markers"] = sorted(markers, key=lambda x: x["time"])
 
-    if show_vol:
-        vol = [{"time": int(r.time), "value": float(r.volume),
-                "color": UP + "80" if r.close >= r.open else DOWN + "80"} for r in d.itertuples()]
-        price_series.append({"type": "Histogram", "data": vol,
-                             "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "vol"},
-                             "priceScale": {"scaleMargins": {"top": 0.8, "bottom": 0}}})
+    ema_alpha = (100 - st.session_state["ema_opacity"]) / 100.0
+    trend_alpha = (100 - st.session_state["trend_opacity"]) / 100.0
+    lw = int(st.session_state["line_width"])
+
+    if st.session_state["show_fast"]:
+        price_series.append({
+            "type": "Line", "data": d[["time", "ema_fast"]].rename(columns={"ema_fast": "value"}).to_dict("records"),
+            "options": {"color": f"rgba(41, 98, 255, {ema_alpha:.2f})", "lineWidth": lw, "priceLineVisible": False}
+        })
+
+    if st.session_state["show_slow"]:
+        price_series.append({
+            "type": "Line", "data": d[["time", "ema_slow"]].rename(columns={"ema_slow": "value"}).to_dict("records"),
+            "options": {"color": f"rgba(239, 83, 80, {ema_alpha:.2f})", "lineWidth": lw, "priceLineVisible": False}
+        })
+
+    if st.session_state["show_trend"]:
+        price_series.append({
+            "type": "Line", "data": d[["time", "ema_trend"]].rename(columns={"ema_trend": "value"}).to_dict("records"),
+            "options": {"color": f"rgba(255, 255, 255, {trend_alpha:.2f})", "lineWidth": max(1, lw - 1), "lineStyle": 2, "priceLineVisible": False}
+        })
+
+    vol = [{"time": int(r.time), "value": float(r.volume),
+            "color": UP + "80" if r.close >= r.open else DOWN + "80"} for r in d.itertuples()]
+    price_series.append({"type": "Histogram", "data": vol,
+                         "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "vol"},
+                         "priceScale": {"scaleMargins": {"top": 0.8, "bottom": 0}}})
 
     charts.append({"chart": {**base_chart, "height": main_h,
-                             "watermark": {"visible": True, "text": f"{symbol} · {tf}", "fontSize": 42, "color": "rgba(255,255,255,0.05)"}},
+                             "watermark": {"visible": True, "text": f"{symbol} · {tf}", "fontSize": 40, "color": "rgba(255,255,255,0.05)"}},
                    "series": price_series})
 
     def make_rsi_pane():
@@ -1047,10 +1010,47 @@ def build_charts(df, symbol, tf, show_ema, show_vol, show_sig, label_size,
                     {"type": "Line", "data": sig_line, "options": {"color": "#ff5252", "lineWidth": 2, "priceLineVisible": False}},
                 ]}
 
-    for p in pane_order:
-        if p == "rsi" and show_rsi: charts.append(make_rsi_pane())
-        elif p == "macd" and show_macd: charts.append(make_macd_pane())
+    for p in st.session_state["pane_order"]:
+        if p == "rsi" and st.session_state["show_rsi"]: charts.append(make_rsi_pane())
+        elif p == "macd" and st.session_state["show_macd"]: charts.append(make_macd_pane())
     return charts
+
+# ──────────────────────────── TOP DISPLAY TOOLBAR (แถบด้านบน) ────────────────────────────
+top_c1, top_c2, top_c3, top_c4, top_c5, top_c6 = st.columns([1.2, 1.8, 1.3, 1.1, 1.2, 0.8])
+
+with top_c1:
+    st.session_state["selected_tf"] = st.selectbox(
+        "TF", list(TF.keys()),
+        index=list(TF.keys()).index(st.session_state["selected_tf"]) if st.session_state["selected_tf"] in TF else 5,
+        label_visibility="collapsed"
+    )
+
+with top_c2:
+    st.session_state["bars_count"] = st.slider(
+        "แท่ง", 300, 25000, int(st.session_state["bars_count"]), step=500,
+        label_visibility="collapsed"
+    )
+
+with top_c3:
+    st.session_state["fill_gaps"] = st.checkbox("🧩 เติมแท่งว่าง", value=st.session_state["fill_gaps"])
+
+with top_c4:
+    st.session_state["auto_refresh"] = st.checkbox("🟢 Auto", value=st.session_state["auto_refresh"])
+
+with top_c5:
+    st.session_state["refresh_sec"] = st.number_input(
+        "วิ", min_value=3, max_value=60, value=int(st.session_state["refresh_sec"]), step=1,
+        disabled=not st.session_state["auto_refresh"], label_visibility="collapsed"
+    )
+
+with top_c6:
+    reload_btn = st.button("🔄 โหลด", use_container_width=True)
+
+tf = st.session_state["selected_tf"]
+bars = st.session_state["bars_count"]
+fill_gaps = st.session_state["fill_gaps"]
+auto = st.session_state["auto_refresh"]
+every = st.session_state["refresh_sec"]
 
 # ──────────────────────────── SIDEBAR ────────────────────────────
 with st.sidebar:
@@ -1061,18 +1061,21 @@ with st.sidebar:
     with col_m2:
         if st.button("📱 Mobile", use_container_width=True): st.session_state["mobile_mode"] = True; st.rerun()
 
-    # กลุ่มที่ 1: จัดการตลาดและสัญลักษณ์หุ้น
     with st.expander("📌 ตลาดและสินทรัพย์", expanded=True):
         market_type = st.selectbox("หมวดหมู่ตลาด", list(DEFAULT_PRESETS.keys()), index=0)
         exchange = "Binance"
-        if "คริปโต" in market_type:
+
+        if market_type == "🇻🇳 หุ้นเวียดนาม (Vietnam)":
+            vn_board = st.radio("กระดานเวียดนาม", ["HOSE", "HNX", "UPCoM"], horizontal=True)
+            raw_options = DEFAULT_PRESETS[market_type].get(vn_board, [])
+        elif "คริปโต" in market_type:
             exchange = st.radio("Exchange", ["Bitkub", "Binance", "Bybit", "OKX", "MEXC"], horizontal=True)
             raw_options = DEFAULT_PRESETS[market_type].get(exchange, [])
         else:
             raw_options = DEFAULT_PRESETS.get(market_type, [])
 
         available_symbols = sorted(set(raw_options + st.session_state["custom_symbols"]))
-        if not available_symbols: available_symbols = ["VNM.VN"]
+        if not available_symbols: available_symbols = ["AAA.VN"]
         if "current_symbol" not in st.session_state or not st.session_state["current_symbol"]:
             st.session_state["current_symbol"] = available_symbols[0]
         if st.session_state["current_symbol"] not in available_symbols:
@@ -1082,6 +1085,7 @@ with st.sidebar:
         def format_symbol_label(s: str) -> str:
             if s in CHINA_STOCK_NAMES: return f"{s} — {CHINA_STOCK_NAMES[s]}"
             if s in COMMODITY_NAMES: return f"{s} — {COMMODITY_NAMES[s]}"
+            if s in FOREX_NAMES: return f"{s} — {FOREX_NAMES[s]}"
             return s
 
         picked = st.selectbox("🔍 ค้นหา / เลือก:", available_symbols, index=cur_idx, format_func=format_symbol_label)
@@ -1089,11 +1093,11 @@ with st.sidebar:
             st.session_state["current_symbol"] = picked
             st.rerun()
 
-        new_ticker = st.text_input("➕ เพิ่ม Ticker:", placeholder="เช่น VNM.VN, PLTR")
+        new_ticker = st.text_input("➕ เพิ่ม Ticker:", placeholder="เช่น AAA.VN, PLTR")
         if st.button("บันทึก Ticker", use_container_width=True) and new_ticker:
             sym_clean = new_ticker.strip().upper()
             if sym_clean not in st.session_state["custom_symbols"]:
-                st.session_state["custom_symbols"].insert(0, clean)
+                st.session_state["custom_symbols"].insert(0, sym_clean)
             st.session_state["current_symbol"] = sym_clean
             st.rerun()
 
@@ -1112,42 +1116,53 @@ with st.sidebar:
                     else: st.session_state["star_watchlists"][cat_label].append(cur_sym)
                     st.rerun()
 
-    # กลุ่มที่ 2: ตั้งค่าแท่งเทียน & ความถี่การดึงข้อมูล
-    with st.expander("⏱️ แท่งเทียน & รีเฟรช", expanded=False):
-        tf = st.selectbox("Timeframe", list(TF.keys()), index=11)
-        bars = st.slider("จำนวนแท่ง", 300, 25000, 3000, step=500)
-        fill_gaps = st.checkbox("🧩 เติมแท่งว่าง (Bitkub)", value=False)
-        auto = st.checkbox("🟢 Auto-refresh", False)
-        every = st.slider("ความถี่ (วิ)", 3, 60, 5, step=1, disabled=not auto)
-        reload_btn = st.button("🔄 โหลดใหม่ทั้งหมด", use_container_width=True)
+    with st.expander("⚙️ ตั้งค่าอินดิเคเตอร์ (Diamond Armor)", expanded=False):
+        tab_info, tab_style = st.tabs(["ข้อมูล", "รูปแบบ"])
 
-    # กลุ่มที่ 3: อินดิเคเตอร์ & ความสูงชาร์ต
-    with st.expander("📊 อินดิเคเตอร์ & ปรับกราฟ", expanded=False):
-        show_ema = st.checkbox("EMA 21 / 55", True)
-        show_vol = st.checkbox("Volume", True)
-        st.session_state["show_rsi"]  = st.checkbox("ช่อง RSI (14)", value=st.session_state["show_rsi"])
-        st.session_state["show_macd"] = st.checkbox("ช่อง MACD", value=st.session_state["show_macd"])
-        show_sig = st.checkbox("Signals (BUY/SELL)", True)
-        label_size = st.slider("ขนาด label", 0, 3, 1)
+        with tab_info:
+            st.session_state["fast_ema"] = st.number_input("Fast EMA (น้ำเงิน)", 1, 200, int(st.session_state["fast_ema"]))
+            st.session_state["slow_ema"] = st.number_input("Slow EMA (แดง)", 1, 200, int(st.session_state["slow_ema"]))
+            st.session_state["trend_ema"] = st.number_input("Trend Filter (ขาว)", 1, 400, int(st.session_state["trend_ema"]))
+            st.divider()
+            st.session_state["min_tp"] = st.number_input("Minimum TP Threshold (%)", 0.0, 100.0, float(st.session_state["min_tp"]), 0.5)
+            st.session_state["warn_pct"] = st.number_input("Orange Dot Warning (%)", 0.0, 100.0, float(st.session_state["warn_pct"]), 0.5)
+            st.session_state["danger_pct"] = st.number_input("Red Dot Danger (%)", 0.0, 100.0, float(st.session_state["danger_pct"]), 0.5)
+            st.session_state["show_stars"] = st.checkbox("Show Stars (⭐)", value=st.session_state["show_stars"])
 
-        st.markdown("---")
-        show_bb = st.checkbox("Bollinger Bands (BB)", False)
-        if show_bb:
-            col_bb1, col_bb2 = st.columns(2)
-            with col_bb1: bb_len = st.number_input("BB Length", min_value=5, max_value=100, value=20, step=1)
-            with col_bb2: bb_mult = st.number_input("BB Mult", min_value=0.5, max_value=5.0, value=2.0, step=0.1)
-        else:
-            bb_len, bb_mult = 20, 2.0
+        with tab_style:
+            st.session_state["show_fast"]  = st.checkbox("Fast EMA", value=st.session_state["show_fast"])
+            st.session_state["show_slow"]  = st.checkbox("Slow EMA", value=st.session_state["show_slow"])
+            st.session_state["show_trend"] = st.checkbox("Trend Filter", value=st.session_state["show_trend"])
+            st.session_state["show_rsi"]   = st.checkbox("ช่อง RSI (14)", value=st.session_state["show_rsi"])
+            st.session_state["show_macd"]  = st.checkbox("ช่อง MACD", value=st.session_state["show_macd"])
+            st.session_state["show_sig"]   = st.checkbox("ป้ายสัญญาณ BUY/SELL", value=st.session_state["show_sig"])
+            st.session_state["show_dots"]  = st.checkbox("จุดเตือน Orange/Red Dots", value=st.session_state["show_dots"])
+            st.divider()
+            st.session_state["ema_opacity"]   = st.slider("EMA Transparency", 0, 100, int(st.session_state["ema_opacity"]))
+            st.session_state["trend_opacity"] = st.slider("Trend Filter Transparency", 0, 100, int(st.session_state["trend_opacity"]))
+            st.session_state["line_width"]    = st.slider("ความหนาเส้น EMA", 1, 3, int(st.session_state["line_width"]))
 
-        show_vp = st.checkbox("Volume Profile (POC / VAH / VAL)", False)
-        if show_vp:
-            col_vp1, col_vp2 = st.columns(2)
-            with col_vp1: vp_bins = st.slider("Bins (ความละเอียด)", 10, 60, 30, step=5)
-            with col_vp2: vp_va = st.slider("Value Area %", 50, 90, 70, step=5) / 100.0
-        else:
-            vp_bins, vp_va = 30, 0.70
+        st.divider()
+        if st.button("🔄 คืนค่าเริ่มต้น (Reset)", use_container_width=True):
+            st.session_state["fast_ema"] = 7
+            st.session_state["slow_ema"] = 13
+            st.session_state["trend_ema"] = 45
+            st.session_state["min_tp"] = 3.0
+            st.session_state["warn_pct"] = 3.0
+            st.session_state["danger_pct"] = 7.0
+            st.session_state["show_stars"] = True
+            st.session_state["show_fast"] = True
+            st.session_state["show_slow"] = True
+            st.session_state["show_trend"] = True
+            st.session_state["show_rsi"] = True
+            st.session_state["show_macd"] = True
+            st.session_state["show_sig"] = True
+            st.session_state["show_dots"] = True
+            st.session_state["ema_opacity"] = 0
+            st.session_state["trend_opacity"] = 60
+            st.session_state["line_width"] = 2
+            st.rerun()
 
-        st.markdown("---")
         if st.button("⇵ สลับตำแหน่ง RSI / MACD", use_container_width=True):
             st.session_state["pane_order"] = list(reversed(st.session_state["pane_order"]))
             st.rerun()
@@ -1159,41 +1174,51 @@ with st.sidebar:
 # ──────────────────────────── DASHBOARD ────────────────────────────
 @st.fragment(run_every=every if auto else None)
 def dashboard():
-    symbol = st.session_state.get("current_symbol", "VNM.VN")
+    symbol = st.session_state.get("current_symbol", "AAA.VN")
     r_market, r_exchange = resolve_route(symbol, market_type, exchange)
     label_display = route_label(r_market, r_exchange)
 
     state_key = f"{r_market}_{r_exchange}_{symbol}_{tf}_{bars}_{fill_gaps}"
+    
     if ("df_data" not in st.session_state) or (st.session_state.get("active_key") != state_key) or reload_btn:
-        with st.spinner(f"กำลังโหลดข้อมูล {symbol} …"):
+        with st.spinner(f"กำลังโหลดประวัติ {symbol} ({bars:,} แท่ง) …"):
             df = fetch_ohlcv(r_market, r_exchange, symbol, tf, bars, fill_gaps)
         st.session_state["df_data"] = df
         st.session_state["active_key"] = state_key
     else:
         df = st.session_state.get("df_data", pd.DataFrame())
+        if auto and not df.empty:
+            q = fetch_item_quote(symbol)
+            if q.get("price", 0) > 0:
+                cur_p = q["price"]
+                df.iloc[-1, df.columns.get_loc("close")] = cur_p
+                if cur_p > df.iloc[-1]["high"]: df.iloc[-1, df.columns.get_loc("high")] = cur_p
+                if cur_p < df.iloc[-1]["low"]:  df.iloc[-1, df.columns.get_loc("low")]  = cur_p
+                st.session_state["df_data"] = df
 
     if df.empty or len(df) < 3:
         st.warning(f"ไม่พบข้อมูลสำหรับ {symbol} ({label_display})")
         return
 
-    df, stats = diamond_armor(df)
-
-    if show_bb:
-        df = calc_bollinger_bands(df, length=int(bb_len), mult=float(bb_mult))
-
-    poc, vah, val = None, None, None
-    if show_vp:
-        poc, vah, val = calc_volume_profile(df, bins_count=int(vp_bins), va_pct=float(vp_va))
+    df, stats = diamond_armor(
+        df,
+        fast=st.session_state["fast_ema"],
+        slow=st.session_state["slow_ema"],
+        trend=st.session_state["trend_ema"],
+        warn_pct=st.session_state["warn_pct"],
+        danger_pct=st.session_state["danger_pct"]
+    )
 
     trend_color = UP if stats["trend"] == "UP" else DOWN
     chg_color = UP if stats["change_pct"] >= 0 else DOWN
-    display_title = f"{symbol} — {CHINA_STOCK_NAMES[symbol]}" if symbol in CHINA_STOCK_NAMES else symbol
+    display_title = CHINA_STOCK_NAMES.get(symbol, COMMODITY_NAMES.get(symbol, FOREX_NAMES.get(symbol, symbol)))
 
-    # ── Top Bar พร้อมปุ่มเต็มหน้าจอและหลบ Deploy ──
+    # ── แถบข้อมูลสรุปบนกราฟ ──
     fs_script = """
     <script>
         const btn = document.getElementById('tvFsBtn');
-        if (btn) {
+        if (btn && !btn.hasAttribute('data-bound')) {
+            btn.setAttribute('data-bound', 'true');
             btn.addEventListener('click', () => {
                 const doc = window.parent.document;
                 if (!doc.fullscreenElement) {
@@ -1214,19 +1239,35 @@ def dashboard():
             ราคา: <b>{stats['price']:,.2f}</b> &nbsp;|&nbsp;
             เปลี่ยน: <span style="color:{chg_color}; font-weight:bold;">{stats['change_pct']:+.2f}%</span> &nbsp;|&nbsp;
             RSI: <b>{stats['rsi']:.1f}</b> &nbsp;|&nbsp;
-            เทรนด์: <span style="color:{trend_color}; font-weight:bold;">{stats['trend']}</span>
+            เทรนด์: <span style="color:{trend_color}; font-weight:bold;">{stats['trend']}</span> &nbsp;|&nbsp;
+            ห่าง Trend: <b>{stats['dist_trend']:+.2f}%</b>
         </div>
         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            <span style="font-size:10px; color:#787b86;">● LIVE</span>
+            <span style="font-size:10px; color:#787b86;">● LIVE TICK</span>
             <button id="tvFsBtn" style="background:#161a21; border:1px solid #2a2e39; color:#d1d4dc; border-radius:4px; font-size:11px; font-weight:bold; padding:2px 8px; cursor:pointer; height:22px; line-height:1; display:flex; align-items:center; justify-content:center;" title="โหมดเต็มหน้าจอ">⛶ เต็มจอ</button>
         </div>
     </div>""" + fs_script
     components.html(top_bar_html, height=40)
 
-    charts = build_charts(df, symbol, tf, show_ema, show_vol, show_sig, label_size,
-                          st.session_state["show_rsi"], st.session_state["show_macd"],
-                          st.session_state["pane_order"], main_h, rsi_h, macd_h,
-                          show_bb=show_bb, show_vp=show_vp, poc=poc, vah=vah, val=val)
+    charts = build_charts(df, symbol, tf, main_h, rsi_h, macd_h)
+
+    # ── แถบนาฬิกาเรียลไทม์ ──
+    clock_html = """
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#0A0A0A; border:1px solid #1E1E1E; border-top:none; border-bottom-left-radius:4px; border-bottom-right-radius:4px; padding:3px 10px; font-family:monospace; font-size:11px; color:#787b86; margin-top:-2px;">
+        <div><span>⏱️ เวลาตลาด: </span><b id="liveClock" style="color:#26a69a;">--:--:--</b> <span style="color:#555;">(UTC+7 Bangkok)</span></div>
+        <div><span>สถานะเซิร์ฟเวอร์: </span><span style="color:#00bcd4;">เชื่อมต่อปกติ</span></div>
+    </div>
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
+            const el = document.getElementById('liveClock');
+            if (el) el.innerText = timeStr;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+    </script>
+    """
 
     # ── โหมดมือถือ ──
     if st.session_state["mobile_mode"]:
@@ -1236,6 +1277,7 @@ def dashboard():
             elif p == "macd" and st.session_state["show_macd"]:
                 st.markdown('<div class="pane-toolbar"><span>📊 MACD (12, 26, 9)</span></div>', unsafe_allow_html=True)
         renderLightweightCharts(charts, key="chart_mob_render")
+        components.html(clock_html, height=28)
 
         with st.expander("✨ สินทรัพย์เข้าใหม่ & รายการโปรด", expanded=True):
             new_items = st.session_state.get("custom_symbols", [])
@@ -1255,7 +1297,7 @@ def dashboard():
             render_tv_quote_card(tk_data, an_data, symbol, label_display)
         return
 
-    # ── โหมดเดสก์ท็อป: ปรับแผงขวา 3 ระดับ (S, M, L) และพับเก็บได้ ──
+    # ── โหมดเดสก์ท็อป ──
     layout_ratios = {
         "S": [4.1, 0.12, 0.78],
         "M": [3.6, 0.12, 1.28],
@@ -1274,10 +1316,11 @@ def dashboard():
                 st.markdown('<div class="pane-toolbar"><span>📉 RSI (14)</span></div>', unsafe_allow_html=True)
             elif p == "macd" and st.session_state["show_macd"]:
                 st.markdown('<div class="pane-toolbar"><span>📊 MACD (12, 26, 9)</span></div>', unsafe_allow_html=True)
-        
+
         st.markdown('<div style="width: 100%; overflow: hidden;">', unsafe_allow_html=True)
         renderLightweightCharts(charts, key=f"chart_desk_{symbol}_{tf}_{main_h}_{cur_size}_{st.session_state['panel_open']}")
         st.markdown('</div>', unsafe_allow_html=True)
+        components.html(clock_html, height=28)
 
     with col_toggle:
         btn_label = "❯" if st.session_state["panel_open"] else "❮"
@@ -1287,7 +1330,6 @@ def dashboard():
 
     if st.session_state["panel_open"]:
         with col_quote:
-            # แถบควบคุมขนาด 3 ระดับ เล็ก (S) / ปกติ (M) / กว้าง (L)
             cs_col1, cs_col2, cs_col3 = st.columns(3)
             with cs_col1:
                 if st.button("เล็ก", use_container_width=True, key="sz_s"):
@@ -1299,11 +1341,10 @@ def dashboard():
                 if st.button("กว้าง", use_container_width=True, key="sz_l"):
                     st.session_state["panel_size"] = "L"; st.rerun()
 
-            # 1. สินทรัพย์เข้าใหม่
             with st.expander("✨ สินทรัพย์เข้าใหม่ (New Listings)", expanded=True):
                 col_in, col_add = st.columns([3, 1])
                 with col_in:
-                    quick_sym = st.text_input("ชื่อย่อ", placeholder="เช่น VNM.VN", label_visibility="collapsed", key="quick_add_sym")
+                    quick_sym = st.text_input("ชื่อย่อ", placeholder="เช่น AAA.VN", label_visibility="collapsed", key="quick_add_sym")
                 with col_add:
                     if st.button("➕", use_container_width=True, key="btn_quick_add") and quick_sym:
                         clean = quick_sym.strip().upper()
@@ -1316,7 +1357,7 @@ def dashboard():
                 for s_item in list(new_items):
                     q = fetch_item_quote(s_item)
                     val_col = UP if q["change"] >= 0 else DOWN
-                    s_lbl = CHINA_STOCK_NAMES.get(s_item, COMMODITY_NAMES.get(s_item, s_item.replace("_THB","").replace("-USDT","").replace("USDT","").replace(".BK","").replace(".VN","")))
+                    s_lbl = CHINA_STOCK_NAMES.get(s_item, COMMODITY_NAMES.get(s_item, FOREX_NAMES.get(s_item, s_item.replace("_THB","").replace("-USDT","").replace("USDT","").replace(".BK","").replace(".VN",""))))
                     c_dot, a, b, dcol = st.columns([0.4, 2.0, 1.6, 1.4])
                     with c_dot: st.markdown("<div style='text-align:center; color:#00bcd4;'>●</div>", unsafe_allow_html=True)
                     with a:
@@ -1325,7 +1366,6 @@ def dashboard():
                     with b: st.markdown(f"<div style='font-family:monospace; text-align:right; color:#fff;'>{fmt_price(q['price'])}</div>", unsafe_allow_html=True)
                     with dcol: st.markdown(f"<div style='font-family:monospace; text-align:right; color:{val_col};'>{q['pct']:+.2f}%</div>", unsafe_allow_html=True)
 
-            # 2. Watchlist
             with st.expander("⭐ รายการที่น่าสนใจ (Watchlist)", expanded=True):
                 star_names = list(STAR_CATEGORIES.keys())
                 tabs = st.tabs(star_names)
@@ -1336,20 +1376,28 @@ def dashboard():
                             st.caption("ยังไม่มีสินทรัพย์ในหมวดนี้")
                         else:
                             st.markdown("""<div class="tv-wl-header">
-                                <span></span><span>สัญลักษณ์</span><span style="text-align:right;">ล่าสุด</span>
+                                <span>สถ.</span><span></span><span>สัญลักษณ์</span><span style="text-align:right;">ล่าสุด</span>
                                 <span style="text-align:right;">เปลี่ยน</span><span style="text-align:right;">เปลี่ยน%</span><span></span>
                             </div>""", unsafe_allow_html=True)
 
                             for s_item in list(items):
                                 q = fetch_item_quote(s_item)
-                                s_lbl = CHINA_STOCK_NAMES.get(s_item, COMMODITY_NAMES.get(s_item, s_item.replace("_THB","").replace("-USDT","").replace("USDT","").replace(".BK","").replace(".VN","")))
+                                s_lbl = CHINA_STOCK_NAMES.get(s_item, COMMODITY_NAMES.get(s_item, FOREX_NAMES.get(s_item, s_item.replace("_THB","").replace("-USDT","").replace("USDT","").replace(".BK","").replace(".VN",""))))
                                 val_col = UP if q["change"] >= 0 else DOWN
                                 sign = "+" if q["change"] >= 0 else ""
                                 tag_color = STAR_CATEGORIES[cat_name]["color"]
 
-                                c_ico, a, b, c, dcol, f = st.columns([0.6, 1.8, 1.4, 1.2, 1.2, 0.4])
-                                with c_ico:
-                                    st.markdown(build_asset_icon_html(s_item, tag_color), unsafe_allow_html=True)
+                                abs_pct = abs(q["pct"])
+                                if abs_pct >= st.session_state["danger_pct"]:
+                                    status_dot = "🔴"
+                                elif abs_pct >= st.session_state["warn_pct"]:
+                                    status_dot = "🟠"
+                                else:
+                                    status_dot = "🟢"
+
+                                c_stat, c_ico, a, b, c, dcol, f = st.columns([0.4, 0.6, 1.6, 1.3, 1.1, 1.1, 0.4])
+                                with c_stat: st.markdown(f"<div style='font-size:10px; padding-top:4px;'>{status_dot}</div>", unsafe_allow_html=True)
+                                with c_ico: st.markdown(build_asset_icon_html(s_item, tag_color), unsafe_allow_html=True)
                                 with a:
                                     if st.button(f"{s_lbl}", key=f"wl_{cat_name}_{s_item}", use_container_width=True):
                                         st.session_state["current_symbol"] = s_item; st.rerun()
@@ -1360,7 +1408,6 @@ def dashboard():
                                     if st.button("✕", key=f"del_{cat_name}_{s_item}", help="ลบออก"):
                                         st.session_state["star_watchlists"][cat_name].remove(s_item); st.rerun()
 
-            # 3. ข้อมูลตลาด 24h & เทคนิค
             with st.expander("📊 ข้อมูลตลาด 24h & เทคนิค", expanded=True):
                 tk_data = fetch_unified_ticker(r_market, r_exchange, symbol, df)
                 an_data = fetch_market_analytics(r_market, r_exchange, symbol)
