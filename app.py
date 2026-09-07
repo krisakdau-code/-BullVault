@@ -70,7 +70,7 @@ st.markdown("""
     [data-testid="stAppViewBlockContainer"],
     [data-testid="stMainBlockContainer"],
     [data-testid="block-container"] {
-        padding-top: 0.6rem !important;
+        padding-top: 0.5rem !important;
         padding-bottom: 0.5rem !important;
         padding-left: 0px !important;
         padding-right: 0px !important;
@@ -347,7 +347,7 @@ def get_full_commodities() -> list[str]:
 def get_full_forex() -> list[str]:
     return sorted(list(FOREX_NAMES.keys()))
 
-# ──────────────────────────── SESSION STATES & TAB MANAGEMENT (CLAUDE + UUID) ────────────────────────────
+# ──────────────────────────── SESSION STATES & MULTI-TAB ENGINE ────────────────────────────
 if "star_watchlists" not in st.session_state:
     st.session_state["star_watchlists"] = {
         "🔴 ดาวแดง": ["AAA.VN", "GC=F", "NVDA", "BTC_THB"],
@@ -392,6 +392,7 @@ def switch_tab(tab_id):
     st.session_state.active_tab_id = tab_id
     st.session_state.current_symbol = tab["symbol"]
     st.session_state.selected_tf = tab["tf"]
+    st.session_state["selected_symbol_picker"] = tab["symbol"]
     _clear_chart_state()
     st.rerun()
 
@@ -1332,7 +1333,7 @@ def build_asset_icon_html(sym: str, tag_color: str = "#1E1E1E", size: int = 18) 
         <img src="{icon_url}" onerror="this.onerror=null;this.src='{fallback_avatar}';" style="width:{size}px;height:{size}px;border-radius:50%;object-fit:cover;background:#050505;border:1px solid #1E1E1E;">
     </div>"""
 
-# ──────────────────────────── QUOTE CARD RENDERER (TRADINGVIEW 100% REPLICA) ────────────────────────────
+# ──────────────────────────── QUOTE CARD RENDERER ────────────────────────────
 def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, seasonality_html: str = "", gauges_html: str = "") -> str:
     if not tk: return "<div style='color:#787b86; padding:10px;'>กำลังเชื่อมต่อข้อมูลราคา...</div>"
     c_color = UP if tk.get("change", 0) >= 0 else DOWN
@@ -1762,7 +1763,7 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         elif p == "macd" and st.session_state.get("show_macd", True): charts.append(make_macd_pane())
     return charts
 
-# ──────────────────────────── WATCHLIST & LAZY TOP MOVERS COMPONENT ────────────────────────────
+# ──────────────────────────── WATCHLIST COMPONENT ────────────────────────────
 def render_watchlist_component(key_prefix: str = "desk"):
     tab_highlight, tab_starred = st.tabs(["🔥 สินทรัพย์โดดเด่น", "⭐ กลุ่มสีโปรด"])
 
@@ -1797,8 +1798,12 @@ def render_watchlist_component(key_prefix: str = "desk"):
                 c_a, c_b = st.columns([1.6, 1.4])
                 with c_a:
                     if st.button(f"{r['label']}", key=f"btn_g_{key_prefix}_{selected_code}_{r['symbol']}", use_container_width=True):
+                        cur = _find_tab(st.session_state.active_tab_id)
+                        if cur: cur["symbol"] = r["symbol"]
                         st.session_state["current_symbol"] = r["symbol"]
-                        add_tab(r["symbol"])
+                        st.session_state["selected_symbol_picker"] = r["symbol"]
+                        _clear_chart_state()
+                        st.rerun()
                 with c_b:
                     st.markdown(f"<div style='font-family:monospace; font-size:10px; text-align:right; padding-top:4px;'><b style='color:#fff;'>{fmt_price(r['price'])}</b> <span style='color:{UP}; font-weight:bold;'>+{r['pct']:.2f}%</span></div>", unsafe_allow_html=True)
 
@@ -1809,8 +1814,12 @@ def render_watchlist_component(key_prefix: str = "desk"):
                 c_a, c_b = st.columns([1.6, 1.4])
                 with c_a:
                     if st.button(f"{r['label']}", key=f"btn_l_{key_prefix}_{selected_code}_{r['symbol']}", use_container_width=True):
+                        cur = _find_tab(st.session_state.active_tab_id)
+                        if cur: cur["symbol"] = r["symbol"]
                         st.session_state["current_symbol"] = r["symbol"]
-                        add_tab(r["symbol"])
+                        st.session_state["selected_symbol_picker"] = r["symbol"]
+                        _clear_chart_state()
+                        st.rerun()
                 with c_b:
                     st.markdown(f"<div style='font-family:monospace; font-size:10px; text-align:right; padding-top:4px;'><b style='color:#fff;'>{fmt_price(r['price'])}</b> <span style='color:{DOWN}; font-weight:bold;'>{r['pct']:.2f}%</span></div>", unsafe_allow_html=True)
 
@@ -1859,8 +1868,12 @@ def render_watchlist_component(key_prefix: str = "desk"):
                         with c_ico: st.markdown(build_asset_icon_html(s_item, tag_color), unsafe_allow_html=True)
                         with a:
                             if st.button(f"{s_lbl}", key=f"wl_{key_prefix}_{cat_name}_{s_item}", use_container_width=True):
+                                cur = _find_tab(st.session_state.active_tab_id)
+                                if cur: cur["symbol"] = s_item
                                 st.session_state["current_symbol"] = s_item
-                                add_tab(s_item)
+                                st.session_state["selected_symbol_picker"] = s_item
+                                _clear_chart_state()
+                                st.rerun()
                         with b: st.markdown(f"<div style='font-family:monospace; font-size:11px; text-align:right; padding-top:4px; color:#fff;'>{fmt_price(q['price'])}</div>", unsafe_allow_html=True)
                         with c: st.markdown(f"<div style='font-family:monospace; font-size:10px; text-align:right; padding-top:4px; color:{val_col};'>{fmt_chg(q['change'])}</div>", unsafe_allow_html=True)
                         with dcol: st.markdown(f"<div style='font-family:monospace; font-size:10px; text-align:right; padding-top:4px; color:{val_col};'>{sign}{q['pct']:.2f}%</div>", unsafe_allow_html=True)
@@ -1869,41 +1882,50 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.session_state["star_watchlists"][cat_name].remove(s_item)
                                 st.rerun()
 
-# ──────────────────────────── TOP DISPLAY TOOLBAR (CLAUDE DYNAMIC WIDTHS) ────────────────────────────
+# ──────────────────────────── TOP DISPLAY TOOLBAR (SINGLE ROW, NO VOID, DOUBLE-CLICK CLONE) ────────────────────────────
 def render_top_toolbar():
     tabs = st.session_state.open_tabs
     n_tabs = len(tabs)
 
-    widths = [0.45] + [1.1, 0.35] * n_tabs + [0.4, 0.15, 0.8, 1.6, 0.6, 0.55, 0.7, 0.75]
+    # วาง Layout แนบชิดแบบ Single Row ต่อเนื่อง โดยให้ช่อง Bars ช่วยยืดรับพื้นที่ว่างตรงกลาง
+    widths = [0.35] + [1.0, 0.28] * n_tabs + [0.35, 0.1, 0.75, 2.5, 0.55, 0.55, 0.65, 0.7]
     cols = st.columns(widths, gap="small", vertical_alignment="center")
 
     i = 0
     with cols[i]:
-        st.markdown(build_asset_icon_html(st.session_state.current_symbol, size=24), unsafe_allow_html=True)
+        st.markdown(build_asset_icon_html(st.session_state.current_symbol, size=22), unsafe_allow_html=True)
     i += 1
 
+    now = time.time()
     for tab in tabs:
         tab_id = tab["id"]
-        is_active = tab_id == st.session_state.active_tab_id
+        is_active = (tab_id == st.session_state.active_tab_id)
 
         with cols[i]:
-            btn_txt = f"{'● ' if is_active else ''}{tab['symbol']}"
-            if st.button(btn_txt, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
-                switch_tab(tab_id)
+            btn_label = f"{'● ' if is_active else ''}{tab['symbol']}"
+            if st.button(btn_label, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
+                last_time = st.session_state.get(f"last_click_{tab_id}", 0)
+                # ดับเบิ้ลคลิก (ภายใน 0.4 วินาที) = ก็อปปี้แท็บใหม่ | คลิกเดียว = สลับแท็บ
+                if (now - last_time) < 0.4:
+                    st.session_state[f"last_click_{tab_id}"] = 0
+                    add_tab(tab["symbol"])
+                else:
+                    st.session_state[f"last_click_{tab_id}"] = now
+                    switch_tab(tab_id)
         i += 1
 
         with cols[i]:
-            if st.button("✕", key=f"tab_close_{tab_id}", disabled=n_tabs <= 1, use_container_width=True):
+            if st.button("✕", key=f"tab_close_{tab_id}", disabled=(n_tabs <= 1), use_container_width=True):
                 close_tab(tab_id)
         i += 1
 
     with cols[i]:
-        if st.button("＋", key="tab_add_btn", use_container_width=True, help="เปิดแท็บใหม่"):
+        if st.button("➕", key="tab_add_btn", use_container_width=True, help="เปิด/คัดลอกแท็บใหม่"):
             add_tab(st.session_state.current_symbol)
     i += 1
 
     with cols[i]:
-        st.markdown("<div style='height:24px;border-left:1px solid #222;margin:0 auto;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:20px;border-left:1px solid #222;margin:0 auto;'></div>", unsafe_allow_html=True)
     i += 1
 
     with cols[i]:
@@ -2007,17 +2029,24 @@ with st.sidebar:
 
         picked = st.selectbox("🔍 เลือกสินทรัพย์:", display_symbols, index=cur_idx, format_func=format_symbol_label, key="selected_symbol_picker")
         
+        # เมื่อเลือกเหรียญจาก Sidebar ให้สลับเหรียญในแท็บเดิม ไม่สร้างแท็บใหม่
         if picked != st.session_state.get("current_symbol") and picked != "- Select -":
+            cur = _find_tab(st.session_state.active_tab_id)
+            if cur: cur["symbol"] = picked
             st.session_state["current_symbol"] = picked
-            add_tab(picked)
+            _clear_chart_state()
+            st.rerun()
 
         new_ticker = st.text_input("➕ เพิ่ม Ticker (เฉพาะกิจ):", placeholder="เช่น AAA.VN, PLTR", key="add_new_ticker")
         if st.button("บันทึก Ticker", use_container_width=True, key="save_new_ticker") and new_ticker:
             sym_clean = new_ticker.strip().upper()
             if sym_clean and sym_clean not in st.session_state["custom_symbols"]:
                 st.session_state["custom_symbols"].insert(0, sym_clean)
+            cur = _find_tab(st.session_state.active_tab_id)
+            if cur: cur["symbol"] = sym_clean
             st.session_state["current_symbol"] = sym_clean
-            add_tab(sym_clean)
+            _clear_chart_state()
+            st.rerun()
 
         cur_sym = st.session_state.get("current_symbol", "BTC_THB")
         _rm, _re = resolve_route(cur_sym)
