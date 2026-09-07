@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 import json
+import uuid
 import concurrent.futures
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -44,12 +45,12 @@ st.markdown("""
     .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
         background-color: #000000 !important;
     }
-    [data-testid="stHeader"] {
-        background: #000000 !important;
-        height: 2.8rem !important;
-        min-height: 2.8rem !important;
-        z-index: 100 !important;
+    
+    header[data-testid="stHeader"], [data-testid="stHeader"] {
+        display: none !important;
+        height: 0px !important;
     }
+    
     [data-testid="stToolbar"] {
         right: 1.5rem !important;
         top: 0.4rem !important;
@@ -69,7 +70,7 @@ st.markdown("""
     [data-testid="stAppViewBlockContainer"],
     [data-testid="stMainBlockContainer"],
     [data-testid="block-container"] {
-        padding-top: 1.2rem !important;
+        padding-top: 0.6rem !important;
         padding-bottom: 0.5rem !important;
         padding-left: 0px !important;
         padding-right: 0px !important;
@@ -89,7 +90,10 @@ st.markdown("""
         padding-top: 1.0rem !important; max-height: 100vh !important;
         overflow-y: auto !important; overflow-x: hidden !important;
     }
-    div[data-testid="stHorizontalBlock"] { gap: 2px !important; }
+    div[data-testid="stHorizontalBlock"] { 
+        gap: 2px !important; 
+        align-items: center !important; 
+    }
     div[data-testid="column"] { padding: 0 1px !important; }
 
     .stButton>button {
@@ -140,7 +144,7 @@ st.markdown("""
     }
 
     .scrollable-market-card {
-        max-height: 68vh;
+        max-height: 72vh;
         overflow-y: auto !important;
         overflow-x: hidden !important;
         padding-right: 3px;
@@ -204,6 +208,7 @@ TF = {
     "1Y":  {"sec": 31536000, "rule": "1YE",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
 }
 
+TF_OPTIONS = list(TF.keys())
 UP, DOWN = "#26a69a", "#ef5350"
 
 COMMODITY_NAMES = {
@@ -342,7 +347,7 @@ def get_full_commodities() -> list[str]:
 def get_full_forex() -> list[str]:
     return sorted(list(FOREX_NAMES.keys()))
 
-# ──────────────────────────── SESSION STATES INITIALIZATION ────────────────────────────
+# ──────────────────────────── SESSION STATES & TAB MANAGEMENT (CLAUDE + UUID) ────────────────────────────
 if "star_watchlists" not in st.session_state:
     st.session_state["star_watchlists"] = {
         "🔴 ดาวแดง": ["AAA.VN", "GC=F", "NVDA", "BTC_THB"],
@@ -353,6 +358,55 @@ if "star_watchlists" not in st.session_state:
     }
 if "custom_symbols" not in st.session_state: st.session_state["custom_symbols"] = []
 if "current_symbol" not in st.session_state: st.session_state["current_symbol"] = "BTC_THB"
+if "selected_tf" not in st.session_state: st.session_state["selected_tf"] = "1h"
+
+def init_tabs():
+    if "open_tabs" not in st.session_state or not st.session_state.open_tabs:
+        first_id = uuid.uuid4().hex[:8]
+        st.session_state.open_tabs = [{
+            "id": first_id,
+            "symbol": st.session_state.current_symbol,
+            "tf": st.session_state.selected_tf
+        }]
+        st.session_state.active_tab_id = first_id
+
+def _find_tab(tab_id):
+    return next((t for t in st.session_state.open_tabs if t["id"] == tab_id), None)
+
+def _clear_chart_state():
+    for k in ("active_key", "df_data", "last_fetch_ts"):
+        st.session_state.pop(k, None)
+
+def add_tab(symbol):
+    new_id = uuid.uuid4().hex[:8]
+    tab = {"id": new_id, "symbol": symbol, "tf": st.session_state.selected_tf}
+    st.session_state.open_tabs.append(tab)
+    switch_tab(new_id)
+
+def switch_tab(tab_id):
+    tab = _find_tab(tab_id)
+    if not tab: return
+    current = _find_tab(st.session_state.get("active_tab_id"))
+    if current:
+        current["tf"] = st.session_state.selected_tf
+    st.session_state.active_tab_id = tab_id
+    st.session_state.current_symbol = tab["symbol"]
+    st.session_state.selected_tf = tab["tf"]
+    _clear_chart_state()
+    st.rerun()
+
+def close_tab(tab_id):
+    if len(st.session_state.open_tabs) <= 1: return
+    idx = next((i for i, t in enumerate(st.session_state.open_tabs) if t["id"] == tab_id), 0)
+    st.session_state.open_tabs.pop(idx)
+    if st.session_state.active_tab_id == tab_id:
+        fallback = st.session_state.open_tabs[max(0, idx - 1)]
+        switch_tab(fallback["id"])
+    else:
+        st.rerun()
+
+init_tabs()
+
 if "pane_order" not in st.session_state: st.session_state["pane_order"] = ["rsi", "macd"]
 if "mobile_mode" not in st.session_state: st.session_state["mobile_mode"] = False
 if "panel_open" not in st.session_state: st.session_state["panel_open"] = True
@@ -375,13 +429,12 @@ if "show_slow" not in st.session_state: st.session_state["show_slow"] = True
 if "show_trend" not in st.session_state: st.session_state["show_trend"] = True
 if "show_rsi" not in st.session_state: st.session_state["show_rsi"] = True
 if "show_macd" not in st.session_state: st.session_state["show_macd"] = True
-if "show_sig" not in st.session_state: st.session_state["show_sig"] = True
-if "show_dots" not in st.session_state: st.session_state["show_dots"] = True
+if "show_sig" not in st.session_state: st.session_state["show_sig"] = False
+if "show_dots" not in st.session_state: st.session_state["show_dots"] = False
 if "ema_opacity" not in st.session_state: st.session_state["ema_opacity"] = 0
 if "trend_opacity" not in st.session_state: st.session_state["trend_opacity"] = 60
 if "line_width" not in st.session_state: st.session_state["line_width"] = 2
 
-if "selected_tf" not in st.session_state: st.session_state["selected_tf"] = "1h"
 if "bars_count" not in st.session_state: st.session_state["bars_count"] = 2500
 if "fill_gaps" not in st.session_state: st.session_state["fill_gaps"] = False
 if "auto_refresh" not in st.session_state: st.session_state["auto_refresh"] = False
@@ -598,7 +651,6 @@ def fetch_ohlcv(market_type: str, exchange: str, symbol: str, tf: str, bars: int
     if df is None or df.empty: return pd.DataFrame()
     return df.tail(bars).reset_index(drop=True)
 
-# ──────────────────────────── CENTRALIZED DAILY HISTORY CACHE ────────────────────────────
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_daily_history(market_type: str, exchange: str, symbol: str) -> pd.DataFrame:
     try:
@@ -668,15 +720,22 @@ def fetch_market_analytics(df: pd.DataFrame) -> dict:
         jan1 = int(datetime.datetime(datetime.datetime.now().year, 1, 1).timestamp())
         ytd_df = df[df["time"] >= jan1] if "time" in df.columns else pd.DataFrame()
         rytd = float(((now_p / float(ytd_df.iloc[0]["close"])) - 1.0) * 100.0) if not ytd_df.empty and float(ytd_df.iloc[0]["close"]) > 0 else safe_ret(df, 30)
+        
+        tail_52w = df.tail(365)
+        low_52w = float(tail_52w["low"].min()) if "low" in tail_52w.columns else now_p * 0.9
+        high_52w = float(tail_52w["high"].max()) if "high" in tail_52w.columns else now_p * 1.1
+
         return {
             "vol_30d_avg": vol_30d, "1W": safe_ret(df, 7), "1M": safe_ret(df, 30),
-            "3M": safe_ret(df, 90), "6M": safe_ret(df, 180), "YTD": rytd, "1Y": safe_ret(df, 365)
+            "3M": safe_ret(df, 90), "6M": safe_ret(df, 180), "YTD": rytd, "1Y": safe_ret(df, 365),
+            "low_52w": low_52w, "high_52w": high_52w
         }
     except Exception:
         return {}
 
 default_tech_data = {
     "vol_30d_avg": 0.0, "1W": 0.0, "1M": 0.0, "3M": 0.0, "6M": 0.0, "YTD": 0.0, "1Y": 0.0,
+    "low_52w": 0.0, "high_52w": 0.0,
     "summary": {"label": "N/A", "color": "#9aa0a6", "angle": 0, "buy": 0, "neutral": 0, "sell": 0},
     "osc": {"label": "N/A", "color": "#9aa0a6", "angle": 0, "buy": 0, "neutral": 0, "sell": 0, "rows": []},
     "ma": {"label": "N/A", "color": "#9aa0a6", "angle": 0, "buy": 0, "neutral": 0, "sell": 0, "rows": []},
@@ -689,11 +748,24 @@ default_tech_data = {
 
 def compute_full_technicals(df: pd.DataFrame) -> dict:
     try:
-        required_cols = ["time", "close", "high", "low", "volume"]
-        if df is None or df.empty or len(df) < 15 or not all(col in df.columns for col in required_cols):
-            return default_tech_data
+        if df is None or df.empty: return default_tech_data
 
-        df = df.dropna().sort_values("time").reset_index(drop=True)
+        if "time" not in df.columns:
+            if isinstance(df.index, pd.DatetimeIndex):
+                df = df.reset_index().rename(columns={"index": "time"})
+            else:
+                return default_tech_data
+
+        required_cols = ["close", "high", "low", "volume"]
+        for col in required_cols:
+            if col in df.columns:
+                df[col] = pd.to_numeric(df[col], errors="coerce")
+            else:
+                return default_tech_data
+        
+        df = df.dropna(subset=required_cols).sort_values("time").reset_index(drop=True)
+        if df.empty: return default_tech_data
+
         close, high, low, vol = df["close"], df["high"], df["low"], df["volume"]
         last_p = float(close.iloc[-1])
 
@@ -702,21 +774,21 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         periods = [10, 20, 30, 50, 100, 200]
         for p in periods:
             if len(df) >= p:
-                ema_v = float(close.ewm(span=p, adjust=False).mean().iloc[-1])
+                ema_v = float(close.ewm(span=p, adjust=False, min_periods=1).mean().iloc[-1])
                 act_e = "มีแรงซื้อ" if last_p > ema_v else ("มีแรงขาย" if last_p < ema_v else "เป็นกลาง")
                 if act_e == "มีแรงซื้อ": ma_buy += 1
                 elif act_e == "มีแรงขาย": ma_sell += 1
                 else: ma_neutral += 1
                 ma_rows.append({"name": f"ค่าเฉลี่ยเคลื่อนที่เอ็กซ์โปเนนเชียล ({p})", "value": f"{ema_v:,.4f}" if last_p < 10 else f"{ema_v:,.2f}", "action": act_e})
 
-                sma_v = float(close.rolling(p).mean().iloc[-1])
+                sma_v = float(close.rolling(p, min_periods=1).mean().iloc[-1])
                 act_s = "มีแรงซื้อ" if last_p > sma_v else ("มีแรงขาย" if last_p < sma_v else "เป็นกลาง")
                 if act_s == "มีแรงซื้อ": ma_buy += 1
                 elif act_s == "มีแรงขาย": ma_sell += 1
                 else: ma_neutral += 1
                 ma_rows.append({"name": f"ค่าเฉลี่ยเคลื่อนที่แบบง่าย ({p})", "value": f"{sma_v:,.4f}" if last_p < 10 else f"{sma_v:,.2f}", "action": act_s})
 
-        h26, l26 = high.rolling(26).max(), low.rolling(26).min()
+        h26, l26 = high.rolling(26, min_periods=1).max(), low.rolling(26, min_periods=1).min()
         ichimoku = float(((h26 + l26) / 2).iloc[-1])
         act_ichi = "มีแรงซื้อ" if last_p > ichimoku else ("มีแรงขาย" if last_p < ichimoku else "เป็นกลาง")
         if act_ichi == "มีแรงซื้อ": ma_buy += 1
@@ -724,16 +796,16 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         else: ma_neutral += 1
         ma_rows.append({"name": "เส้น Ichimoku Base Line (9, 26, 52, 26)", "value": f"{ichimoku:,.4f}" if last_p < 10 else f"{ichimoku:,.2f}", "action": act_ichi})
 
-        vwma = float(((close * vol).rolling(20).sum() / vol.rolling(20).sum().replace(0, np.nan)).iloc[-1])
+        vwma = float(((close * vol).rolling(20, min_periods=1).sum() / vol.rolling(20, min_periods=1).sum().replace(0, np.nan)).iloc[-1])
         act_vwma = "มีแรงซื้อ" if last_p > vwma else ("มีแรงขาย" if last_p < vwma else "เป็นกลาง")
         if act_vwma == "มีแรงซื้อ": ma_buy += 1
         elif act_vwma == "มีแรงขาย": ma_sell += 1
         else: ma_neutral += 1
         ma_rows.append({"name": "เส้นค่าเฉลี่ยเคลื่อนที่วัดจากปริมาณ (20)", "value": f"{vwma:,.4f}" if last_p < 10 else f"{vwma:,.2f}", "action": act_vwma})
 
-        wma_half = close.rolling(4).mean() * 2
-        wma_full = close.rolling(9).mean()
-        hma = float((wma_half - wma_full).rolling(3).mean().iloc[-1])
+        wma_half = close.rolling(4, min_periods=1).mean() * 2
+        wma_full = close.rolling(9, min_periods=1).mean()
+        hma = float((wma_half - wma_full).rolling(3, min_periods=1).mean().iloc[-1])
         act_hma = "มีแรงซื้อ" if last_p > hma else ("มีแรงขาย" if last_p < hma else "เป็นกลาง")
         if act_hma == "มีแรงซื้อ": ma_buy += 1
         elif act_hma == "มีแรงขาย": ma_sell += 1
@@ -750,9 +822,9 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         else: osc_neutral += 1
         osc_rows.append({"name": "Relative Strength Index (14)", "value": f"{rsi_val:.4f}", "action": act_rsi})
 
-        l14, h14 = low.rolling(14).min(), high.rolling(14).max()
+        l14, h14 = low.rolling(14, min_periods=1).min(), high.rolling(14, min_periods=1).max()
         denom = (h14 - l14).replace(0, np.nan)
-        stoch_k = float((((close - l14) / denom) * 100).rolling(3).mean().iloc[-1])
+        stoch_k = float((((close - l14) / denom) * 100).rolling(3, min_periods=1).mean().iloc[-1])
         act_stoch = "มีแรงขาย" if stoch_k > 80 else ("มีแรงซื้อ" if stoch_k < 20 else "เป็นกลาง")
         if act_stoch == "มีแรงซื้อ": osc_buy += 1
         elif act_stoch == "มีแรงขาย": osc_sell += 1
@@ -760,8 +832,8 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         osc_rows.append({"name": "Stochastic %K (14, 3, 3)", "value": f"{stoch_k:.4f}", "action": act_stoch})
 
         tp = (high + low + close) / 3
-        sma_tp = tp.rolling(20).mean()
-        mad = (tp - sma_tp).abs().rolling(20).mean().replace(0, np.nan)
+        sma_tp = tp.rolling(20, min_periods=1).mean()
+        mad = (tp - sma_tp).abs().rolling(20, min_periods=1).mean().replace(0, np.nan)
         cci_v = float(((tp - sma_tp) / (0.015 * mad)).iloc[-1])
         act_cci = "มีแรงขาย" if cci_v > 100 else ("มีแรงซื้อ" if cci_v < -100 else "เป็นกลาง")
         if act_cci == "มีแรงซื้อ": osc_buy += 1
@@ -770,14 +842,14 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         osc_rows.append({"name": "ดัชนีแชนแนลสินค้าโภคภัณฑ์(20)", "value": f"{cci_v:.4f}", "action": act_cci})
 
         tr = pd.concat([high - low, (high - close.shift()).abs(), (low - close.shift()).abs()], axis=1).max(axis=1)
-        atr = tr.rolling(14).mean().replace(0, np.nan)
+        atr = tr.rolling(14, min_periods=1).mean().replace(0, np.nan)
         up_m, dn_m = high.diff(), -low.diff()
-        p_dm = up_m.where((up_m > dn_m) & (up_m > 0), 0.0).rolling(14).mean()
-        m_dm = dn_m.where((dn_m > up_m) & (dn_m > 0), 0.0).rolling(14).mean()
+        p_dm = up_m.where((up_m > dn_m) & (up_m > 0), 0.0).rolling(14, min_periods=1).mean()
+        m_dm = dn_m.where((dn_m > up_m) & (dn_m > 0), 0.0).rolling(14, min_periods=1).mean()
         p_di = 100 * (p_dm / atr)
         m_di = 100 * (m_dm / atr)
         dx = (100 * (p_di - m_di).abs() / (p_di + m_di).replace(0, np.nan)).fillna(0)
-        adx_v = float(dx.rolling(14).mean().iloc[-1])
+        adx_v = float(dx.rolling(14, min_periods=1).mean().iloc[-1])
         act_adx = "มีแรงซื้อ" if (adx_v > 25 and p_di.iloc[-1] > m_di.iloc[-1]) else ("มีแรงขาย" if (adx_v > 25 and m_di.iloc[-1] > p_di.iloc[-1]) else "เป็นกลาง")
         if act_adx == "มีแรงซื้อ": osc_buy += 1
         elif act_adx == "มีแรงขาย": osc_sell += 1
@@ -785,7 +857,7 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         osc_rows.append({"name": "Average Directional Index (14)", "value": f"{adx_v:.4f}", "action": act_adx})
 
         med_p = (high + low) / 2
-        ao_v = float((med_p.rolling(5).mean() - med_p.rolling(34).mean()).iloc[-1])
+        ao_v = float((med_p.rolling(5, min_periods=1).mean() - med_p.rolling(34, min_periods=1).mean()).iloc[-1])
         act_ao = "มีแรงซื้อ" if ao_v > 0 else "มีแรงขาย"
         if act_ao == "มีแรงซื้อ": osc_buy += 1
         else: osc_sell += 1
@@ -797,16 +869,16 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         else: osc_sell += 1
         osc_rows.append({"name": "โมเมนตัม (10)", "value": f"{mom_v:.4f}", "action": act_mom})
 
-        macd_l = float((close.ewm(span=12).mean() - close.ewm(span=26).mean()).iloc[-1])
-        macd_s = float(pd.Series(close.ewm(span=12).mean() - close.ewm(span=26).mean()).ewm(span=9).mean().iloc[-1])
+        macd_l = float((close.ewm(span=12, adjust=False, min_periods=1).mean() - close.ewm(span=26, adjust=False, min_periods=1).mean()).iloc[-1])
+        macd_s = float(pd.Series(close.ewm(span=12, adjust=False, min_periods=1).mean() - close.ewm(span=26, adjust=False, min_periods=1).mean()).ewm(span=9, adjust=False, min_periods=1).mean().iloc[-1])
         act_macd = "มีแรงซื้อ" if macd_l > macd_s else "มีแรงขาย"
         if act_macd == "มีแรงซื้อ": osc_buy += 1
         else: osc_sell += 1
         osc_rows.append({"name": "ระดับ MACD (12, 26)", "value": f"{macd_l:.4f}", "action": act_macd})
 
         rsi_series = rsi_wilder(close, 14)
-        rsi_l14, rsi_h14 = rsi_series.rolling(14).min(), rsi_series.rolling(14).max()
-        stoch_rsi = float((((rsi_series - rsi_l14) / (rsi_h14 - rsi_l14).replace(0, np.nan)) * 100).rolling(3).mean().iloc[-1])
+        rsi_l14, rsi_h14 = rsi_series.rolling(14, min_periods=1).min(), rsi_series.rolling(14, min_periods=1).max()
+        stoch_rsi = float((((rsi_series - rsi_l14) / (rsi_h14 - rsi_l14).replace(0, np.nan)) * 100).rolling(3, min_periods=1).mean().iloc[-1])
         act_srsi = "มีแรงขาย" if stoch_rsi > 80 else ("มีแรงซื้อ" if stoch_rsi < 20 else "เป็นกลาง")
         if act_srsi == "มีแรงซื้อ": osc_buy += 1
         elif act_srsi == "มีแรงขาย": osc_sell += 1
@@ -820,7 +892,7 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         else: osc_neutral += 1
         osc_rows.append({"name": "Williams Percent Range (14)", "value": f"{wr_v:.4f}", "action": act_wr})
 
-        ema13 = close.ewm(span=13, adjust=False).mean()
+        ema13 = close.ewm(span=13, adjust=False, min_periods=1).mean()
         bbp = float((high.iloc[-1] - ema13.iloc[-1]) + (low.iloc[-1] - ema13.iloc[-1]))
         act_bbp = "มีแรงซื้อ" if bbp > 0 else "มีแรงขาย"
         if act_bbp == "มีแรงซื้อ": osc_buy += 1
@@ -829,9 +901,9 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
 
         bp = close - pd.concat([low, close.shift()], axis=1).min(axis=1)
         tr_uo = pd.concat([high, close.shift()], axis=1).max(axis=1) - pd.concat([low, close.shift()], axis=1).min(axis=1)
-        avg7 = (bp.rolling(7).sum() / tr_uo.rolling(7).sum().replace(0, np.nan))
-        avg14 = (bp.rolling(14).sum() / tr_uo.rolling(14).sum().replace(0, np.nan))
-        avg28 = (bp.rolling(28).sum() / tr_uo.rolling(28).sum().replace(0, np.nan))
+        avg7 = (bp.rolling(7, min_periods=1).sum() / tr_uo.rolling(7, min_periods=1).sum().replace(0, np.nan))
+        avg14 = (bp.rolling(14, min_periods=1).sum() / tr_uo.rolling(14, min_periods=1).sum().replace(0, np.nan))
+        avg28 = (bp.rolling(28, min_periods=1).sum() / tr_uo.rolling(28, min_periods=1).sum().replace(0, np.nan))
         uo = float((100 * (4 * avg7 + 2 * avg14 + avg28) / 7).iloc[-1])
         act_uo = "มีแรงขาย" if uo > 70 else ("มีแรงซื้อ" if uo < 30 else "เป็นกลาง")
         if act_uo == "มีแรงซื้อ": osc_buy += 1
@@ -869,11 +941,12 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         return {
             **perf,
             "summary": {"label": sum_lbl, "color": sum_col, "angle": sum_ang, "buy": tot_buy, "neutral": tot_neu, "sell": tot_sell},
-            "osc": {"label": osc_lbl, "color": osc_col, "angle": osc_ang, "buy": osc_buy, "neutral": osc_neu, "sell": osc_sell, "rows": osc_rows},
-            "ma": {"label": ma_lbl, "color": ma_col, "angle": ma_ang, "buy": ma_buy, "neutral": ma_neu, "sell": ma_sell, "rows": ma_rows},
+            "osc": {"label": osc_lbl, "color": osc_col, "angle": osc_ang, "buy": osc_buy, "neutral": osc_neutral, "sell": osc_sell, "rows": osc_rows},
+            "ma": {"label": ma_lbl, "color": ma_col, "angle": ma_ang, "buy": ma_buy, "neutral": ma_neutral, "sell": ma_sell, "rows": ma_rows},
             "pivots": pivots
         }
-    except Exception:
+    except Exception as e:
+        st.error(f"🐞 เกิดข้อผิดพลาดในการคำนวณ Technicals: {e}")
         return default_tech_data
 
 def render_gauge_svg(title: str, label: str, color: str, angle: float, buy: int, neutral: int, sell: int, size: int = 140) -> str:
@@ -950,8 +1023,8 @@ def fetch_seasonality_svg(df: pd.DataFrame) -> str:
         if max_pct < 10.0:  max_pct = 10.0
         span = max_pct - min_pct if max_pct != min_pct else 1.0
 
-        w, h = 560, 180
-        pad_l, pad_r, pad_t, pad_b = 15, 20, 15, 25
+        w, h = 540, 160
+        pad_l, pad_r, pad_t, pad_b = 15, 20, 15, 20
         gw, gh = w - pad_l - pad_r, h - pad_t - pad_b
 
         def to_xy(doy, pct):
@@ -970,27 +1043,21 @@ def fetch_seasonality_svg(df: pd.DataFrame) -> str:
         for yr in sorted(year_data.keys()):
             col = colors.get(yr, "#D1D4DC")
             pts = year_data[yr]["points"]
-            last_p = year_data[yr]["last_pct"]
             d_path = [f"{'M' if i == 0 else 'L'} {to_xy(doy, p)[0]} {to_xy(doy, p)[1]}" for i, (doy, p) in enumerate(pts)]
-            svg_lines.append(f'<path d="{" ".join(d_path)}" fill="none" stroke="{col}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>')
+            svg_lines.append(f'<path d="{" ".join(d_path)}" fill="none" stroke="{col}" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round"/>')
             lx, ly = to_xy(pts[-1][0], pts[-1][1])
             svg_lines.append(f'<circle cx="{lx}" cy="{ly}" r="3.5" fill="{col}"/>')
-            legend_pills.append(f'<span style="display:inline-flex; align-items:center; gap:4px; margin-right:10px; font-size:10px; font-family:monospace;"><span style="color:{col};">●</span> {yr} <b style="color:{UP if last_p >= 0 else DOWN};">{last_p:+.2f}%</b></span>')
+            legend_pills.append(f'<span style="display:inline-flex; align-items:center; gap:4px; margin:0 5px; font-size:10px; font-family:monospace;"><span style="color:{col};">●</span> {yr}</span>')
 
         svg_content = "\n".join(svg_lines)
-        return f"""<div style="background:#0D0D0D; border:1px solid #1E1E1E; border-radius:6px; padding:8px 10px; margin-bottom:8px; width:100%; box-sizing:border-box;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="font-size:12px; font-weight:700; color:#fff;">ฤดูกาล (Seasonality 2024 - 2026)</span>
-                <span style="font-size:9px; color:#787b86;">รอบผลตอบแทนสะสมเปรียบเทียบในรอบปี</span>
-            </div>
-            <div style="margin-bottom:6px; display:flex; flex-wrap:wrap;">{''.join(legend_pills)}</div>
+        return f"""<div style="background:#0A0A0A; border:1px solid #1E1E1E; border-radius:6px; padding:6px 8px; margin-bottom:6px; width:100%; box-sizing:border-box;">
             <svg width="100%" height="{h}" viewBox="0 0 {w} {h}" style="overflow:visible; display:block;">
                 {svg_content}
-                <text x="{pad_l}" y="{h - 6}" fill="#666" font-size="9" font-family="sans-serif">ม.ค.</text>
-                <text x="{pad_l + gw*0.25}" y="{h - 6}" fill="#666" font-size="9" font-family="sans-serif">เม.ย.</text>
-                <text x="{pad_l + gw*0.50}" y="{h - 6}" fill="#666" font-size="9" font-family="sans-serif">ก.ค.</text>
-                <text x="{pad_l + gw*0.75}" y="{h - 6}" fill="#666" font-size="9" font-family="sans-serif">ต.ค.</text>
+                <text x="{pad_l}" y="{h - 4}" fill="#666" font-size="9" font-family="sans-serif">ม.ค.</text>
+                <text x="{pad_l + gw*0.33}" y="{h - 4}" fill="#666" font-size="9" font-family="sans-serif">พ.ค.</text>
+                <text x="{pad_l + gw*0.66}" y="{h - 4}" fill="#666" font-size="9" font-family="sans-serif">ก.ย.</text>
             </svg>
+            <div style="display:flex; justify-content:center; margin-top:4px;">{''.join(legend_pills)}</div>
         </div>"""
     except Exception:
         return ""
@@ -1041,7 +1108,7 @@ def fetch_yahoo_batch_quotes(symbols_list: tuple[str, ...]) -> dict[str, dict]:
 
     return results
 
-# ──────────────────────────── TOP MOVERS RANKING ENGINE (FULL 114 SYMBOLS RETAINED) ────────────────────────────
+# ──────────────────────────── TOP MOVERS RANKING ENGINE ────────────────────────────
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_top_movers(category: str) -> dict:
     gainers, losers = [], []
@@ -1208,6 +1275,12 @@ def fmt_chg(c: float) -> str:
     s = "+" if c > 0 else ""
     return f"{s}{c:.2f}" if abs(c) >= 1 else f"{s}{c:.4f}"
 
+def fmt_vol(v: float) -> str:
+    if v >= 1_000_000_000: return f"{v/1_000_000_000:,.2f}B"
+    if v >= 1_000_000: return f"{v/1_000_000:,.2f}M"
+    if v >= 1_000: return f"{v/1_000:,.2f}K"
+    return f"{v:,.2f}"
+
 def fetch_unified_ticker(market_type: str, exchange: str, symbol: str, df_last: pd.DataFrame) -> dict:
     try:
         if "คริปโต" in market_type:
@@ -1259,68 +1332,132 @@ def build_asset_icon_html(sym: str, tag_color: str = "#1E1E1E", size: int = 18) 
         <img src="{icon_url}" onerror="this.onerror=null;this.src='{fallback_avatar}';" style="width:{size}px;height:{size}px;border-radius:50%;object-fit:cover;background:#050505;border:1px solid #1E1E1E;">
     </div>"""
 
-# ──────────────────────────── QUOTE CARD RENDERER ────────────────────────────
+# ──────────────────────────── QUOTE CARD RENDERER (TRADINGVIEW 100% REPLICA) ────────────────────────────
 def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, seasonality_html: str = "", gauges_html: str = "") -> str:
     if not tk: return "<div style='color:#787b86; padding:10px;'>กำลังเชื่อมต่อข้อมูลราคา...</div>"
-    c_color = UP if tk["change"] >= 0 else DOWN
-    bg_pill = "rgba(38, 166, 154, 0.15)" if tk["change"] >= 0 else "rgba(239, 83, 80, 0.15)"
-    sign = "+" if tk["change"] >= 0 else ""
-    span = tk["high"] - tk["low"]
-    ratio = max(0, min(100, ((tk["price"] - tk["low"]) / span * 100) if span > 0 else 50))
-    vol_30d = f"{an.get('vol_30d_avg', 0):,.2f}" if an else "-"
+    c_color = UP if tk.get("change", 0) >= 0 else DOWN
+    sign = "+" if tk.get("change", 0) >= 0 else ""
+    
+    p_val = float(tk.get("price", 0))
+    p_str = f"{p_val:,.4f}" if p_val < 10 else f"{p_val:,.2f}"
+    
+    c_val = float(tk.get("change", 0))
+    c_str = f"{c_val:,.4f}" if abs(c_val) < 1 else f"{c_val:,.2f}"
+    
+    bid_val = float(tk.get("bid", p_val))
+    bid_str = f"{bid_val:,.4f}" if bid_val < 10 else f"{bid_val:,.2f}"
+    
+    ask_val = float(tk.get("ask", p_val))
+    ask_str = f"{ask_val:,.4f}" if ask_val < 10 else f"{ask_val:,.2f}"
+
+    day_low = float(tk.get("low", p_val))
+    day_high = float(tk.get("high", p_val))
+    span_day = day_high - day_low
+    ratio_day = max(0.0, min(100.0, ((p_val - day_low) / span_day * 100.0))) if span_day > 0 else 50.0
+
+    low_52w = float(an.get("low_52w", day_low))
+    high_52w = float(an.get("high_52w", day_high))
+    span_52w = high_52w - low_52w
+    ratio_52w = max(0.0, min(100.0, ((p_val - low_52w) / span_52w * 100.0))) if span_52w > 0 else 50.0
+
+    vol_24h_str = fmt_vol(tk.get("vol", 0))
+    vol_30d_str = fmt_vol(an.get("vol_30d_avg", 0)) if an else "-"
 
     def p_box(lbl, val):
         col = UP if val >= 0 else DOWN
         bg = "rgba(38, 166, 154, 0.12)" if val >= 0 else "rgba(239, 83, 80, 0.12)"
         s = "+" if val >= 0 else ""
-        return f"""<div style="background:{bg}; border:1px solid {col}40; border-radius:4px; padding:4px 2px; text-align:center;">
+        return f"""<div style="background:{bg}; border:1px solid {col}40; border-radius:4px; padding:6px 2px; text-align:center;">
 <div style="font-size:11px; font-weight:700; color:{col}; font-family:monospace;">{s}{val:.2f}%</div>
-<div style="font-size:9px; color:#787b86;">{lbl}</div></div>"""
+<div style="font-size:9px; color:#787b86; margin-top:2px;">{lbl}</div></div>"""
 
     grid_perf = ""
     if an:
-        grid_perf = f"""<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; margin-bottom:10px;">
+        grid_perf = f"""<div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; margin-bottom:12px;">
 {p_box('1W', an.get('1W',0))}{p_box('1M', an.get('1M',0))}{p_box('3M', an.get('3M',0))}
 {p_box('6M', an.get('6M',0))}{p_box('YTD', an.get('YTD',0))}{p_box('1Y', an.get('1Y',0))}</div>"""
     else:
         grid_perf = """<div style="font-size:10px; color:#787b86; padding:6px 0;">ไม่มีข้อมูลย้อนหลังเพียงพอ</div>"""
 
     desc_display = CHINA_STOCK_NAMES.get(symbol, COMMODITY_NAMES.get(symbol, FOREX_NAMES.get(symbol, "")))
-    sub_title_html = f"<div style='font-size:10px; color:#00bcd4; margin-bottom:4px;'>{desc_display}</div>" if desc_display else ""
+    sub_title_html = f"<div style='font-size:10px; color:#888; margin-bottom:2px;'>{desc_display}</div>" if desc_display else ""
+    currency_label = "THB" if ("_THB" in symbol or ".BK" in symbol) else "USD"
 
     return f"""<div class="scrollable-market-card">
-<div style="background-color:#0A0A0A; border-radius:6px; padding:8px 6px; color:#D1D4DC; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; border:1px solid #1E1E1E;">
+<div style="background-color:#0A0A0A; border-radius:6px; padding:12px 10px; color:#D1D4DC; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; border:1px solid #1E1E1E;">
+
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-<span style="font-size:13px; font-weight:700; color:#fff;">{symbol}</span>
-<span style="background:#1A1A1A; color:#9aa0a6; padding:1px 5px; border-radius:3px; font-size:9px; font-weight:600;">{label_name}</span></div>
+    <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:15px; font-weight:800; color:#fff;">{symbol}</span>
+    </div>
+    <span style="background:#1A1A1A; color:#9aa0a6; padding:1px 6px; border-radius:3px; font-size:9px; font-weight:600;">{label_name}</span>
+</div>
 {sub_title_html}
-<div style="font-size:9px; color:#787b86; margin-bottom:6px;">ตลาดเปิดสด</div>
-<div style="font-size:20px; font-weight:700; color:#fff; letter-spacing:-0.5px; line-height:1.1;">{tk['price']:,.2f}</div>
-<div style="display:inline-block; margin-top:3px; margin-bottom:8px; background:{bg_pill}; color:{c_color}; padding:1px 5px; border-radius:3px; font-size:10px; font-weight:700;">{sign}{tk['change']:,.2f} &nbsp; ({sign}{tk['pct']:.2f}%)</div>
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-bottom:8px; font-family:monospace;">
-<div style="background:rgba(41,98,255,0.1); border:1px solid rgba(41,98,255,0.4); border-radius:4px; padding:3px; text-align:center;">
-<div style="font-size:8px; color:#2962ff; font-weight:600;">BID (ซื้อ)</div>
-<div style="font-size:10px; color:#D1D4DC; font-weight:700;">{tk.get('bid', tk['price']):,.2f}</div></div>
-<div style="background:rgba(239,83,80,0.1); border:1px solid rgba(239,83,80,0.4); border-radius:4px; padding:3px; text-align:center;">
-<div style="font-size:8px; color:#ef5350; font-weight:600;">ASK (ขาย)</div>
-<div style="font-size:10px; color:#D1D4DC; font-weight:700;">{tk.get('ask', tk['price']):,.2f}</div></div></div>
-<div style="font-size:9px; color:#787b86; margin-bottom:2px; font-weight:600;">ช่วง 24 ชม.</div>
-<div style="display:flex; justify-content:space-between; font-size:9px; font-family:monospace; color:#9aa0a6; margin-bottom:2px;">
-<span>{tk.get('low', tk['price']):,.2f}</span><span>{tk.get('high', tk['price']):,.2f}</span></div>
-<div style="background:#1A1A1A; height:3px; border-radius:2px; position:relative; margin-bottom:8px;">
-<div style="position:absolute; left:{ratio}%; top:-3px; width:9px; height:9px; background:#fff; border:2px solid #2962ff; border-radius:50%; transform:translateX(-50%);"></div></div>
-<div style="display:flex; justify-content:space-between; font-size:9px; padding:2px 0;">
-<span style="color:#787b86;">ปริมาณ (24h)</span><span style="color:#D1D4DC; font-family:monospace; font-weight:600;">{tk.get('vol', 0):,.2f}</span></div>
-<div style="display:flex; justify-content:space-between; font-size:9px; padding:2px 0; margin-bottom:8px;">
-<span style="color:#787b86;">เฉลี่ย (30 วัน)</span><span style="color:#D1D4DC; font-family:monospace; font-weight:600;">{vol_30d}</span></div>
+<div style="font-size:10px; color:#787b86; margin-bottom:8px;">ตำแหน่ง • คริปโต</div>
 
+<div style="display:flex; align-items:baseline; gap:6px; margin-bottom:2px;">
+    <span style="font-size:24px; font-weight:800; color:#fff; letter-spacing:-0.5px;">{p_str}</span>
+    <span style="font-size:10px; color:#787b86; font-weight:bold;">{currency_label}</span>
+    <span style="font-size:12px; font-weight:700; color:{c_color}; font-family:monospace;">{sign}{c_str}</span>
+    <span style="font-size:12px; font-weight:700; color:{c_color}; font-family:monospace;">{sign}{tk.get('pct', 0):.2f}%</span>
+</div>
+<div style="font-size:10px; color:#26a69a; margin-bottom:12px; font-weight:600;">● ตลาดเปิด</div>
+
+<div style="display:flex; gap:6px; margin-bottom:14px;">
+    <div style="background:rgba(41,98,255,0.15); border:1px solid rgba(41,98,255,0.4); border-radius:12px; padding:2px 10px; font-size:10px; color:#2962ff; font-family:monospace;">
+        {bid_str}
+    </div>
+    <div style="background:rgba(239,83,80,0.15); border:1px solid rgba(239,83,80,0.4); border-radius:12px; padding:2px 10px; font-size:10px; color:#ef5350; font-family:monospace;">
+        {ask_str}
+    </div>
+</div>
+
+<div style="margin-bottom:14px;">
+    <div style="display:flex; justify-content:space-between; font-size:11px; font-family:monospace; color:#D1D4DC; margin-bottom:4px;">
+        <span>{fmt_price(day_low)}</span>
+        <span style="color:#787b86; font-size:10px; font-family:sans-serif;">ระหว่างวัน</span>
+        <span>{fmt_price(day_high)}</span>
+    </div>
+    <div style="position:relative; width:100%; height:4px; background:#1E1E1E; border-radius:2px;">
+        <div style="position:absolute; left:0; width:{ratio_day}%; height:100%; background:#26a69a; border-radius:2px;"></div>
+        <div style="position:absolute; left:{ratio_day}%; top:5px; transform:translateX(-50%); font-size:8px; color:#D1D4DC; line-height:1;">▲</div>
+    </div>
+</div>
+
+<div style="margin-bottom:18px;">
+    <div style="display:flex; justify-content:space-between; font-size:11px; font-family:monospace; color:#D1D4DC; margin-bottom:4px;">
+        <span>{fmt_price(low_52w)}</span>
+        <span style="color:#787b86; font-size:10px; font-family:sans-serif;">ระยะในรอบ 52 สัปดาห์</span>
+        <span>{fmt_price(high_52w)}</span>
+    </div>
+    <div style="position:relative; width:100%; height:4px; background:#1E1E1E; border-radius:2px;">
+        <div style="position:absolute; left:0; width:{ratio_52w}%; height:100%; background:#26a69a; border-radius:2px;"></div>
+        <div style="position:absolute; left:{ratio_52w}%; top:5px; transform:translateX(-50%); font-size:8px; color:#D1D4DC; line-height:1;">▲</div>
+    </div>
+</div>
+
+<div style="font-size:12px; font-weight:700; color:#fff; margin-bottom:6px;">สถิติสำคัญ</div>
+<div style="display:flex; justify-content:space-between; font-size:11px; padding:3px 0;">
+    <span style="color:#787b86;">ปริมาณการซื้อขาย</span>
+    <span style="color:#fff; font-family:monospace; font-weight:600;">{vol_24h_str}</span>
+</div>
+<div style="display:flex; justify-content:space-between; font-size:11px; padding:3px 0; margin-bottom:14px;">
+    <span style="color:#787b86;">ปริมาณเฉลี่ย (30 วัน)</span>
+    <span style="color:#fff; font-family:monospace; font-weight:600;">{vol_30d_str}</span>
+</div>
+
+<div style="font-size:12px; font-weight:700; color:#fff; margin-bottom:6px;">ประสิทธิภาพ</div>
+{grid_perf}
+
+<div style="font-size:12px; font-weight:700; color:#fff; margin-bottom:4px;">ฤดูกาล</div>
 {seasonality_html}
+<div style="text-align:center; margin-top:6px; margin-bottom:16px;">
+    <span style="background:#161616; color:#9aa0a6; padding:3px 12px; border-radius:12px; font-size:10px; font-weight:600; border:1px solid #262626;">ฤดูกาลเพิ่มเติม</span>
+</div>
 
-<div style="font-size:11px; font-weight:700; color:#fff; margin-bottom:4px; border-top:1px solid #1E1E1E; padding-top:6px;">มาตรวัดเทคนิค (Technical Gauges)</div>
+<div style="font-size:12px; font-weight:700; color:#fff; margin-bottom:6px; border-top:1px solid #1E1E1E; padding-top:10px;">ทางเทคนิค</div>
 {gauges_html}
 
-<div style="font-size:11px; font-weight:700; color:#fff; margin-bottom:4px; border-top:1px solid #1E1E1E; padding-top:6px;">ประสิทธิภาพผลตอบแทน</div>
-{grid_perf}
 </div></div>"""
 
 def render_tv_quote_card(tk: dict, an: dict, symbol: str, label_name: str, seasonality_html: str = "", gauges_html: str = ""):
@@ -1401,6 +1538,11 @@ def render_fibonacci_modal_content(fib, ext, fib_zone, fib_tp, last_close):
     if near_golden_zone(last_close, fib):
         st.success("🎯 ราคาปัจจุบันกำลังทดสอบ **Golden Zone (0.5 – 0.618)** ซึ่งเป็นโซนกลับตัวและจุดสะสมที่มีนัยสำคัญสูงสุด")
 
+def color_status(val):
+    if val == "มีแรงซื้อ": return 'color: #26a69a'
+    elif val == "มีแรงขาย": return 'color: #ef5350'
+    else: return 'color: #9aa0a6'
+
 def render_market_modal_content(tk, an, symbol, label_name, seasonality_html, gauges_html):
     st.markdown(f"### 📊 ข้อมูลตลาด 24h & บทวิเคราะห์ทางเทคนิค: {symbol}")
     st.caption(f"กระดาน: {label_name} | ราคาล่าสุด: {tk.get('price', 0):,.2f} ({tk.get('pct', 0):+.2f}%) ")
@@ -1421,12 +1563,18 @@ def render_market_modal_content(tk, an, symbol, label_name, seasonality_html, ga
             with t_col1:
                 st.markdown(f"**Oscillators (ตัวแกว่งตัว - {len(an['osc']['rows'])} ดัชนี)**")
                 df_osc = pd.DataFrame(an["osc"]["rows"]).rename(columns={"name":"ชื่อดัชนี", "value":"มูลค่า", "action":"สถานะ"})
-                st.dataframe(df_osc, use_container_width=True, hide_index=True)
+                if not df_osc.empty:
+                    st.dataframe(df_osc.style.map(color_status, subset=['สถานะ']), use_container_width=True, hide_index=True)
+                else:
+                    st.dataframe(df_osc, use_container_width=True, hide_index=True)
 
             with t_col2:
                 st.markdown(f"**ค่าเฉลี่ยเคลื่อนที่ (Moving Averages - {len(an['ma']['rows'])} เส้น)**")
                 df_ma = pd.DataFrame(an["ma"]["rows"]).rename(columns={"name":"ชื่อเส้นค่าเฉลี่ย", "value":"ระดับราคา", "action":"สถานะ"})
-                st.dataframe(df_ma, use_container_width=True, hide_index=True)
+                if not df_ma.empty:
+                    st.dataframe(df_ma.style.map(color_status, subset=['สถานะ']), use_container_width=True, hide_index=True)
+                else:
+                    st.dataframe(df_ma, use_container_width=True, hide_index=True)
 
         if "pivots" in an:
             st.markdown("##### 4. จุดกลับตัวเดย์เทรด (Pivot Points)")
@@ -1467,14 +1615,24 @@ def sanitize_markers(markers: list) -> list:
     sorted_markers = sorted(markers, key=lambda x: int(x.get("time", 0)))
     for m in sorted_markers:
         t = int(m.get("time", 0))
-        if t <= 0 or t in seen:
-            continue
+        if t <= 0 or t in seen: continue
         seen.add(t)
         m["time"] = t
         cleaned.append(m)
     return cleaned
 
-# ──────────────────────────── CHART BUILDER (NO DUPLICATE TIMESTAMPS) ────────────────────────────
+# ──────────────────────────── CHART BUILDER (AUTO-SCALE & PRECISION) ────────────────────────────
+def price_precision(df: pd.DataFrame) -> int:
+    if df is None or df.empty or "close" not in df.columns: return 2
+    p = float(df["close"].iloc[-1])
+    if p >= 1000: return 2
+    if p >= 10: return 3
+    if p >= 0.1: return 5
+    return 8
+
+def min_move(df: pd.DataFrame) -> float:
+    return 10 ** -price_precision(df)
+
 def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
     d = df.copy()
     d["time"] = d["time"].astype("int64") + (7 * 3600)
@@ -1487,48 +1645,61 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
     base_chart = {
         "layout": {"background": {"type": "solid", "color": "#000000"}, "textColor": "#D1D4DC"},
         "grid": {"vertLines": {"color": "#141414"}, "horzLines": {"color": "#141414"}},
-        "crosshair": {"mode": 0}, "rightPriceScale": {"borderColor": "#1E1E1E"}, "timeScale": ts_opts,
+        "crosshair": {"mode": 0},
+        "rightPriceScale": {
+            "autoScale": True,
+            "borderColor": "#1E1E1E",
+            "scaleMargins": {"top": 0.12, "bottom": 0.12},
+            "mode": 0
+        },
+        "timeScale": ts_opts,
     }
     charts = []
     candles = d[["time","open","high","low","close"]].dropna().to_dict("records")
-    price_series = [{"type": "Candlestick", "data": candles,
-                     "options": {"upColor": UP, "downColor": DOWN, "borderVisible": False, "wickUpColor": UP, "wickDownColor": DOWN}}]
-
-    show_sig = st.session_state.get("show_sig", True)
-    show_stars = st.session_state.get("show_stars", True)
-    show_dots = st.session_state.get("show_dots", True)
-
-    marker_map = {}
-    for r in d.itertuples():
-        t = int(r.time)
-        labels = []
-        is_buy = getattr(r, "signal", "") == "BUY"
-        is_sell = getattr(r, "signal", "") == "SELL ALL"
-
-        if show_sig and (is_buy or is_sell):
-            labels.append(r.signal)
-
-        if show_stars and getattr(r, "star", False):
-            labels.append("⭐")
-
-        dot = getattr(r, "dot_warn", "")
-        if show_dots and dot:
-            labels.append("🔴" if dot == "RED" else "🟠")
-
-        if labels:
-            marker_map[t] = {
-                "time": t,
-                "position": "belowBar" if is_buy else "aboveBar",
-                "color": UP if is_buy else (DOWN if is_sell else "#ffd700"),
-                "shape": "arrowUp" if is_buy else ("arrowDown" if is_sell else "circle"),
-                "text": " ".join(labels),
-                "size": 1
+    price_series = [{
+        "type": "Candlestick", 
+        "data": candles,
+        "options": {
+            "upColor": UP, "downColor": DOWN, "borderVisible": False, 
+            "wickUpColor": UP, "wickDownColor": DOWN,
+            "priceScaleId": "right",
+            "priceFormat": {
+                "type": "price",
+                "precision": price_precision(d),
+                "minMove": min_move(d)
             }
+        }
+    }]
 
-    raw_markers = list(marker_map.values())
-    clean_markers = sanitize_markers(raw_markers)
-    if clean_markers:
-        price_series[0]["markers"] = clean_markers
+    show_sig = st.session_state.get("show_sig", False)
+    show_stars = st.session_state.get("show_stars", True)
+    show_dots = st.session_state.get("show_dots", False)
+
+    if show_sig or show_stars or show_dots:
+        marker_map = {}
+        for r in d.itertuples():
+            t = int(r.time)
+            labels = []
+            is_buy = getattr(r, "signal", "") == "BUY"
+            is_sell = getattr(r, "signal", "") == "SELL ALL"
+
+            if show_sig and (is_buy or is_sell): labels.append(r.signal)
+            if show_stars and getattr(r, "star", False): labels.append("⭐")
+            dot = getattr(r, "dot_warn", "")
+            if show_dots and dot: labels.append("🔴" if dot == "RED" else "🟠")
+
+            if labels:
+                marker_map[t] = {
+                    "time": t, "position": "belowBar" if is_buy else "aboveBar",
+                    "color": UP if is_buy else (DOWN if is_sell else "#ffd700"),
+                    "shape": "arrowUp" if is_buy else ("arrowDown" if is_sell else "circle"),
+                    "text": " ".join(labels), "size": 1
+                }
+
+        raw_markers = list(marker_map.values())
+        clean_markers = sanitize_markers(raw_markers)
+        if clean_markers:
+            price_series[0]["markers"] = clean_markers
 
     ema_alpha = (100 - st.session_state.get("ema_opacity", 0)) / 100.0
     trend_alpha = (100 - st.session_state.get("trend_opacity", 60)) / 100.0
@@ -1621,27 +1792,25 @@ def render_watchlist_component(key_prefix: str = "desk"):
         col_g, col_l = st.columns(2)
         with col_g:
             st.markdown("<div style='color:#26a69a; font-weight:700; font-size:11px; margin-bottom:4px;'>🚀 10 อันดับ ขาขึ้นแรง</div>", unsafe_allow_html=True)
-            if not gainers:
-                st.caption("ไม่มีข้อมูล หรืออยู่นอกเวลาทำการ")
+            if not gainers: st.caption("ไม่มีข้อมูล หรืออยู่นอกเวลาทำการ")
             for r in gainers:
                 c_a, c_b = st.columns([1.6, 1.4])
                 with c_a:
                     if st.button(f"{r['label']}", key=f"btn_g_{key_prefix}_{selected_code}_{r['symbol']}", use_container_width=True):
                         st.session_state["current_symbol"] = r["symbol"]
-                        st.rerun()
+                        add_tab(r["symbol"])
                 with c_b:
                     st.markdown(f"<div style='font-family:monospace; font-size:10px; text-align:right; padding-top:4px;'><b style='color:#fff;'>{fmt_price(r['price'])}</b> <span style='color:{UP}; font-weight:bold;'>+{r['pct']:.2f}%</span></div>", unsafe_allow_html=True)
 
         with col_l:
             st.markdown("<div style='color:#ef5350; font-weight:700; font-size:11px; margin-bottom:4px;'>🔻 10 อันดับ ขาลงแรง</div>", unsafe_allow_html=True)
-            if not losers:
-                st.caption("ไม่มีข้อมูล หรืออยู่นอกเวลาทำการ")
+            if not losers: st.caption("ไม่มีข้อมูล หรืออยู่นอกเวลาทำการ")
             for r in losers:
                 c_a, c_b = st.columns([1.6, 1.4])
                 with c_a:
                     if st.button(f"{r['label']}", key=f"btn_l_{key_prefix}_{selected_code}_{r['symbol']}", use_container_width=True):
                         st.session_state["current_symbol"] = r["symbol"]
-                        st.rerun()
+                        add_tab(r["symbol"])
                 with c_b:
                     st.markdown(f"<div style='font-family:monospace; font-size:10px; text-align:right; padding-top:4px;'><b style='color:#fff;'>{fmt_price(r['price'])}</b> <span style='color:{DOWN}; font-weight:bold;'>{r['pct']:.2f}%</span></div>", unsafe_allow_html=True)
 
@@ -1691,7 +1860,7 @@ def render_watchlist_component(key_prefix: str = "desk"):
                         with a:
                             if st.button(f"{s_lbl}", key=f"wl_{key_prefix}_{cat_name}_{s_item}", use_container_width=True):
                                 st.session_state["current_symbol"] = s_item
-                                st.rerun()
+                                add_tab(s_item)
                         with b: st.markdown(f"<div style='font-family:monospace; font-size:11px; text-align:right; padding-top:4px; color:#fff;'>{fmt_price(q['price'])}</div>", unsafe_allow_html=True)
                         with c: st.markdown(f"<div style='font-family:monospace; font-size:10px; text-align:right; padding-top:4px; color:{val_col};'>{fmt_chg(q['change'])}</div>", unsafe_allow_html=True)
                         with dcol: st.markdown(f"<div style='font-family:monospace; font-size:10px; text-align:right; padding-top:4px; color:{val_col};'>{sign}{q['pct']:.2f}%</div>", unsafe_allow_html=True)
@@ -1700,36 +1869,73 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.session_state["star_watchlists"][cat_name].remove(s_item)
                                 st.rerun()
 
-# ──────────────────────────── TOP DISPLAY TOOLBAR ────────────────────────────
-top_c1, top_c2, top_c3, top_c4, top_c5, top_c6 = st.columns([1.2, 1.8, 1.3, 1.1, 1.2, 0.8])
+# ──────────────────────────── TOP DISPLAY TOOLBAR (CLAUDE DYNAMIC WIDTHS) ────────────────────────────
+def render_top_toolbar():
+    tabs = st.session_state.open_tabs
+    n_tabs = len(tabs)
 
-with top_c1:
-    tf = st.selectbox(
-        "TF", list(TF.keys()),
-        index=list(TF.keys()).index(st.session_state["selected_tf"]) if st.session_state["selected_tf"] in TF else 5,
-        label_visibility="collapsed", key="selected_tf"
-    )
+    widths = [0.45] + [1.1, 0.35] * n_tabs + [0.4, 0.15, 0.8, 1.6, 0.6, 0.55, 0.7, 0.75]
+    cols = st.columns(widths, gap="small", vertical_alignment="center")
 
-with top_c2:
-    bars = st.slider(
-        "แท่ง", 300, 25000, int(st.session_state["bars_count"]), step=500,
-        label_visibility="collapsed", key="bars_count"
-    )
+    i = 0
+    with cols[i]:
+        st.markdown(build_asset_icon_html(st.session_state.current_symbol, size=24), unsafe_allow_html=True)
+    i += 1
 
-with top_c3:
-    fill_gaps = st.checkbox("🧩 เติมแท่งว่าง", value=st.session_state["fill_gaps"], key="fill_gaps")
+    for tab in tabs:
+        tab_id = tab["id"]
+        is_active = tab_id == st.session_state.active_tab_id
 
-with top_c4:
-    auto = st.checkbox("🟢 Auto", value=st.session_state["auto_refresh"], key="auto_refresh")
+        with cols[i]:
+            btn_txt = f"{'● ' if is_active else ''}{tab['symbol']}"
+            if st.button(btn_txt, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
+                switch_tab(tab_id)
+        i += 1
 
-with top_c5:
-    every = st.number_input(
-        "วิ", min_value=3, max_value=60, value=int(st.session_state["refresh_sec"]), step=1,
-        disabled=not auto, label_visibility="collapsed", key="refresh_sec"
-    )
+        with cols[i]:
+            if st.button("✕", key=f"tab_close_{tab_id}", disabled=n_tabs <= 1, use_container_width=True):
+                close_tab(tab_id)
+        i += 1
 
-with top_c6:
-    reload_btn = st.button("🔄 โหลด", use_container_width=True)
+    with cols[i]:
+        if st.button("＋", key="tab_add_btn", use_container_width=True, help="เปิดแท็บใหม่"):
+            add_tab(st.session_state.current_symbol)
+    i += 1
+
+    with cols[i]:
+        st.markdown("<div style='height:24px;border-left:1px solid #222;margin:0 auto;'></div>", unsafe_allow_html=True)
+    i += 1
+
+    with cols[i]:
+        tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.selected_tf) if st.session_state.selected_tf in TF_OPTIONS else 5, key="tf_select", label_visibility="collapsed")
+        if tf != st.session_state.selected_tf:
+            st.session_state.selected_tf = tf
+            cur = _find_tab(st.session_state.active_tab_id)
+            if cur: cur["tf"] = tf
+            _clear_chart_state()
+            st.rerun()
+    i += 1
+
+    with cols[i]:
+        bars = st.slider("Bars", 300, 25000, int(st.session_state.get("bars_count", 2500)), 500, label_visibility="collapsed", key="bars_count")
+    i += 1
+
+    with cols[i]:
+        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="fill_gaps")
+    i += 1
+
+    with cols[i]:
+        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="auto_refresh")
+    i += 1
+
+    with cols[i]:
+        every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="refresh_sec")
+    i += 1
+
+    with cols[i]:
+        reload_btn = st.button("🔄 โหลด", key="load_btn", use_container_width=True)
+
+    return tf, bars, fill_gaps, auto, every, reload_btn
 
 # ──────────────────────────── SIDEBAR ────────────────────────────
 with st.sidebar:
@@ -1740,15 +1946,18 @@ with st.sidebar:
     with col_m2:
         if st.button("📱 Mobile", use_container_width=True): st.session_state["mobile_mode"] = True; st.rerun()
 
+    if st.button("🧹 เคลียร์แคชระบบ", use_container_width=True):
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        _clear_chart_state()
+        st.rerun()
+    st.divider()
+
     with st.expander("📌 ตลาดและสินทรัพย์", expanded=True):
         market_categories = [
-            "🟡 คริปโต (Crypto)",
-            "🇺🇸 หุ้นสหรัฐฯ (US Stocks)",
-            "🇨🇳 หุ้นจีน (China)",
-            "🇹🇭 หุ้นไทย (SET/mai)",
-            "🇻🇳 หุ้นเวียดนาม (Vietnam)",
-            "🟠 สินค้าโภคภัณฑ์ (Commodities)",
-            "🟢 อัตราแลกเปลี่ยน (Forex)",
+            "🟡 คริปโต (Crypto)", "🇺🇸 หุ้นสหรัฐฯ (US Stocks)", "🇨🇳 หุ้นจีน (China)",
+            "🇹🇭 หุ้นไทย (SET/mai)", "🇻🇳 หุ้นเวียดนาม (Vietnam)",
+            "🟠 สินค้าโภคภัณฑ์ (Commodities)", "🟢 อัตราแลกเปลี่ยน (Forex)"
         ]
         selected_category = st.selectbox("หมวดหมู่ตลาด", market_categories, key="selected_market_category")
 
@@ -1782,8 +1991,7 @@ with st.sidebar:
         if "current_symbol" in st.session_state and st.session_state["current_symbol"] not in display_symbols:
             display_symbols.insert(0, st.session_state["current_symbol"])
 
-        if not display_symbols:
-            display_symbols = ["- Select -"]
+        if not display_symbols: display_symbols = ["- Select -"]
 
         cur_idx = 0
         if "current_symbol" in st.session_state and st.session_state["current_symbol"] in display_symbols:
@@ -1801,7 +2009,7 @@ with st.sidebar:
         
         if picked != st.session_state.get("current_symbol") and picked != "- Select -":
             st.session_state["current_symbol"] = picked
-            st.rerun()
+            add_tab(picked)
 
         new_ticker = st.text_input("➕ เพิ่ม Ticker (เฉพาะกิจ):", placeholder="เช่น AAA.VN, PLTR", key="add_new_ticker")
         if st.button("บันทึก Ticker", use_container_width=True, key="save_new_ticker") and new_ticker:
@@ -1809,7 +2017,7 @@ with st.sidebar:
             if sym_clean and sym_clean not in st.session_state["custom_symbols"]:
                 st.session_state["custom_symbols"].insert(0, sym_clean)
             st.session_state["current_symbol"] = sym_clean
-            st.rerun()
+            add_tab(sym_clean)
 
         cur_sym = st.session_state.get("current_symbol", "BTC_THB")
         _rm, _re = resolve_route(cur_sym)
@@ -1821,7 +2029,7 @@ with st.sidebar:
             with star_cols[i]:
                 has = cur_sym in st.session_state["star_watchlists"][cat_label]
                 btn_display = f"★{cat_info['icon']}" if has else cat_info["icon"]
-                if st.button(btn_display, key=f"qs_btn_{i}", use_container_width=True, help=f"{cat_label} (คลิกเพื่อ {'เอาออก' if has else 'เพิ่ม'})"):
+                if st.button(btn_display, key=f"qs_btn_{i}", use_container_width=True):
                     if has: st.session_state["star_watchlists"][cat_label].remove(cur_sym)
                     else: st.session_state["star_watchlists"][cat_label].append(cur_sym)
                     st.rerun()
@@ -1853,16 +2061,15 @@ with st.sidebar:
             st.session_state["line_width"]    = st.slider("ความหนาเส้น EMA", 1, 3, int(st.session_state["line_width"]))
 
             st.divider()
-            st.markdown("**📐 ปรับความสูงกราฟ & จัดตำแหน่ง**")
-            if st.button("⇅ สลับตำแหน่ง RSI / MACD", use_container_width=True, key="btn_swap_panes_sb"):
+            if st.button("⇅ สลับตำแหน่ง RSI / MACD", use_container_width=True):
                 st.session_state["pane_order"] = list(reversed(st.session_state["pane_order"]))
                 st.rerun()
 
-            st.session_state["main_h"] = st.slider("ความสูงกราฟหลัก", 300, 900, value=int(st.session_state.get("main_h", 520)), step=20, key="main_h_slider")
+            st.session_state["main_h"] = st.slider("ความสูงกราฟหลัก", 300, 900, value=int(st.session_state.get("main_h", 520)), step=20)
             if st.session_state.get("show_rsi", True):
-                st.session_state["rsi_h"] = st.slider("ความสูง RSI", 80, 400, value=int(st.session_state.get("rsi_h", 120)), step=10, key="rsi_h_slider")
+                st.session_state["rsi_h"] = st.slider("ความสูง RSI", 80, 400, value=int(st.session_state.get("rsi_h", 120)), step=10)
             if st.session_state.get("show_macd", True):
-                st.session_state["macd_h"] = st.slider("ความสูง MACD", 80, 400, value=int(st.session_state.get("macd_h", 120)), step=10, key="macd_h_slider")
+                st.session_state["macd_h"] = st.slider("ความสูง MACD", 80, 400, value=int(st.session_state.get("macd_h", 120)), step=10)
 
         st.divider()
         if st.button("🔄 คืนค่าเริ่มต้น (Reset)", use_container_width=True):
@@ -1878,8 +2085,8 @@ with st.sidebar:
             st.session_state["show_trend"] = True
             st.session_state["show_rsi"] = True
             st.session_state["show_macd"] = True
-            st.session_state["show_sig"] = True
-            st.session_state["show_dots"] = True
+            st.session_state["show_sig"] = False
+            st.session_state["show_dots"] = False
             st.session_state["ema_opacity"] = 0
             st.session_state["trend_opacity"] = 60
             st.session_state["line_width"] = 2
@@ -1899,10 +2106,14 @@ with st.sidebar:
         st.session_state["fib_confirm_on"] = st.checkbox("ใช้ Golden Zone ยืนยันสัญญาณ BUY", value=st.session_state["fib_confirm_on"])
 
 # ──────────────────────────── DASHBOARD ────────────────────────────
+auto = st.session_state.get("auto_refresh", False)
+every = int(st.session_state.get("refresh_sec", 5))
 frag_interval = every if auto else None
 
 @st.fragment(run_every=frag_interval)
 def dashboard():
+    tf, bars, fill_gaps, auto, every, reload_btn = render_top_toolbar()
+
     symbol = st.session_state.get("current_symbol", "BTC_THB")
     r_market, r_exchange = resolve_route(symbol)
     label_display = route_label(r_market, r_exchange)
@@ -1963,10 +2174,8 @@ def dashboard():
     tech_data = compute_full_technicals(df_daily)
     if not tech_data or "1W" not in tech_data:
         an_fb = fetch_market_analytics(df)
-        if tech_data:
-            tech_data.update(an_fb)
-        else:
-            tech_data = an_fb
+        if tech_data: tech_data.update(an_fb)
+        else: tech_data = an_fb
 
     seasonality_html = fetch_seasonality_svg(df_daily)
     gauges_html_compact = render_3_gauges_html(tech_data, compact=True)
@@ -2054,7 +2263,13 @@ def dashboard():
     show_r = st.session_state.get('show_rsi', True)
     show_m = st.session_state.get('show_macd', True)
     p_ord = "_".join(st.session_state.get('pane_order', ['rsi', 'macd']))
-    chart_dyn_key = f"c_{symbol}_{tf}_{show_r}_{show_m}_{p_ord}_{cur_main_h}_{cur_rsi_h}_{cur_macd_h}_{st.session_state.get('panel_size', 'M')}_{st.session_state.get('panel_open', True)}"
+    
+    # รีเมาท์ Lightweight Chart ทุกครั้งที่สลับเหรียญหรือแท็บเพื่อรีเซ็ต Scale ราคา
+    chart_dyn_key = (
+        f"c_{symbol}_{tf}_{st.session_state.get('active_tab_id', '0')}_"
+        f"{show_r}_{show_m}_{p_ord}_{cur_main_h}_{cur_rsi_h}_{cur_macd_h}_"
+        f"{st.session_state.get('panel_size', 'M')}_{len(df)}_{int(df['close'].iloc[-1] * 100)}"
+    )
 
     if st.session_state.get("mobile_mode", False):
         for p in st.session_state.get("pane_order", ["rsi", "macd"]):
