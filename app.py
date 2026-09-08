@@ -13,6 +13,7 @@ import concurrent.futures
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from streamlit_lightweight_charts_ntf import renderLightweightCharts
+from ui_components import render_tv_clickable_tabs
 
 try:
     import symbols
@@ -97,8 +98,16 @@ st.markdown("""
     [data-testid="stSidebarContent"] {
         background-color: #050505 !important;
         padding-left: 0.5rem !important; padding-right: 0.5rem !important;
-        padding-top: 1.0rem !important; max-height: 100vh !important;
+        padding-top: 0.2rem !important; max-height: 100vh !important;
         overflow-y: auto !important; overflow-x: hidden !important;
+    }
+    [data-testid="stSidebarUserContent"] {
+        padding-top: 0rem !important;
+    }
+    [data-testid="stSidebar"] h3 {
+        margin-top: -10px !important;
+        margin-bottom: 8px !important;
+        font-size: 15px !important;
     }
     div[data-testid="stHorizontalBlock"] { 
         gap: 2px !important; 
@@ -164,29 +173,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-try:
-    BITKUB_API_KEY = st.secrets.get("BITKUB_API_KEY", "")
-except Exception:
-    BITKUB_API_KEY = ""
 
-BROWSER_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json"
-}
-
-HTTP_SESSION = requests.Session()
-HTTP_SESSION.headers.update(BROWSER_HEADERS)
-retry_strategy = Retry(
-    total=3,
-    backoff_factor=0.8,
-    status_forcelist=[429, 500, 502, 503, 504],
-    allowed_methods=["HEAD", "GET", "OPTIONS"]
-)
-http_adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=25, pool_maxsize=25)
-HTTP_SESSION.mount("https://", http_adapter)
-HTTP_SESSION.mount("http://", http_adapter)
-
-THREAD_POOL_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
 def _fetch_url_with_timeout(url: str, timeout: float = 1.5) -> requests.Response | None:
     try:
@@ -355,6 +342,32 @@ def get_full_commodities() -> list[str]:
 def get_full_forex() -> list[str]:
     return sorted(list(FOREX_NAMES.keys()))
 
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_full_okx_symbols() -> list[str]:
+    with open(os.path.join("data", "okx_crypto.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_full_bybit_symbols() -> list[str]:
+    with open(os.path.join("data", "bybit_crypto.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_full_gate_symbols() -> list[str]:
+    with open(os.path.join("data", "gate_crypto.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_full_mexc_symbols() -> list[str]:
+    with open(os.path.join("data", "mexc_crypto.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_full_kucoin_symbols() -> list[str]:
+    with open(os.path.join("data", "kucoin_crypto.json"), "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 if "star_watchlists" not in st.session_state:
     st.session_state["star_watchlists"] = {
         "🔴 ดาวแดง": ["AAA.VN", "GC=F", "NVDA", "BTC_THB"],
@@ -499,6 +512,34 @@ def fill_empty_bars(df: pd.DataFrame, sec: int, max_fill: int = 20000) -> pd.Dat
     out["is_synthetic"] = synth
     return out.dropna(subset=["close"]).reset_index()
 
+try:
+    BITKUB_API_KEY = st.secrets.get("BITKUB_API_KEY", "")
+except Exception:
+    BITKUB_API_KEY = ""
+
+BROWSER_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "application/json"
+}
+
+HTTP_SESSION = requests.Session()
+HTTP_SESSION.headers.update(BROWSER_HEADERS)
+retry_strategy = Retry(
+    total=3,
+    backoff_factor=0.8,
+    status_forcelist=[429, 500, 502, 503, 504],
+    allowed_methods=["HEAD", "GET", "OPTIONS"]
+)
+http_adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=25, pool_maxsize=25)
+HTTP_SESSION.mount("https://", http_adapter)
+HTTP_SESSION.mount("http://", http_adapter)
+THREAD_POOL_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=10)
+
+def _fetch_url_with_timeout(url: str, timeout: float = 1.5) -> requests.Response | None:
+    try:
+        return HTTP_SESSION.get(url, timeout=timeout)
+    except Exception:
+        return None
 def fetch_bitkub_raw(symbol: str, tf_code: str, sec: int, bars: int) -> pd.DataFrame:
     all_chunks = []
     curr_to = int(time.time())
@@ -1143,6 +1184,45 @@ def fetch_top_movers(category: str) -> dict:
                 gainers = sorted(items, key=lambda x: x["pct"], reverse=True)[:10]
                 losers = sorted(items, key=lambda x: x["pct"])[:10]
 
+        elif category == "bybit":
+            r = HTTP_SESSION.get("https://api.bybit.com/v5/market/tickers?category=spot", timeout=4)
+            if r.status_code == 200:
+                raw = r.json().get("result", {}).get("list", [])
+                items = []
+                for d in raw:
+                    s = d.get("symbol", "")
+                    if s.endswith("USDT"):
+                        pct = float(d.get("price24hPcnt", 0)) * 100
+                        px = float(d.get("lastPrice", 0))
+                        items.append({"symbol": s, "label": s.replace("USDT",""), "price": px, "pct": pct})
+                gainers = sorted(items, key=lambda x: x["pct"], reverse=True)[:10]
+                losers = sorted(items, key=lambda x: x["pct"])[:10]
+        elif category == "gate":
+            r = HTTP_SESSION.get("https://api.gateio.ws/api/v4/spot/tickers", timeout=4)
+            if r.status_code == 200:
+                raw = r.json()
+                items = []
+                for d in raw:
+                    s = d.get("currency_pair", "")
+                    if s.endswith("_USDT"):
+                        pct = float(d.get("change_percentage", 0))
+                        px = float(d.get("last", 0))
+                        items.append({"symbol": s, "label": s.replace("_USDT",""), "price": px, "pct": pct})
+                gainers = sorted(items, key=lambda x: x["pct"], reverse=True)[:10]
+                losers = sorted(items, key=lambda x: x["pct"])[:10]
+        elif category == "kucoin":
+            r = HTTP_SESSION.get("https://api.kucoin.com/api/v1/market/allTickers", timeout=4)
+            if r.status_code == 200:
+                raw = r.json().get("data", {}).get("ticker", [])
+                items = []
+                for d in raw:
+                    s = d.get("symbol", "")
+                    if s.endswith("-USDT"):
+                        pct = float(d.get("changeRate", 0)) * 100
+                        px = float(d.get("last", 0))
+                        items.append({"symbol": s.replace("-", "_"), "label": s.replace("-USDT",""), "price": px, "pct": pct})
+                gainers = sorted(items, key=lambda x: x["pct"], reverse=True)[:10]
+                losers = sorted(items, key=lambda x: x["pct"])[:10]
         elif category == "us":
             us_pool = (
                 "NVDA", "TSLA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "AMD",
@@ -1331,6 +1411,41 @@ def fetch_unified_ticker(market_type: str, exchange: str, symbol: str, df_last: 
                             "high": float(d["highPrice"]),
                             "low": low_24hr,
                             "vol": float(d["volume"])}
+            elif exchange == "Bybit":
+                r = HTTP_SESSION.get(f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}", timeout=3)
+                if r.status_code == 200:
+                    d = r.json().get("result", {}).get("list", [{}])[0]
+                    if d:
+                        return {"price": float(d.get("lastPrice", 0)), "change": 0, # Bybit doesn't provide priceChange directly, pct is provided
+                                "pct": float(d.get("price24hPcnt", 0)) * 100,
+                                "bid": float(d.get("bid1Price", 0)), "ask": float(d.get("ask1Price", 0)),
+                                "bid_vol": float(d.get("bid1Size", 0)), "ask_vol": float(d.get("ask1Size", 0)),
+                                "high": float(d.get("highPrice24h", 0)), "low": float(d.get("lowPrice24h", 0)),
+                                "vol": float(d.get("volume24h", 0))}
+            elif exchange == "Gate.io":
+                r = HTTP_SESSION.get(f"https://api.gateio.ws/api/v4/spot/tickers?currency_pair={symbol}", timeout=3)
+                if r.status_code == 200:
+                    d = r.json()[0]
+                    if d:
+                        return {"price": float(d.get("last", 0)), "change": 0, # Gate.io doesn't provide priceChange directly
+                                "pct": float(d.get("change_percentage", 0)),
+                                "bid": float(d.get("highest_bid", 0)), "ask": float(d.get("lowest_ask", 0)),
+                                "bid_vol": 0, "ask_vol": 0, # Not provided in tickers endpoint
+                                "high": float(d.get("high_24h", 0)), "low": float(d.get("low_24h", 0)),
+                                "vol": float(d.get("base_volume", 0))}
+            elif exchange == "KuCoin":
+                symbol_kucoin = symbol.replace("_", "-")
+                r = HTTP_SESSION.get(f"https://api.kucoin.com/api/v1/market/allTickers", timeout=3) # Get all tickers and find the one
+                if r.status_code == 200:
+                    tickers = r.json().get("data", {}).get("ticker", [])
+                    d = next((t for t in tickers if t.get("symbol") == symbol_kucoin), None)
+                    if d:
+                        return {"price": float(d.get("last", 0)), "change": 0, # Kucoin doesn't provide priceChange directly
+                                "pct": float(d.get("changeRate", 0)) * 100,
+                                "bid": float(d.get("buy", 0)), "ask": float(d.get("sell", 0)),
+                                "bid_vol": 0, "ask_vol": 0, # Not provided
+                                "high": float(d.get("high", 0)), "low": float(d.get("low", 0)),
+                                "vol": float(d.get("vol", 0))}
         else:
             q = fetch_item_quote(symbol)
             if q["price"] > 0:
@@ -1937,7 +2052,16 @@ def render_top_toolbar():
         tab_id = tab["id"]
         is_active = (tab_id == st.session_state.active_tab_id)
         badge = get_symbol_badge(tab["symbol"])
-        tab_label = f"{badge} {tab['symbol']}"
+       try:
+            _q = fetch_item_quote(tab["symbol"])
+            _p = float(_q.get("price", 0.0))
+            _c = float(_q.get("percentChange", _q.get("change_pct", 0.0)))
+            _arr = "▲" if _c >= 0 else "▼"
+            _p_str = f"{_p:,.4f}" if _p < 10 else f"{_p:,.2f}"
+            _chg_str = f"{_c:+.2f}%"
+            tab_label = f"{badge} {tab['symbol'].replace('_', '')} {_arr}{_p_str} {_chg_str}"
+        except Exception:
+            tab_label = f"{badge} {tab['symbol']}"
 
         with cols[i]:
             if st.button(tab_label, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
@@ -1948,7 +2072,7 @@ def render_top_toolbar():
                 else:
                     st.session_state[f"last_click_{tab_id}"] = now
                     switch_tab(tab_id)
-        i += 1
+            i += 1
 
         with cols[i]:
             if st.button("✕", key=f"tab_close_{tab_id}", disabled=(n_tabs <= 1), use_container_width=True):
@@ -2007,6 +2131,11 @@ def render_watchlist_component(key_prefix: str = "desk"):
             ("🌐 รวมทุกตลาด", "all"),
             ("🟡 คริปโต (Bitkub)", "bitkub"),
             ("🟡 คริปโต (Binance)", "binance"),
+            ("🟡 คริปโต (OKX)", "okx"),
+            ("🟡 คริปโต (Bybit)", "bybit"),
+            ("🟡 คริปโต (Gate.io)", "gate"),
+            ("🟡 คริปโต (MEXC)", "mexc"),
+            ("🟡 คริปโต (KuCoin)", "kucoin"),
             ("🇺🇸 หุ้นสหรัฐฯ", "us"),
             ("🇨🇳 หุ้นจีน", "china"),
             ("🇹🇭 หุ้นไทย (SET)", "thai"),
@@ -2144,12 +2273,22 @@ with st.sidebar:
         selected_exchange = None
 
         if selected_category == "🟡 คริปโต (Crypto)":
-            exchanges = ["Bitkub", "Binance"]
+            exchanges = ["Bitkub", "Binance", "OKX", "Bybit", "Gate.io", "MEXC", "KuCoin"]
             selected_exchange = st.selectbox("กระดานเทรด", exchanges, key="selected_crypto_exchange")
             if selected_exchange == "Bitkub":
                 current_available_symbols = get_full_bitkub_symbols()
             elif selected_exchange == "Binance":
                 current_available_symbols = get_full_binance_symbols()
+            elif selected_exchange == "OKX":
+                current_available_symbols = get_full_okx_symbols()
+            elif selected_exchange == "Bybit":
+                current_available_symbols = get_full_bybit_symbols()
+            elif selected_exchange == "Gate.io":
+                current_available_symbols = get_full_gate_symbols()
+            elif selected_exchange == "MEXC":
+                current_available_symbols = get_full_mexc_symbols()
+            elif selected_exchange == "KuCoin":
+                current_available_symbols = get_full_kucoin_symbols()
         elif selected_category == "🇺🇸 หุ้นสหรัฐฯ (US Stocks)":
             current_available_symbols = get_full_sp500_symbols()
         elif selected_category == "🇨🇳 หุ้นจีน (China)":
@@ -2404,24 +2543,50 @@ def dashboard():
         }
     </script>
     """
-    top_bar_html = f"""<div style="background-color:#0A0A0A; border:1px solid #1E1E1E; border-radius:4px; padding:6px 12px; font-family:-apple-system,BlinkMacSystemFont,monospace; font-size:11px; color:#D1D4DC; display:flex; justify-content:space-between; align-items:center; width:100%; box-sizing:border-box;">
-        <div style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-            <span style="color:#00bcd4; font-weight:bold;">📈 {display_title}</span> &nbsp;
-            <span style="background:#1A1A1A; padding:1px 5px; border-radius:3px; font-size:10px; color:#9aa0a6;">{label_display}</span> &nbsp;|&nbsp;
-            ราคา: <b>{stats['price']:,.2f}</b> &nbsp;|&nbsp;
-            เปลี่ยน: <span style="color:{chg_color}; font-weight:bold;">{stats['change_pct']:+.2f}%</span> &nbsp;|&nbsp;
-            RSI: <b>{stats['rsi']:.1f}</b> &nbsp;|&nbsp;
-            เทรนด์: <span style="color:{trend_color}; font-weight:bold;">{stats['trend']}</span> &nbsp;|&nbsp;
-            ห่าง Trend: <b>{stats['dist_trend']:+.2f}%</b>
-            {gz_badge}
+    # ใช้ราคาและ % Change ล่าสุดจาก Ticker ตรงๆ เพื่อให้เท่ากับการ์ดขวา
+    cur_price = float(tk_data.get("price", stats["price"]))
+    cur_chg = float(tk_data.get("percentChange", tk_data.get("change_pct", 0.0)))
+    chg_txt_color = "#26a69a" if cur_chg >= 0 else "#ef5350"
+
+    price_fmt = f"{cur_price:,.4f}" if cur_price < 10 else f"{cur_price:,.2f}"
+    bid_p = float(tk_data.get("bid", cur_price))
+    bid_fmt = f"{bid_p:,.4f}" if bid_p < 10 else f"{bid_p:,.2f}"
+    ask_p = float(tk_data.get("ask", cur_price))
+    ask_fmt = f"{ask_p:,.4f}" if ask_p < 10 else f"{ask_p:,.2f}"
+    spread_p = abs(ask_p - bid_p)
+    spread_fmt = f"{spread_p:,.4f}" if spread_p < 1 else f"{spread_p:,.2f}"
+    vol_val = float(df.iloc[-1].get("volume", 0.0))
+
+    top_bar_html = f"""
+    <div style="background-color:#0A0A0A; border:1px solid #1E1E1E; border-radius:4px; padding:6px 12px; font-family:-apple-system,BlinkMacSystemFont,monospace; color:#D1D4DC; display:flex; justify-content:space-between; align-items:center; width:100%; box-sizing:border-box;">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span style="color:#26a69a; font-size:14px;">●</span>
+                <span style="color:#FFFFFF; font-weight:700; font-size:16px;">{price_fmt}</span>
+                <span style="color:{chg_txt_color}; font-weight:700; font-size:14px;">({cur_chg:+.2f}%)</span>
+                <span style="color:#787b86; font-size:11px; margin-left:4px;">ปริมาณ {vol_val:,.2f}</span>
+                <span style="color:#00bcd4; font-weight:600; font-size:12px;">{display_title}</span>
+                <span style="background:#1A1A1A; padding:1px 5px; border-radius:3px; font-size:10px; color:#9aa0a6;">{label_display}</span>
+                {gz_badge}
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <div style="border:1px solid #ef5350; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(239,83,80,0.08);">
+                    <div style="color:#ef5350; font-weight:bold; font-size:11px;">{bid_fmt}</div>
+                    <div style="color:#ef5350; font-size:9px;">ขาย</div>
+                </div>
+                <div style="font-size:10px; color:#787b86; font-family:monospace;">{spread_fmt}</div>
+                <div style="border:1px solid #2962ff; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(41,98,255,0.08);">
+                    <div style="color:#2962ff; font-weight:bold; font-size:11px;">{ask_fmt}</div>
+                    <div style="color:#2962ff; font-size:9px;">ซื้อ</div>
+                </div>
+            </div>
         </div>
         <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
             <span style="font-size:10px; color:#787b86;">● LIVE TICK</span>
-            <button id="tvFsBtn" style="background:#161a21; border:1px solid #2a2e39; color:#d1d4dc; border-radius:4px; font-size:11px; font-weight:bold; padding:2px 8px; cursor:pointer; height:22px; line-height:1; display:flex; align-items:center; justify-content:center;" title="โหมดเต็มหน้าจอ">⛶ เต็มจอ</button>
+            <button id="tvFsBtn" style="background:#161a21; border:1px solid #2a2e39; color:#d1d4dc; border-radius:4px; font-size:11px; font-weight:bold; padding:2px 8px; cursor:pointer; height:24px;" title="โหมดเต็มหน้าจอ">⛶ เต็มจอ</button>
         </div>
     </div>""" + fs_script
-    components.html(top_bar_html, height=40)
-
+    components.html(top_bar_html, height=52)
     cur_main_h = int(st.session_state.get("main_h", 520))
     cur_rsi_h = int(st.session_state.get("rsi_h", 120))
     cur_macd_h = int(st.session_state.get("macd_h", 120))
