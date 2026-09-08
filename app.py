@@ -1,4 +1,4 @@
-from ui.cards import get_symbol_badge, render_tv_quote_card
+
 
 from ui.gauges import render_gauge_svg, render_3_gauges_html, fetch_seasonality_svg
 
