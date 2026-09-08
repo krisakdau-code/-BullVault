@@ -2052,7 +2052,7 @@ def render_top_toolbar():
         tab_id = tab["id"]
         is_active = (tab_id == st.session_state.active_tab_id)
         badge = get_symbol_badge(tab["symbol"])
-       try:
+        try:
             _q = fetch_item_quote(tab["symbol"])
             _p = float(_q.get("price", 0.0))
             _c = float(_q.get("percentChange", _q.get("change_pct", 0.0)))
