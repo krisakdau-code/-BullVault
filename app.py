@@ -1,3 +1,5 @@
+from utils.helpers import _has_data, fmt_price, fmt_chg, fmt_vol
+
 from config import *
 
 # app.py — Universal Trading Terminal (Hybrid Ultra Edition)
@@ -23,14 +25,7 @@ except ImportError:
     symbols = None
 
 
-def _has_data(series_list) -> bool:
-    for s in series_list or []:
-        data = s.get("data") or []
-        for p in data:
-            v = p.get("value", p.get("close"))
-            if v is not None and v == v:   # กรอง None และ NaN
-                return True
-    return False
+
 
 try:
     import yfinance as yf
@@ -1347,20 +1342,11 @@ def fetch_item_quote(sym: str) -> dict:
     except Exception: pass
     return {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0.0}
 
-def fmt_price(p: float) -> str:
-    if p >= 1000: return f"{p:,.2f}"
-    if p >= 1: return f"{p:.4f}"
-    return f"{p:.6f}" if p > 0 else "0.00"
 
-def fmt_chg(c: float) -> str:
-    s = "+" if c > 0 else ""
-    return f"{s}{c:.2f}" if abs(c) >= 1 else f"{s}{c:.4f}"
 
-def fmt_vol(v: float) -> str:
-    if v >= 1_000_000_000: return f"{v/1_000_000_000:,.2f}B"
-    if v >= 1_000_000: return f"{v/1_000_000:,.2f}M"
-    if v >= 1_000: return f"{v/1_000:,.2f}K"
-    return f"{v:,.2f}"
+
+
+
 
 def fetch_unified_ticker(market_type: str, exchange: str, symbol: str, df_last: pd.DataFrame) -> dict:
     try:
