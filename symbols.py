@@ -99,3 +99,7 @@ def binance_symbols(quote: str = "USDT") -> list[str]:
 def get_symbols(exchange: str) -> list[str]:
     """คืนค่ารายชื่อเหรียญตามกระดานที่เลือก"""
     return bitkub_symbols() if exchange == "Bitkub" else binance_symbols()
+def __getattr__(name):
+    def dummy_func(*args, **kwargs):
+        return []
+    return dummy_func

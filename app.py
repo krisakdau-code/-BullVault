@@ -2,9 +2,9 @@
 
 
 
-from core.routing import init_tabs, _find_tab, _clear_chart_state, add_tab, switch_tab, close_tab, resolve_route, route_label
 
-from data.symbols import (
+
+from symbols import (
     fetch_set_all_symbols, get_full_bitkub_symbols, get_full_binance_symbols,
     get_full_sp500_symbols, get_full_china_stocks, get_full_vietnam_symbols,
     get_full_commodities, get_full_forex, get_full_okx_symbols,
@@ -12,7 +12,7 @@ from data.symbols import (
     get_full_kucoin_symbols
 )
 
-from utils.helpers import _has_data, fmt_price, fmt_chg, fmt_vol
+from utils import _has_data, fmt_price, fmt_chg, fmt_vol
 
 from config import *
 
