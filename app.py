@@ -262,7 +262,7 @@ STAR_CATEGORIES = {
     "🟣 ดาวม่วง": {"icon": "🟣", "color": "#ab47bc"}
 }
 
-@st.cache_data(ttl=86400, show_spinner=False)
+
 
 
 
