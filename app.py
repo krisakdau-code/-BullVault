@@ -1,6 +1,6 @@
 
 
-from ui.gauges import render_gauge_svg, render_3_gauges_html, fetch_seasonality_svg
+
 
 from core.routing import init_tabs, _find_tab, _clear_chart_state, add_tab, switch_tab, close_tab, resolve_route, route_label
 
