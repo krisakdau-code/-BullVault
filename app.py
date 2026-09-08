@@ -1,3 +1,5 @@
+from config import *
+
 # app.py — Universal Trading Terminal (Hybrid Ultra Edition)
 import os
 import time
@@ -517,10 +519,7 @@ try:
 except Exception:
     BITKUB_API_KEY = ""
 
-BROWSER_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Accept": "application/json"
-}
+
 
 HTTP_SESSION = requests.Session()
 HTTP_SESSION.headers.update(BROWSER_HEADERS)
