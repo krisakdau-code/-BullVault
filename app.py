@@ -102,7 +102,7 @@ st.markdown("""
     }
     div[data-testid="stHorizontalBlock"] { 
         gap: 2px !important; 
-        align-items: center !important; 
+        align-items: flex-start !important; 
     }
     div[data-testid="column"] { padding: 0 1px !important; }
 
@@ -1654,10 +1654,10 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
     show_m = st.session_state.get('show_macd', True)
     show_macd = show_m 
     d = df.copy()
-
     if hasattr(d.columns, 'str'):
         d.columns = d.columns.astype(str).str.lower()
-    
+    d = d.loc[:, ~d.columns.duplicated()]
+
     if 'time' not in d.columns:
         if isinstance(d.index, pd.DatetimeIndex) or d.index.name is not None:
             d = d.reset_index(drop=False)
@@ -1666,18 +1666,15 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         else:
             d['time'] = range(len(d))
 
-    if 'time' not in d.columns:
-        d['time'] = range(len(d))
+    if pd.api.types.is_datetime64_any_dtype(d['time']):
+        d['time'] = (d['time'].astype('int64') // 10**9).astype('int64')
+    else:
+        d['time'] = pd.to_numeric(d['time'], errors='coerce').fillna(0).astype('int64')
 
-    d.columns = [str(c).lower() for c in d.columns]
-    
-    required_cols = ['time', 'open', 'high', 'low', 'close', 'volume']
-    for col in required_cols:
-        if col not in d.columns:
-            if col == 'volume':
-                d['volume'] = 100.0
-            else:
-                d[col] = 0.0
+    for col in ['open', 'high', 'low', 'close', 'volume']:
+        d[col] = pd.to_numeric(d.get(col, 0.0), errors='coerce').fillna(0.0)
+
+    records = d.to_dict('records')
 
     ts_opts = {
         "borderColor": "#1E1E1E", "timeVisible": True, "secondsVisible": tf in ("1m", "3m", "5m"),
