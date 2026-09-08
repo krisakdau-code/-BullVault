@@ -1,3 +1,11 @@
+from data.symbols import (
+    fetch_set_all_symbols, get_full_bitkub_symbols, get_full_binance_symbols,
+    get_full_sp500_symbols, get_full_china_stocks, get_full_vietnam_symbols,
+    get_full_commodities, get_full_forex, get_full_okx_symbols,
+    get_full_bybit_symbols, get_full_gate_symbols, get_full_mexc_symbols,
+    get_full_kucoin_symbols
+)
+
 from utils.helpers import _has_data, fmt_price, fmt_chg, fmt_vol
 
 from config import *
@@ -249,120 +257,7 @@ STAR_CATEGORIES = {
 }
 
 @st.cache_data(ttl=86400, show_spinner=False)
-def fetch_set_all_symbols() -> list[str]:
-    paths = [os.path.join("data", "thai_stocks.json"), "c:\\Users\\admin\\Desktop\\แอปทำเอง\\data\\thai_stocks.json"]
-    for p in paths:
-        try:
-            if os.path.exists(p):
-                with open(p, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, list) and len(data) > 0:
-                        return sorted(data)
-        except Exception:
-            continue
-    return sorted([
-        "ADVANC.BK", "AOT.BK", "AWC.BK", "BAM.BK", "BBL.BK", "BDMS.BK", "BEM.BK", "BGRIM.BK",
-        "BH.BK", "BJC.BK", "BTS.BK", "CBG.BK", "CENTEL.BK", "CPALL.BK", "CPAXT.BK", "CPF.BK",
-        "CPN.BK", "CRC.BK", "DELTA.BK", "EA.BK", "EGCO.BK", "GLOBAL.BK", "GPSC.BK", "GULF.BK",
-        "HANA.BK", "HMPRO.BK", "INTUCH.BK", "IVL.BK", "KBANK.BK", "KCE.BK", "KKP.BK", "KTB.BK",
-        "KTC.BK", "LH.BK", "MINT.BK", "MTC.BK", "OR.BK", "OSP.BK", "PTT.BK", "PTTEP.BK", "PTTGC.BK",
-        "RATCH.BK", "SAWAD.BK", "SCB.BK", "SCC.BK", "SCGP.BK", "TCAP.BK", "TIDLOR.BK", "TISCO.BK",
-        "TOP.BK", "TRUE.BK", "TTB.BK", "TU.BK", "WHA.BK"
-    ])
 
-def get_full_bitkub_symbols() -> list[str]:
-    if symbols and hasattr(symbols, "bitkub_symbols"):
-        res = symbols.bitkub_symbols()
-        if isinstance(res, list) and len(res) > 0: return res
-    return ["BTC_THB", "ETH_THB", "SOL_THB", "XRP_THB", "DOGE_THB", "ADA_THB"]
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_binance_symbols() -> list[str]:
-    if symbols and hasattr(symbols, "binance_symbols"):
-        res = symbols.binance_symbols()
-        if isinstance(res, list) and len(res) > 0: return res
-    return ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT"]
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_sp500_symbols() -> list[str]:
-    paths = [os.path.join("data", "us_stocks.json"), "c:\\Users\\admin\\Desktop\\แอปทำเอง\\data\\us_stocks.json"]
-    for p in paths:
-        try:
-            if os.path.exists(p):
-                with open(p, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, list) and len(data) > 0:
-                        return sorted(data)
-        except Exception:
-            continue
-    return sorted([
-        "AAPL", "ABBV", "ABNB", "ADBE", "ADI", "AMD", "AMZN", "ARM", "ASML", "AVGO", "BA", "BAC",
-        "BRK-B", "C", "CAT", "CCJ", "CEG", "COIN", "CRM", "CRWD", "CSCO", "CVX", "DIS", "GOOG", "GOOGL", "GS",
-        "HD", "IBM", "INTC", "IONQ", "JNJ", "JPM", "KO", "LLY", "LUNR", "MA", "MCD", "META",
-        "MSFT", "MSTR", "NFLX", "NKE", "NVDA", "OKLO", "ORCL", "PEP", "PFE", "PG", "PLTR", "QCOM",
-        "RKLB", "SBUX", "SMCI", "SMR", "TSLA", "TSM", "TXN", "UNH", "V", "VRT", "WFC", "WMT", "XOM"
-    ])
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_china_stocks() -> list[str]:
-    paths = [os.path.join("data", "china_stocks.json"), "c:\\Users\\admin\\Desktop\\แอปทำเอง\\data\\china_stocks.json"]
-    for p in paths:
-        try:
-            if os.path.exists(p):
-                with open(p, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, list) and len(data) > 0:
-                        return sorted(data)
-        except Exception:
-            continue
-    return sorted(list(CHINA_STOCK_NAMES.keys()))
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_vietnam_symbols() -> list[str]:
-    paths = [os.path.join("data", "vietnam_stocks.json"), "c:\\Users\\admin\\Desktop\\แอปทำเอง\\data\\vietnam_stocks.json"]
-    for p in paths:
-        try:
-            if os.path.exists(p):
-                with open(p, "r", encoding="utf-8") as f:
-                    data = json.load(f)
-                    if isinstance(data, list) and len(data) > 0:
-                        return sorted(data)
-        except Exception:
-            continue
-    return sorted(["AAA.VN", "HPG.VN", "VIC.VN", "VHM.VN", "FPT.VN", "VNM.VN", "SSI.VN", "TCB.VN", "MWG.VN"])
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_commodities() -> list[str]:
-    return sorted(list(COMMODITY_NAMES.keys()))
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_forex() -> list[str]:
-    return sorted(list(FOREX_NAMES.keys()))
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_okx_symbols() -> list[str]:
-    with open(os.path.join("data", "okx_crypto.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_bybit_symbols() -> list[str]:
-    with open(os.path.join("data", "bybit_crypto.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_gate_symbols() -> list[str]:
-    with open(os.path.join("data", "gate_crypto.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_mexc_symbols() -> list[str]:
-    with open(os.path.join("data", "mexc_crypto.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
-
-@st.cache_data(ttl=86400, show_spinner=False)
-def get_full_kucoin_symbols() -> list[str]:
-    with open(os.path.join("data", "kucoin_crypto.json"), "r", encoding="utf-8") as f:
-        return json.load(f)
 
 
 if "star_watchlists" not in st.session_state:
