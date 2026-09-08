@@ -174,7 +174,6 @@ BROWSER_HEADERS = {
     "Accept": "application/json"
 }
 
-# ──────────────────────────── BULLETPROOF HTTP & THREAD POOL ────────────────────────────
 HTTP_SESSION = requests.Session()
 HTTP_SESSION.headers.update(BROWSER_HEADERS)
 retry_strategy = Retry(
@@ -265,7 +264,6 @@ STAR_CATEGORIES = {
     "🟣 ดาวม่วง": {"icon": "🟣", "color": "#ab47bc"}
 }
 
-# ──────────────────────────── SAFE CATALOG FETCHERS ────────────────────────────
 @st.cache_data(ttl=86400, show_spinner=False)
 def fetch_set_all_symbols() -> list[str]:
     paths = [os.path.join("data", "thai_stocks.json"), "c:\\Users\\admin\\Desktop\\แอปทำเอง\\data\\thai_stocks.json"]
@@ -357,7 +355,6 @@ def get_full_commodities() -> list[str]:
 def get_full_forex() -> list[str]:
     return sorted(list(FOREX_NAMES.keys()))
 
-# ──────────────────────────── SESSION STATES & MULTI-TAB ENGINE ────────────────────────────
 if "star_watchlists" not in st.session_state:
     st.session_state["star_watchlists"] = {
         "🔴 ดาวแดง": ["AAA.VN", "GC=F", "NVDA", "BTC_THB"],
@@ -457,7 +454,6 @@ if "fib_tp_level" not in st.session_state: st.session_state["fib_tp_level"] = 1.
 if "fib_confirm_on" not in st.session_state: st.session_state["fib_confirm_on"] = False
 if "chart_slot" not in st.session_state: st.session_state["chart_slot"] = None
 
-# ──────────────────────────── ROUTER ────────────────────────────
 def resolve_route(symbol: str, ui_market: str = "", ui_exchange: str = "Binance"):
     s = (symbol or "").upper()
     if s.endswith(".BK"): return "🇹🇭 หุ้นไทย (SET/mai)", "Yahoo"
@@ -473,7 +469,6 @@ def route_label(r_market: str, r_exchange: str) -> str:
     if r_market == GLOBAL_MARKET: return "Yahoo"
     return r_market.split()[0]
 
-# ──────────────────────────── OHLCV FETCHERS ────────────────────────────
 def resample_ohlcv(df: pd.DataFrame, rule: str) -> pd.DataFrame:
     if df is None or df.empty or len(df) < 2 or not rule: return df
     d = df.copy()
@@ -675,7 +670,6 @@ def fetch_daily_history(market_type: str, exchange: str, symbol: str) -> pd.Data
     except Exception:
         return pd.DataFrame()
 
-# ──────────────────────────── TECHNICALS & DIAMOND ARMOR ────────────────────────────
 def rsi_wilder(close: pd.Series, period: int = 14) -> pd.Series:
     d = close.diff()
     gain = d.clip(lower=0).ewm(alpha=1/period, adjust=False).mean()
@@ -1000,7 +994,6 @@ def render_3_gauges_html(tech: dict, compact: bool = True) -> str:
             {g_osc} {g_sum} {g_ma}
         </div>"""
 
-# ──────────────────────────── SEASONALITY ENGINE ────────────────────────────
 def fetch_seasonality_svg(df: pd.DataFrame) -> str:
     try:
         if df is None or df.empty or len(df) < 60: return ""
@@ -1074,7 +1067,6 @@ def fetch_seasonality_svg(df: pd.DataFrame) -> str:
     except Exception:
         return ""
 
-# ──────────────────────────── HIGH PERFORMANCE BATCH QUOTE ENGINE ────────────────────────────
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_yahoo_batch_quotes(symbols_list: tuple[str, ...]) -> dict[str, dict]:
     if not symbols_list: return {}
@@ -1120,7 +1112,6 @@ def fetch_yahoo_batch_quotes(symbols_list: tuple[str, ...]) -> dict[str, dict]:
 
     return results
 
-# ──────────────────────────── TOP MOVERS RANKING ENGINE ────────────────────────────
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_top_movers(category: str) -> dict:
     gainers, losers = [], []
@@ -1220,7 +1211,6 @@ def fetch_top_movers(category: str) -> dict:
         pass
     return {"gainers": gainers, "losers": losers}
 
-# ──────────────────────────── TICKERS & QUOTES ────────────────────────────
 @st.cache_data(ttl=5, show_spinner=False)
 def get_bitkub_all_tickers() -> dict:
     out = {}
@@ -1299,41 +1289,90 @@ def fetch_unified_ticker(market_type: str, exchange: str, symbol: str, df_last: 
             if exchange == "Bitkub":
                 d = bitkub_pick(symbol)
                 if d:
-                    return {"price": float(d.get("last", 0)), "change": float(d.get("change", 0)),
+                    bid_vol = float(d.get("highestBidVolume", d.get("bid_volume", 0)))
+                    ask_vol = float(d.get("lowestAskVolume", d.get("ask_volume", 0)))
+                    
+                    low_24hr = float(d.get("low24hr", d.get("low_24_hr", d.get("low", 0))))
+                    if low_24hr <= 0 and not df_last.empty:
+                        low_24hr = float(df_last.tail(24)['low'].min()) if not df_last.tail(24)['low'].empty else low_24hr
+                        if low_24hr <= 0:
+                            low_24hr = float(d.get("last", 0)) * 0.98 
+                    elif low_24hr <= 0:
+                        low_24hr = float(d.get("last", 0)) * 0.98
+
+                    return {"price": float(d.get("last", 0)),
+                            "change": float(d.get("change", 0)),
                             "pct": float(d.get("percentChange", d.get("percent_change", 0))),
                             "bid": float(d.get("highestBid", d.get("highest_bid", 0))),
                             "ask": float(d.get("lowestAsk", d.get("lowest_ask", 0))),
+                            "bid_vol": bid_vol,
+                            "ask_vol": ask_vol,
                             "high": float(d.get("high24hr", d.get("high_24_hr", d.get("high", 0)))),
-                            "low": float(d.get("low24hr", d.get("low_24_hr", d.get("low", 0)))),
+                            "low": low_24hr,
                             "vol": float(d.get("baseVolume", d.get("base_volume", 0)))}
             elif exchange == "Binance":
                 r = HTTP_SESSION.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={symbol}", timeout=3)
                 if r.status_code == 200:
                     d = r.json()
+                    bid_vol = float(d.get("bidQty", 0))
+                    ask_vol = float(d.get("askQty", 0))
+                    
+                    low_24hr = float(d.get("lowPrice", 0))
+                    if low_24hr <= 0 and not df_last.empty:
+                        low_24hr = float(df_last.tail(24)['low'].min()) if not df_last.tail(24)['low'].empty else low_24hr
+                        if low_24hr <= 0:
+                            low_24hr = float(d.get("lastPrice", 0)) * 0.98
+                    elif low_24hr <= 0:
+                        low_24hr = float(d.get("lastPrice", 0)) * 0.98
+
                     return {"price": float(d["lastPrice"]), "change": float(d["priceChange"]),
                             "pct": float(d["priceChangePercent"]), "bid": float(d["bidPrice"]),
-                            "ask": float(d["askPrice"]), "high": float(d["highPrice"]),
-                            "low": float(d["lowPrice"]), "vol": float(d["volume"])}
+                            "ask": float(d["askPrice"]), "bid_vol": bid_vol, "ask_vol": ask_vol,
+                            "high": float(d["highPrice"]),
+                            "low": low_24hr,
+                            "vol": float(d["volume"])}
         else:
             q = fetch_item_quote(symbol)
             if q["price"] > 0:
+                bid_vol = q.get("bid_vol", 1.0)
+                ask_vol = q.get("ask_vol", 1.0)
+                
+                low_val = q.get("low", q["price"] * 0.99)
+                if low_val <= 0 and not df_last.empty:
+                    low_val = float(df_last.tail(24)['low'].min()) if not df_last.tail(24)['low'].empty else low_val
+                    if low_val <= 0:
+                        low_val = q["price"] * 0.98
+                elif low_val <= 0:
+                    low_val = q["price"] * 0.98
+
                 return {"price": q["price"], "change": q["change"], "pct": q["pct"],
                         "bid": q["price"]*0.9998, "ask": q["price"]*1.0002,
-                        "high": q["price"]*1.01, "low": q["price"]*0.99, "vol": q["vol"]}
+                        "bid_vol": bid_vol, "ask_vol": ask_vol,
+                        "high": q["price"]*1.01,
+                        "low": low_val,
+                        "vol": q["vol"]}
 
         if not df_last.empty and len(df_last) >= 2:
             last, prev = df_last.iloc[-1], df_last.iloc[-2]
             chg = last.close - prev.close
+            
+            bid_vol = 1.0
+            ask_vol = 1.0
+            
+            low_val = float(df_last.tail(24)["low"].min())
+            if low_val <= 0:
+                low_val = float(last.close) * 0.98
+
             return {"price": float(last.close), "change": float(chg),
                     "pct": float(chg / prev.close * 100.0) if prev.close else 0.0,
                     "bid": float(last.close*0.9998), "ask": float(last.close*1.0002),
+                    "bid_vol": bid_vol, "ask_vol": ask_vol,
                     "high": float(df_last.tail(24)["high"].max()),
-                    "low": float(df_last.tail(24)["low"].min()),
+                    "low": low_val,
                     "vol": float(df_last.tail(24)["volume"].sum())}
     except Exception: pass
     return {}
 
-# ──────────────────────────── AVATAR BUILDER ────────────────────────────
 def build_asset_icon_html(sym: str, tag_color: str = "#1E1E1E", size: int = 18) -> str:
     clean_code = sym.split(".")[0].replace("_THB","").replace("-USDT","").replace("USDT","").replace("=F","").replace("=X","")
     clean_lower = clean_code.lower()
@@ -1344,7 +1383,6 @@ def build_asset_icon_html(sym: str, tag_color: str = "#1E1E1E", size: int = 18) 
         <img src="{icon_url}" onerror="this.onerror=null;this.src='{fallback_avatar}';" style="width:{size}px;height:{size}px;border-radius:50%;object-fit:cover;background:#050505;border:1px solid #1E1E1E;">
     </div>"""
 
-# ──────────────────────────── QUOTE CARD RENDERER ────────────────────────────
 def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, seasonality_html: str = "", gauges_html: str = "") -> str:
     if not tk: return "<div style='color:#787b86; padding:10px;'>กำลังเชื่อมต่อข้อมูลราคา...</div>"
     c_color = UP if tk.get("change", 0) >= 0 else DOWN
@@ -1361,14 +1399,27 @@ def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, 
     
     ask_val = float(tk.get("ask", p_val))
     ask_str = f"{ask_val:,.4f}" if ask_val < 10 else f"{ask_val:,.2f}"
+    bid_vol_raw = tk.get('bid_vol', 0)
+    ask_vol_raw = tk.get('ask_vol', 0)
+    bid_vol_str = f"{bid_vol_raw:,.0f}" if bid_vol_raw > 0 else "-"
+    ask_vol_str = f"{ask_vol_raw:,.0f}" if ask_vol_raw > 0 else "-"
 
-    day_low = float(tk.get("low", p_val))
-    day_high = float(tk.get("high", p_val))
+    day_low = tk.get("low", 0)
+    if day_low <= 0:
+        day_low = p_val * 0.98
+    day_low = float(day_low)
+
+    day_high = tk.get("high", 0)
+    if day_high <= 0:
+        day_high = p_val * 1.02
+    day_high = float(day_high)
     span_day = day_high - day_low
     ratio_day = max(0.0, min(100.0, ((p_val - day_low) / span_day * 100.0))) if span_day > 0 else 50.0
 
-    low_52w = float(an.get("low_52w", day_low))
-    high_52w = float(an.get("high_52w", day_high))
+    low_52w = an.get("low_52w", day_low * 0.8) if an else day_low * 0.8
+    high_52w = an.get("high_52w", day_high * 1.2) if an else day_high * 1.2
+    low_52w = float(low_52w)
+    high_52w = float(high_52w)
     span_52w = high_52w - low_52w
     ratio_52w = max(0.0, min(100.0, ((p_val - low_52w) / span_52w * 100.0))) if span_52w > 0 else 50.0
 
@@ -1417,10 +1468,10 @@ def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, 
 
 <div style="display:flex; gap:6px; margin-bottom:14px;">
     <div style="background:rgba(41,98,255,0.15); border:1px solid rgba(41,98,255,0.4); border-radius:12px; padding:2px 10px; font-size:10px; color:#2962ff; font-family:monospace;">
-        {bid_str}
+        {bid_str} × {bid_vol_str}
     </div>
     <div style="background:rgba(239,83,80,0.15); border:1px solid rgba(239,83,80,0.4); border-radius:12px; padding:2px 10px; font-size:10px; color:#ef5350; font-family:monospace;">
-        {ask_str}
+        {ask_str} × {ask_vol_str}
     </div>
 </div>
 
@@ -1476,7 +1527,6 @@ def render_tv_quote_card(tk: dict, an: dict, symbol: str, label_name: str, seaso
     card_html = render_tv_quote_card_html(tk, an, symbol, label_name, seasonality_html, gauges_html)
     st.markdown(card_html, unsafe_allow_html=True)
 
-# ──────────────────────────── POP-UP MODALS ────────────────────────────
 def render_fibonacci_modal_content(fib, ext, fib_zone, fib_tp, last_close):
     if not fib or "levels" not in fib:
         st.info("ข้อมูลประวัติราคายังไม่เพียงพอในการสร้าง Fibonacci Swing")
@@ -1569,6 +1619,7 @@ def render_market_modal_content(tk, an, symbol, label_name, seasonality_html, ga
         st.markdown(gauges_html, unsafe_allow_html=True)
 
     with tab2:
+        df = st.session_state.get("df_data")
         if df is None or df.empty or len(df) < 30:
             st.info("กำลังโหลดข้อมูล...")
             st.stop()
@@ -1623,7 +1674,6 @@ else:
         with st.expander("📊 ข้อมูลตลาด 24h & บทวิเคราะห์เทคนิคขั้นสูง", expanded=True):
             render_market_modal_content(tk, an, symbol, label_name, seasonality_html, gauges_html)
 
-# ──────────────────────────── BULLETPROOF MARKER SANITIZER ────────────────────────────
 def sanitize_markers(markers: list) -> list:
     if not markers: return []
     seen = set()
@@ -1637,7 +1687,6 @@ def sanitize_markers(markers: list) -> list:
         cleaned.append(m)
     return cleaned
 
-# ──────────────────────────── CHART BUILDER (AUTO-SCALE & PRECISION) ────────────────────────────
 def price_precision(df: pd.DataFrame) -> int:
     if df is None or df.empty or "close" not in df.columns: return 2
     p = float(df["close"].iloc[-1])
@@ -1650,10 +1699,13 @@ def min_move(df: pd.DataFrame) -> float:
     return 10 ** -price_precision(df)
 
 def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
+    if df is None or df.empty:
+        return []
+
     show_r = st.session_state.get('show_rsi', True)
     show_m = st.session_state.get('show_macd', True)
-    show_macd = show_m 
     d = df.copy()
+
     if hasattr(d.columns, 'str'):
         d.columns = d.columns.astype(str).str.lower()
     d = d.loc[:, ~d.columns.duplicated()]
@@ -1666,13 +1718,21 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         else:
             d['time'] = range(len(d))
 
+    if 'time' not in d.columns:
+        d['time'] = range(len(d))
+
+    d.columns = [str(c).lower() for c in d.columns]
+
     if pd.api.types.is_datetime64_any_dtype(d['time']):
         d['time'] = (d['time'].astype('int64') // 10**9).astype('int64')
     else:
         d['time'] = pd.to_numeric(d['time'], errors='coerce').fillna(0).astype('int64')
 
     for col in ['open', 'high', 'low', 'close', 'volume']:
-        d[col] = pd.to_numeric(d.get(col, 0.0), errors='coerce').fillna(0.0)
+        if col not in d.columns:
+            d[col] = 100.0 if col == 'volume' else 0.0
+        else:
+            d[col] = pd.to_numeric(d[col], errors='coerce').fillna(0.0)
 
     records = d.to_dict('records')
 
@@ -1682,7 +1742,7 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         "handleScroll": {"mouseWheel": True, "pressedMouseMove": True, "horzTouchDrag": True, "vertTouchDrag": True},
         "handleScale": {"axisPressedMouseMove": True, "mouseWheel": True, "pinch": True},
     }
-    
+
     base_chart = {
         "layout": {"background": {"type": "solid", "color": "#000000"}, "textColor": "#D1D4DC"},
         "grid": {"vertLines": {"color": "#141414"}, "horzLines": {"color": "#141414"}},
@@ -1695,8 +1755,18 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         },
         "timeScale": ts_opts,
     }
-    charts = []
-    candles = d[["time","open","high","low","close"]].dropna().to_dict("records")
+
+    candles = [
+        {
+            "time": int(r["time"]),
+            "open": float(r["open"]),
+            "high": float(r["high"]),
+            "low": float(r["low"]),
+            "close": float(r["close"])
+        }
+        for r in records if r["time"] > 0
+    ]
+
     price_series = [{
         "type": "Candlestick", 
         "data": candles,
@@ -1718,15 +1788,16 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
 
     if show_sig or show_stars or show_dots:
         marker_map = {}
-        for r in d.itertuples():
-            t = int(r.time)
+        for r in records:
+            t = int(r["time"])
             labels = []
-            is_buy = getattr(r, "signal", "") == "BUY"
-            is_sell = getattr(r, "signal", "") == "SELL ALL"
+            sig = str(r.get("signal", ""))
+            is_buy = sig == "BUY"
+            is_sell = sig == "SELL ALL"
 
-            if show_sig and (is_buy or is_sell): labels.append(r.signal)
-            if show_stars and getattr(r, "star", False): labels.append("⭐")
-            dot = getattr(r, "dot_warn", "")
+            if show_sig and (is_buy or is_sell): labels.append(sig)
+            if show_stars and r.get("star", False): labels.append("⭐")
+            dot = str(r.get("dot_warn", ""))
             if show_dots and dot: labels.append("🔴" if dot == "RED" else "🟠")
 
             if labels:
@@ -1747,69 +1818,187 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
     lw = int(st.session_state.get("line_width", 2))
 
     if st.session_state.get("show_fast", True) and "ema_fast" in d:
+        fast_data = [{"time": int(r["time"]), "value": float(r["ema_fast"])} for r in records if pd.notna(r.get("ema_fast")) and r["time"] > 0]
         price_series.append({
-            "type": "Line", "data": d[["time", "ema_fast"]].dropna().rename(columns={"ema_fast": "value"}).to_dict("records"),
+            "type": "Line", "data": fast_data,
             "options": {"color": f"rgba(41, 98, 255, {ema_alpha:.2f})", "lineWidth": lw, "priceLineVisible": False}
         })
 
     if st.session_state.get("show_slow", True) and "ema_slow" in d:
+        slow_data = [{"time": int(r["time"]), "value": float(r["ema_slow"])} for r in records if pd.notna(r.get("ema_slow")) and r["time"] > 0]
         price_series.append({
-            "type": "Line", "data": d[["time", "ema_slow"]].dropna().rename(columns={"ema_slow": "value"}).to_dict("records"),
+            "type": "Line", "data": slow_data,
             "options": {"color": f"rgba(239, 83, 80, {ema_alpha:.2f})", "lineWidth": lw, "priceLineVisible": False}
         })
 
     if st.session_state.get("show_trend", True) and "ema_trend" in d:
+        trend_data = [{"time": int(r["time"]), "value": float(r["ema_trend"])} for r in records if pd.notna(r.get("ema_trend")) and r["time"] > 0]
         price_series.append({
-            "type": "Line", "data": d[["time", "ema_trend"]].dropna().rename(columns={"ema_trend": "value"}).to_dict("records"),
+            "type": "Line", "data": trend_data,
             "options": {"color": f"rgba(255, 255, 255, {trend_alpha:.2f})", "lineWidth": max(1, lw - 1), "lineStyle": 2, "priceLineVisible": False}
         })
 
-    vol = [{"time": int(r.time), "value": float(r.volume),
-            "color": UP + "80" if r.close >= r.open else DOWN + "80"} for r in d.itertuples() if pd.notna(r.volume)]
-    price_series.append({"type": "Histogram", "data": vol,
-                         "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "vol"},
-                         "priceScale": {"scaleMargins": {"top": 0.8, "bottom": 0}}})
+    vol = [
+        {
+            "time": int(r["time"]),
+            "value": float(r.get("volume", 0)),
+            "color": UP + "80" if float(r.get("close", 0)) >= float(r.get("open", 0)) else DOWN + "80"
+        }
+        for r in records if pd.notna(r.get("volume")) and r["time"] > 0
+    ]
+    price_series.append({
+        "type": "Histogram", "data": vol,
+        "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "vol"},
+        "priceScale": {"scaleMargins": {"top": 0.8, "bottom": 0}}
+    })
 
-    charts.append({"chart": {**base_chart, "height": main_h,
-                             "watermark": {"visible": True, "text": f"{symbol} · {tf}", "fontSize": 40, "color": "rgba(255,255,255,0.05)"}},
-                   "series": price_series})
+    charts = [{
+        "chart": {
+            **base_chart,
+            "height": main_h,
+            "watermark": {"visible": True, "text": f"{symbol} · {tf}", "fontSize": 40, "color": "rgba(255,255,255,0.05)"}
+        },
+        "series": price_series
+    }]
 
     def make_rsi_pane():
-        rsi_data = d[["time","rsi"]].dropna().rename(columns={"rsi": "value"}).to_dict("records")
-        mk = lambda v: [{"time": int(t), "value": v} for t in d["time"]]
-        return {"chart": {**base_chart, "height": rsi_h,
-                          "watermark": {"visible": True, "text": "RSI (14)", "fontSize": 18, "color": "rgba(0, 188, 212, 0.08)"}},
-                "series": [
-                    {"type": "Line", "data": mk(70.0), "options": {"color": "rgba(239,83,80,0.4)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False}},
-                    {"type": "Line", "data": mk(50.0), "options": {"color": "rgba(120,123,134,0.3)", "lineWidth": 1, "lineStyle": 3, "priceLineVisible": False}},
-                    {"type": "Line", "data": mk(30.0), "options": {"color": "rgba(38,166,154,0.4)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False}},
-                    {"type": "Line", "data": rsi_data, "options": {"color": "#00bcd4", "lineWidth": 2, "priceLineVisible": True}},
-                ]}
+        rsi_data = [{"time": int(r["time"]), "value": float(r["rsi"])} for r in records if pd.notna(r.get("rsi")) and r["time"] > 0]
+        mk = lambda v: [{"time": int(r["time"]), "value": v} for r in records if r["time"] > 0]
+        return {
+            "chart": {
+                **base_chart, "height": rsi_h,
+                "watermark": {"visible": True, "text": "RSI (14)", "fontSize": 18, "color": "rgba(0, 188, 212, 0.08)"}
+            },
+            "series": [
+                {"type": "Line", "data": mk(70.0), "options": {"color": "rgba(239,83,80,0.4)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False}},
+                {"type": "Line", "data": mk(50.0), "options": {"color": "rgba(120,123,134,0.3)", "lineWidth": 1, "lineStyle": 3, "priceLineVisible": False}},
+                {"type": "Line", "data": mk(30.0), "options": {"color": "rgba(38,166,154,0.4)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False}},
+                {"type": "Line", "data": rsi_data, "options": {"color": "#00bcd4", "lineWidth": 2, "priceLineVisible": True}},
+            ]
+        }
 
     def make_macd_pane():
-        macd_line = d[["time","macd"]].dropna().rename(columns={"macd": "value"}).to_dict("records")
-        sig_line  = d[["time","macd_sig"]].dropna().rename(columns={"macd_sig": "value"}).to_dict("records")
-        hist = [{"time": int(r.time), "value": float(r.macd_hist), "color": UP + "90" if r.macd_hist >= 0 else DOWN + "90"} for r in d.itertuples() if pd.notna(r.macd_hist)]
-        return {"chart": {**base_chart, "height": macd_h,
-                          "watermark": {"visible": True, "text": "MACD (12, 26, 9)", "fontSize": 18, "color": "rgba(0, 230, 118, 0.08)"}},
-                "series": [
-                    {"type": "Histogram", "data": hist, "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "macd_hist"}},
-                    {"type": "Line", "data": macd_line, "options": {"color": "#00e676", "lineWidth": 2, "priceLineVisible": False}},
-                    {"type": "Line", "data": sig_line, "options": {"color": "#ff5252", "lineWidth": 2, "priceLineVisible": False}},
-                ]}
+        macd_line = [{"time": int(r["time"]), "value": float(r["macd"])} for r in records if pd.notna(r.get("macd")) and r["time"] > 0]
+        sig_line  = [{"time": int(r["time"]), "value": float(r["macd_sig"])} for r in records if pd.notna(r.get("macd_sig")) and r["time"] > 0]
+        hist = [
+            {"time": int(r["time"]), "value": float(r["macd_hist"]), "color": UP + "90" if float(r.get("macd_hist", 0)) >= 0 else DOWN + "90"}
+            for r in records if pd.notna(r.get("macd_hist")) and r["time"] > 0
+        ]
+        return {
+            "chart": {
+                **base_chart, "height": macd_h,
+                "watermark": {"visible": True, "text": "MACD (12, 26, 9)", "fontSize": 18, "color": "rgba(0, 230, 118, 0.08)"}
+            },
+            "series": [
+                {"type": "Histogram", "data": hist, "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "macd_hist"}},
+                {"type": "Line", "data": macd_line, "options": {"color": "#00e676", "lineWidth": 2, "priceLineVisible": False}},
+                {"type": "Line", "data": sig_line, "options": {"color": "#ff5252", "lineWidth": 2, "priceLineVisible": False}},
+            ]
+        }
 
     for p in st.session_state.get("pane_order", ["rsi", "macd"]):
         if p == "rsi" and show_r:
-            rsi_series = d[["time","rsi"]].dropna().rename(columns={"rsi": "value"}).to_dict("records")
-            if _has_data(rsi_series):
-                charts.append(make_rsi_pane())
-        elif p == "macd" and show_macd:
-            macd_series = d[["time","macd"]].dropna().rename(columns={"macd": "value"}).to_dict("records")
-            if _has_data(macd_series):
-                charts.append(make_macd_pane())
+            charts.append(make_rsi_pane())
+        elif p == "macd" and show_m:
+            charts.append(make_macd_pane())
+
     return charts
 
-# ──────────────────────────── WATCHLIST COMPONENT ────────────────────────────
+def get_symbol_badge(sym: str) -> str:
+    s = sym.upper()
+    if "BTC" in s: return "₿"
+    if "ETH" in s: return "Ξ"
+    if "SOL" in s: return "◎"
+    if "XRP" in s: return "✕"
+    if "DOGE" in s: return "Ð"
+    if "ADA" in s: return "₳"
+    if "BNB" in s: return "🟡"
+    if "GC=F" in s or "GOLD" in s: return "🥇"
+    if "CL=F" in s or "BZ=F" in s: return "🛢️"
+    if ".BK" in s: return "🇹🇭"
+    if ".VN" in s: return "🇻🇳"
+    if ".SS" in s or ".SZ" in s or ".HK" in s: return "🇨🇳"
+    return "📈"
+
+def render_top_toolbar():
+    tabs = st.session_state.open_tabs
+    n_tabs = len(tabs)
+
+    widths = [0.3] + [0.95, 0.25] * n_tabs + [0.32, 0.08, 0.65, 1.1, 0.45, 0.45, 0.55, 0.65, 3.5]
+    cols = st.columns(widths, gap="small", vertical_alignment="center")
+
+    i = 0
+    with cols[i]:
+        st.markdown(build_asset_icon_html(st.session_state.current_symbol, size=22), unsafe_allow_html=True)
+    i += 1
+
+    now = time.time()
+    for tab in tabs:
+        tab_id = tab["id"]
+        is_active = (tab_id == st.session_state.active_tab_id)
+        badge = get_symbol_badge(tab["symbol"])
+        tab_label = f"{badge} {tab['symbol']}"
+
+        with cols[i]:
+            if st.button(tab_label, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
+                last_time = st.session_state.get(f"last_click_{tab_id}", 0)
+                if (now - last_time) < 0.4:
+                    st.session_state[f"last_click_{tab_id}"] = 0
+                    add_tab(tab["symbol"])
+                else:
+                    st.session_state[f"last_click_{tab_id}"] = now
+                    switch_tab(tab_id)
+        i += 1
+
+        with cols[i]:
+            if st.button("✕", key=f"tab_close_{tab_id}", disabled=(n_tabs <= 1), use_container_width=True):
+                close_tab(tab_id)
+        i += 1
+
+    with cols[i]:
+        if st.button("➕", key="tab_add_btn", use_container_width=True, help="เปิดแท็บใหม่"):
+            add_tab(st.session_state.current_symbol)
+    i += 1
+
+    with cols[i]:
+        st.markdown("<div style='height:18px;border-left:1px solid #222;margin:0 auto;'></div>", unsafe_allow_html=True)
+    i += 1
+
+    with cols[i]:
+        tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.selected_tf) if st.session_state.selected_tf in TF_OPTIONS else 5, key="tf_select", label_visibility="collapsed")
+        if tf != st.session_state.selected_tf:
+            st.session_state.selected_tf = tf
+            cur = _find_tab(st.session_state.active_tab_id)
+            if cur: cur["tf"] = tf
+            _clear_chart_state()
+            st.rerun()
+    i += 1
+
+    with cols[i]:
+        bars = st.slider("Bars", 300, 25000, int(st.session_state.get("bars_count", 2500)), 500, label_visibility="collapsed", key="bars_count")
+    i += 1
+
+    with cols[i]:
+        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="fill_gaps")
+    i += 1
+
+    with cols[i]:
+        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="auto_refresh")
+    i += 1
+
+    with cols[i]:
+        every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="refresh_sec")
+    i += 1
+
+    with cols[i]:
+        reload_btn = st.button("🔄 โหลด", key="load_btn", use_container_width=True)
+    i += 1
+
+    with cols[i]:
+        st.empty()
+
+    return tf, bars, fill_gaps, auto, every, reload_btn
+
 def render_watchlist_component(key_prefix: str = "desk"):
     tab_highlight, tab_starred = st.tabs(["🔥 สินทรัพย์โดดเด่น", "⭐ กลุ่มสีโปรด"])
 
@@ -1928,103 +2117,6 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.session_state["star_watchlists"][cat_name].remove(s_item)
                                 st.rerun()
 
-# ──────────────────────────── TOP DISPLAY TOOLBAR (SINGLE ROW, NO VOID, BADGES) ────────────────────────────
-def get_symbol_badge(sym: str) -> str:
-    s = sym.upper()
-    if "BTC" in s: return "₿"
-    if "ETH" in s: return "Ξ"
-    if "SOL" in s: return "◎"
-    if "XRP" in s: return "✕"
-    if "DOGE" in s: return "Ð"
-    if "ADA" in s: return "₳"
-    if "BNB" in s: return "🟡"
-    if "GC=F" in s or "GOLD" in s: return "🥇"
-    if "CL=F" in s or "BZ=F" in s: return "🛢️"
-    if ".BK" in s: return "🇹🇭"
-    if ".VN" in s: return "🇻🇳"
-    if ".SS" in s or ".SZ" in s or ".HK" in s: return "🇨🇳"
-    return "📈"
-
-def render_top_toolbar():
-    tabs = st.session_state.open_tabs
-    n_tabs = len(tabs)
-
-    widths = [0.3] + [0.95, 0.25] * n_tabs + [0.32, 0.08, 0.65, 1.1, 0.45, 0.45, 0.55, 0.65, 3.5]
-    cols = st.columns(widths, gap="small", vertical_alignment="center")
-
-    i = 0
-    with cols[i]:
-        st.markdown(build_asset_icon_html(st.session_state.current_symbol, size=22), unsafe_allow_html=True)
-    i += 1
-
-    now = time.time()
-    for tab in tabs:
-        tab_id = tab["id"]
-        is_active = (tab_id == st.session_state.active_tab_id)
-        badge = get_symbol_badge(tab["symbol"])
-        tab_label = f"{badge} {tab['symbol']}"
-
-        with cols[i]:
-            if st.button(tab_label, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
-                last_time = st.session_state.get(f"last_click_{tab_id}", 0)
-                if (now - last_time) < 0.4:
-                    st.session_state[f"last_click_{tab_id}"] = 0
-                    add_tab(tab["symbol"])
-                else:
-                    st.session_state[f"last_click_{tab_id}"] = now
-                    switch_tab(tab_id)
-        i += 1
-
-        with cols[i]:
-            if st.button("✕", key=f"tab_close_{tab_id}", disabled=(n_tabs <= 1), use_container_width=True):
-                close_tab(tab_id)
-        i += 1
-
-    with cols[i]:
-        if st.button("➕", key="tab_add_btn", use_container_width=True, help="เปิดแท็บใหม่"):
-            add_tab(st.session_state.current_symbol)
-    i += 1
-
-    with cols[i]:
-        st.markdown("<div style='height:18px;border-left:1px solid #222;margin:0 auto;'></div>", unsafe_allow_html=True)
-    i += 1
-
-    with cols[i]:
-        tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.selected_tf) if st.session_state.selected_tf in TF_OPTIONS else 5, key="tf_select", label_visibility="collapsed")
-        if tf != st.session_state.selected_tf:
-            st.session_state.selected_tf = tf
-            cur = _find_tab(st.session_state.active_tab_id)
-            if cur: cur["tf"] = tf
-            _clear_chart_state()
-            st.rerun()
-    i += 1
-
-    with cols[i]:
-        bars = st.slider("Bars", 300, 25000, int(st.session_state.get("bars_count", 2500)), 500, label_visibility="collapsed", key="bars_count")
-    i += 1
-
-    with cols[i]:
-        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="fill_gaps")
-    i += 1
-
-    with cols[i]:
-        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="auto_refresh")
-    i += 1
-
-    with cols[i]:
-        every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="refresh_sec")
-    i += 1
-
-    with cols[i]:
-        reload_btn = st.button("🔄 โหลด", key="load_btn", use_container_width=True)
-    i += 1
-
-    with cols[i]:
-        st.empty()
-
-    return tf, bars, fill_gaps, auto, every, reload_btn
-
-# ──────────────────────────── SIDEBAR ────────────────────────────
 with st.sidebar:
     st.markdown("### ⚙️ แผงควบคุมระบบ")
     col_m1, col_m2 = st.columns(2)
@@ -2410,12 +2502,6 @@ def dashboard():
         col_quote = None
 
     with col_chart:
-        for p in st.session_state.get("pane_order", ["rsi", "macd"]):
-            if p == "rsi" and show_r:
-                st.markdown('<div class="pane-toolbar"><span>📉 RSI (14)</span></div>', unsafe_allow_html=True)
-            elif p == "macd" and show_m:
-                st.markdown('<div class="pane-toolbar"><span>📊 MACD (12, 26, 9)</span></div>', unsafe_allow_html=True)
-
         st.markdown('<div style="width: 100%; overflow: hidden;">', unsafe_allow_html=True)
         renderLightweightCharts(charts, key=chart_dyn_key)
         st.markdown('</div>', unsafe_allow_html=True)
