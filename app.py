@@ -19,6 +19,16 @@ try:
 except ImportError:
     symbols = None
 
+
+def _has_data(series_list) -> bool:
+    for s in series_list or []:
+        data = s.get("data") or []
+        for p in data:
+            v = p.get("value", p.get("close"))
+            if v is not None and v == v:   # กรอง None และ NaN
+                return True
+    return False
+
 try:
     import yfinance as yf
 except ImportError:
@@ -188,24 +198,24 @@ def _fetch_url_with_timeout(url: str, timeout: float = 1.5) -> requests.Response
 GLOBAL_MARKET = "🌐 Global (Yahoo)"
 
 TF = {
-    "1m":  {"sec": 60,       "rule": "1min", "base": None, "yf_iv": "1m",  "yf_range": "7d"},
-    "3m":  {"sec": 180,      "rule": "3min", "base": "1m", "yf_iv": "5m",  "yf_range": "60d"},
-    "5m":  {"sec": 300,      "rule": "5min", "base": None, "yf_iv": "5m",  "yf_range": "60d"},
-    "15m": {"sec": 900,      "rule": "15min","base": None, "yf_iv": "15m", "yf_range": "60d"},
-    "30m": {"sec": 1800,     "rule": "30min","base": None, "yf_iv": "30m", "yf_range": "60d"},
-    "1h":  {"sec": 3600,     "rule": "1h",   "base": None, "yf_iv": "60m", "yf_range": "730d"},
-    "2h":  {"sec": 7200,     "rule": "2h",   "base": "1h", "yf_iv": "60m", "yf_range": "730d"},
-    "3h":  {"sec": 10800,    "rule": "3h",   "base": "1h", "yf_iv": "60m", "yf_range": "730d"},
-    "4h":  {"sec": 14400,    "rule": "4h",   "base": None, "yf_iv": "60m", "yf_range": "730d"},
-    "6h":  {"sec": 21600,    "rule": "6h",   "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
-    "8h":  {"sec": 28800,    "rule": "8h",   "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
-    "12h": {"sec": 43200,    "rule": "12h",  "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
-    "1d":  {"sec": 86400,    "rule": "1D",   "base": None, "yf_iv": "1d",  "yf_range": "10y"},
-    "1w":  {"sec": 604800,   "rule": "1W",   "base": None, "yf_iv": "1wk", "yf_range": "10y"},
-    "1M":  {"sec": 2592000,  "rule": "1ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
-    "3M":  {"sec": 7776000,  "rule": "3ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
-    "6M":  {"sec": 15552000, "rule": "6ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
-    "1Y":  {"sec": 31536000, "rule": "1YE",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
+    "1m":  {"sec": 60,        "rule": "1min", "base": None, "yf_iv": "1m",  "yf_range": "7d"},
+    "3m":  {"sec": 180,       "rule": "3min", "base": "1m", "yf_iv": "5m",  "yf_range": "60d"},
+    "5m":  {"sec": 300,       "rule": "5min", "base": None, "yf_iv": "5m",  "yf_range": "60d"},
+    "15m": {"sec": 900,       "rule": "15min","base": None, "yf_iv": "15m", "yf_range": "60d"},
+    "30m": {"sec": 1800,      "rule": "30min","base": None, "yf_iv": "30m", "yf_range": "60d"},
+    "1h":  {"sec": 3600,      "rule": "1h",   "base": None, "yf_iv": "60m", "yf_range": "730d"},
+    "2h":  {"sec": 7200,      "rule": "2h",   "base": "1h", "yf_iv": "60m", "yf_range": "730d"},
+    "3h":  {"sec": 10800,     "rule": "3h",   "base": "1h", "yf_iv": "60m", "yf_range": "730d"},
+    "4h":  {"sec": 14400,     "rule": "4h",   "base": None, "yf_iv": "60m", "yf_range": "730d"},
+    "6h":  {"sec": 21600,     "rule": "6h",   "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
+    "8h":  {"sec": 28800,     "rule": "8h",   "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
+    "12h": {"sec": 43200,     "rule": "12h",  "base": "1h", "yf_iv": "1d",  "yf_range": "5y"},
+    "1d":  {"sec": 86400,     "rule": "1D",   "base": None, "yf_iv": "1d",  "yf_range": "10y"},
+    "1w":  {"sec": 604800,    "rule": "1W",   "base": None, "yf_iv": "1wk", "yf_range": "10y"},
+    "1M":  {"sec": 2592000,   "rule": "1ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
+    "3M":  {"sec": 7776000,   "rule": "3ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
+    "6M":  {"sec": 15552000,  "rule": "6ME",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
+    "1Y":  {"sec": 31536000,  "rule": "1YE",  "base": "1d", "yf_iv": "1d",  "yf_range": "max"},
 }
 
 TF_OPTIONS = list(TF.keys())
@@ -445,6 +455,7 @@ if "fib_lookback" not in st.session_state: st.session_state["fib_lookback"] = 5
 if "fib_window" not in st.session_state: st.session_state["fib_window"] = 120
 if "fib_tp_level" not in st.session_state: st.session_state["fib_tp_level"] = 1.618
 if "fib_confirm_on" not in st.session_state: st.session_state["fib_confirm_on"] = False
+if "chart_slot" not in st.session_state: st.session_state["chart_slot"] = None
 
 # ──────────────────────────── ROUTER ────────────────────────────
 def resolve_route(symbol: str, ui_market: str = "", ui_exchange: str = "Binance"):
@@ -1558,6 +1569,10 @@ def render_market_modal_content(tk, an, symbol, label_name, seasonality_html, ga
         st.markdown(gauges_html, unsafe_allow_html=True)
 
     with tab2:
+        if df is None or df.empty or len(df) < 30:
+            st.info("กำลังโหลดข้อมูล...")
+            st.stop()
+
         if an and "osc" in an and "ma" in an:
             st.markdown("##### 3. ตารางเจาะลึกตัวชี้วัดรายตัว (Indicator Breakdowns)")
             t_col1, t_col2 = st.columns(2)
@@ -1635,14 +1650,42 @@ def min_move(df: pd.DataFrame) -> float:
     return 10 ** -price_precision(df)
 
 def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
+    show_r = st.session_state.get('show_rsi', True)
+    show_m = st.session_state.get('show_macd', True)
+    show_macd = show_m 
     d = df.copy()
-    d["time"] = d["time"].astype("int64") + (7 * 3600)
+
+    if hasattr(d.columns, 'str'):
+        d.columns = d.columns.astype(str).str.lower()
+    
+    if 'time' not in d.columns:
+        if isinstance(d.index, pd.DatetimeIndex) or d.index.name is not None:
+            d = d.reset_index(drop=False)
+            if 'time' not in d.columns and len(d.columns) > 0:
+                d = d.rename(columns={d.columns[0]: 'time'})
+        else:
+            d['time'] = range(len(d))
+
+    if 'time' not in d.columns:
+        d['time'] = range(len(d))
+
+    d.columns = [str(c).lower() for c in d.columns]
+    
+    required_cols = ['time', 'open', 'high', 'low', 'close', 'volume']
+    for col in required_cols:
+        if col not in d.columns:
+            if col == 'volume':
+                d['volume'] = 100.0
+            else:
+                d[col] = 0.0
+
     ts_opts = {
         "borderColor": "#1E1E1E", "timeVisible": True, "secondsVisible": tf in ("1m", "3m", "5m"),
         "fixLeftEdge": False, "rightOffset": 5,
         "handleScroll": {"mouseWheel": True, "pressedMouseMove": True, "horzTouchDrag": True, "vertTouchDrag": True},
         "handleScale": {"axisPressedMouseMove": True, "mouseWheel": True, "pinch": True},
     }
+    
     base_chart = {
         "layout": {"background": {"type": "solid", "color": "#000000"}, "textColor": "#D1D4DC"},
         "grid": {"vertLines": {"color": "#141414"}, "horzLines": {"color": "#141414"}},
@@ -1650,7 +1693,7 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         "rightPriceScale": {
             "autoScale": True,
             "borderColor": "#1E1E1E",
-            "scaleMargins": {"top": 0.12, "bottom": 0.12},
+            "scaleMargins": {"top": 0.1, "bottom": 0.1},
             "mode": 0
         },
         "timeScale": ts_opts,
@@ -1759,8 +1802,14 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
                 ]}
 
     for p in st.session_state.get("pane_order", ["rsi", "macd"]):
-        if p == "rsi" and st.session_state.get("show_rsi", True): charts.append(make_rsi_pane())
-        elif p == "macd" and st.session_state.get("show_macd", True): charts.append(make_macd_pane())
+        if p == "rsi" and show_r:
+            rsi_series = d[["time","rsi"]].dropna().rename(columns={"rsi": "value"}).to_dict("records")
+            if _has_data(rsi_series):
+                charts.append(make_rsi_pane())
+        elif p == "macd" and show_macd:
+            macd_series = d[["time","macd"]].dropna().rename(columns={"macd": "value"}).to_dict("records")
+            if _has_data(macd_series):
+                charts.append(make_macd_pane())
     return charts
 
 # ──────────────────────────── WATCHLIST COMPONENT ────────────────────────────
@@ -1882,13 +1931,28 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.session_state["star_watchlists"][cat_name].remove(s_item)
                                 st.rerun()
 
-# ──────────────────────────── TOP DISPLAY TOOLBAR (SINGLE ROW, NO VOID, DOUBLE-CLICK CLONE) ────────────────────────────
+# ──────────────────────────── TOP DISPLAY TOOLBAR (SINGLE ROW, NO VOID, BADGES) ────────────────────────────
+def get_symbol_badge(sym: str) -> str:
+    s = sym.upper()
+    if "BTC" in s: return "₿"
+    if "ETH" in s: return "Ξ"
+    if "SOL" in s: return "◎"
+    if "XRP" in s: return "✕"
+    if "DOGE" in s: return "Ð"
+    if "ADA" in s: return "₳"
+    if "BNB" in s: return "🟡"
+    if "GC=F" in s or "GOLD" in s: return "🥇"
+    if "CL=F" in s or "BZ=F" in s: return "🛢️"
+    if ".BK" in s: return "🇹🇭"
+    if ".VN" in s: return "🇻🇳"
+    if ".SS" in s or ".SZ" in s or ".HK" in s: return "🇨🇳"
+    return "📈"
+
 def render_top_toolbar():
     tabs = st.session_state.open_tabs
     n_tabs = len(tabs)
 
-    # วาง Layout แนบชิดแบบ Single Row ต่อเนื่อง โดยให้ช่อง Bars ช่วยยืดรับพื้นที่ว่างตรงกลาง
-    widths = [0.35] + [1.0, 0.28] * n_tabs + [0.35, 0.1, 0.75, 2.5, 0.55, 0.55, 0.65, 0.7]
+    widths = [0.3] + [0.95, 0.25] * n_tabs + [0.32, 0.08, 0.65, 1.1, 0.45, 0.45, 0.55, 0.65, 3.5]
     cols = st.columns(widths, gap="small", vertical_alignment="center")
 
     i = 0
@@ -1900,12 +1964,12 @@ def render_top_toolbar():
     for tab in tabs:
         tab_id = tab["id"]
         is_active = (tab_id == st.session_state.active_tab_id)
+        badge = get_symbol_badge(tab["symbol"])
+        tab_label = f"{badge} {tab['symbol']}"
 
         with cols[i]:
-            btn_label = f"{'● ' if is_active else ''}{tab['symbol']}"
-            if st.button(btn_label, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
+            if st.button(tab_label, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
                 last_time = st.session_state.get(f"last_click_{tab_id}", 0)
-                # ดับเบิ้ลคลิก (ภายใน 0.4 วินาที) = ก็อปปี้แท็บใหม่ | คลิกเดียว = สลับแท็บ
                 if (now - last_time) < 0.4:
                     st.session_state[f"last_click_{tab_id}"] = 0
                     add_tab(tab["symbol"])
@@ -1920,12 +1984,12 @@ def render_top_toolbar():
         i += 1
 
     with cols[i]:
-        if st.button("➕", key="tab_add_btn", use_container_width=True, help="เปิด/คัดลอกแท็บใหม่"):
+        if st.button("➕", key="tab_add_btn", use_container_width=True, help="เปิดแท็บใหม่"):
             add_tab(st.session_state.current_symbol)
     i += 1
 
     with cols[i]:
-        st.markdown("<div style='height:20px;border-left:1px solid #222;margin:0 auto;'></div>", unsafe_allow_html=True)
+        st.markdown("<div style='height:18px;border-left:1px solid #222;margin:0 auto;'></div>", unsafe_allow_html=True)
     i += 1
 
     with cols[i]:
@@ -1956,6 +2020,10 @@ def render_top_toolbar():
 
     with cols[i]:
         reload_btn = st.button("🔄 โหลด", key="load_btn", use_container_width=True)
+    i += 1
+
+    with cols[i]:
+        st.empty()
 
     return tf, bars, fill_gaps, auto, every, reload_btn
 
@@ -2029,7 +2097,6 @@ with st.sidebar:
 
         picked = st.selectbox("🔍 เลือกสินทรัพย์:", display_symbols, index=cur_idx, format_func=format_symbol_label, key="selected_symbol_picker")
         
-        # เมื่อเลือกเหรียญจาก Sidebar ให้สลับเหรียญในแท็บเดิม ไม่สร้างแท็บใหม่
         if picked != st.session_state.get("current_symbol") and picked != "- Select -":
             cur = _find_tab(st.session_state.active_tab_id)
             if cur: cur["symbol"] = picked
@@ -2291,32 +2358,46 @@ def dashboard():
 
     show_r = st.session_state.get('show_rsi', True)
     show_m = st.session_state.get('show_macd', True)
-    p_ord = "_".join(st.session_state.get('pane_order', ['rsi', 'macd']))
+    p_ord = "_".join(st.session_state.get("pane_order", ["rsi", "macd"]))
+    cur_size = st.session_state.get("panel_size", "M")
     
-    # รีเมาท์ Lightweight Chart ทุกครั้งที่สลับเหรียญหรือแท็บเพื่อรีเซ็ต Scale ราคา
     chart_dyn_key = (
         f"c_{symbol}_{tf}_{st.session_state.get('active_tab_id', '0')}_"
         f"{show_r}_{show_m}_{p_ord}_{cur_main_h}_{cur_rsi_h}_{cur_macd_h}_"
-        f"{st.session_state.get('panel_size', 'M')}_{len(df)}_{int(df['close'].iloc[-1] * 100)}"
+        f"{cur_size}"
     )
 
     if st.session_state.get("mobile_mode", False):
-        for p in st.session_state.get("pane_order", ["rsi", "macd"]):
-            if p == "rsi" and show_r:
-                st.markdown('<div class="pane-toolbar"><span>📉 RSI (14)</span></div>', unsafe_allow_html=True)
-            elif p == "macd" and show_m:
-                st.markdown('<div class="pane-toolbar"><span>📊 MACD (12, 26, 9)</span></div>', unsafe_allow_html=True)
-        renderLightweightCharts(charts, key=f"mob_{chart_dyn_key}")
-        components.html(clock_html, height=28)
+        layout_ratios_mob = {
+            "S": [4.88, 0.12],
+            "M": [3.5, 0.12, 1.38],
+            "L": [2.8, 0.12, 2.08]
+        }
+        if st.session_state.get("panel_open", True):
+            col_chart, col_toggle, col_quote = st.columns(layout_ratios_mob[cur_size])
+        else:
+            col_chart, col_toggle = st.columns([4.88, 0.12])
+            col_quote = None
 
-        with st.expander("⭐ รายการสินทรัพย์ & อันดับขาขึ้น-ลง", expanded=True):
-            render_watchlist_component(key_prefix="mob")
+        with col_chart:
+            renderLightweightCharts(charts, key=chart_dyn_key)
+            components.html(clock_html, height=28)
 
-        with st.expander("📊 ข้อมูลตลาด 24h & เทคนิค", expanded=True):
-            if st.button("⛶ ขยายดูตลาด 24h (Pop-up)", key="btn_popup_market_mob", use_container_width=True):
-                st.session_state["trigger_market_modal"] = True
+        with col_toggle:
+            btn_label = "❯" if st.session_state.get("panel_open", True) else "❮"
+            if st.button(btn_label, key="toggle_panel_btn_mob", help="ย่อ/ขยายแผงขวา", use_container_width=True):
+                st.session_state["panel_open"] = not st.session_state.get("panel_open", True)
                 st.rerun()
-            render_tv_quote_card(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_compact)
+
+        if st.session_state.get("panel_open", True) and col_quote:
+            with col_quote:
+                with st.expander("⭐ รายการสินทรัพย์ & อันดับขาขึ้น-ลง", expanded=True):
+                    render_watchlist_component(key_prefix="mob")
+                with st.expander("📊 ข้อมูลตลาด 24h & เทคนิค", expanded=True):
+                    if st.button("⛶ ขยายดูตลาด 24h (Pop-up)", key="btn_popup_market_mob", use_container_width=True):
+                        st.session_state["trigger_market_modal"] = True
+                        st.rerun()
+                    render_tv_quote_card(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_compact)
         return
 
     layout_ratios = {
@@ -2324,12 +2405,12 @@ def dashboard():
         "M": [3.6, 0.12, 1.28],
         "L": [3.1, 0.12, 1.78]
     }
-    cur_size = st.session_state.get("panel_size", "M")
 
     if st.session_state.get("panel_open", True):
         col_chart, col_toggle, col_quote = st.columns(layout_ratios[cur_size])
     else:
         col_chart, col_toggle = st.columns([4.88, 0.12])
+        col_quote = None
 
     with col_chart:
         for p in st.session_state.get("pane_order", ["rsi", "macd"]):
@@ -2339,7 +2420,7 @@ def dashboard():
                 st.markdown('<div class="pane-toolbar"><span>📊 MACD (12, 26, 9)</span></div>', unsafe_allow_html=True)
 
         st.markdown('<div style="width: 100%; overflow: hidden;">', unsafe_allow_html=True)
-        renderLightweightCharts(charts, key=f"desk_{chart_dyn_key}")
+        renderLightweightCharts(charts, key=chart_dyn_key)
         st.markdown('</div>', unsafe_allow_html=True)
         components.html(clock_html, height=28)
 
@@ -2349,7 +2430,7 @@ def dashboard():
             st.session_state["panel_open"] = not st.session_state.get("panel_open", True)
             st.rerun()
 
-    if st.session_state.get("panel_open", True):
+    if st.session_state.get("panel_open", True) and col_quote:
         with col_quote:
             cs_col1, cs_col2, cs_col3 = st.columns(3)
             with cs_col1:
