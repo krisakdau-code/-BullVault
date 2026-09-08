@@ -1,3 +1,5 @@
+from core.routing import init_tabs, _find_tab, _clear_chart_state, add_tab, switch_tab, close_tab, resolve_route, route_label
+
 from data.symbols import (
     fetch_set_all_symbols, get_full_bitkub_symbols, get_full_binance_symbols,
     get_full_sp500_symbols, get_full_china_stocks, get_full_vietnam_symbols,
