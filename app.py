@@ -1,3 +1,5 @@
+from drawing_chart import render_drawing_chart
+
 # app.py — Universal Trading Terminal (Hybrid Ultra Edition)
 import os
 import time
@@ -23,6 +25,7 @@ from symbols import (
     get_full_kucoin_symbols
 )
 from utils import _has_data, fmt_price, fmt_chg, fmt_vol
+from drawing_chart import render_drawing_chart
 from config import *
 
 try:
@@ -333,8 +336,8 @@ if "line_width" not in st.session_state: st.session_state["line_width"] = 2
 
 if "bars_count" not in st.session_state: st.session_state["bars_count"] = 2500
 if "fill_gaps" not in st.session_state: st.session_state["fill_gaps"] = False
-if "auto_refresh" not in st.session_state: st.session_state["auto_refresh"] = False
-if "refresh_sec" not in st.session_state: st.session_state["refresh_sec"] = 5
+if "auto_refresh" not in st.session_state: st.session_state["auto_refresh"] = True
+if "refresh_sec" not in st.session_state: st.session_state["refresh_sec"] = 2
 
 if "fib_lookback" not in st.session_state: st.session_state["fib_lookback"] = 5
 if "fib_window" not in st.session_state: st.session_state["fib_window"] = 120
@@ -1695,9 +1698,9 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
     d.columns = [str(c).lower() for c in d.columns]
 
     if pd.api.types.is_datetime64_any_dtype(d['time']):
-        d['time'] = (d['time'].astype('int64') // 10**9).astype('int64')
+        d['time'] = (d['time'].astype('int64') // 10**9).astype('int64') + 25200
     else:
-        d['time'] = pd.to_numeric(d['time'], errors='coerce').fillna(0).astype('int64')
+        d['time'] = pd.to_numeric(d['time'], errors='coerce').fillna(0).astype('int64') + 25200
 
     for col in ['open', 'high', 'low', 'close', 'volume']:
         if col not in d.columns:
@@ -2496,8 +2499,9 @@ def dashboard():
             col_quote = None
 
         with col_chart:
-            renderLightweightCharts(charts, key=chart_dyn_key)
-
+            render_drawing_chart([charts[0]], height=cur_main_h, key=chart_dyn_key)
+            if len(charts) > 1:
+                renderLightweightCharts(charts[1:], key=chart_dyn_key + "_sub")
         with col_toggle:
             btn_label = "❯" if st.session_state.get("panel_open", True) else "❮"
             if st.button(btn_label, key="toggle_panel_btn_mob", help="ย่อ/ขยายแผงขวา", use_container_width=True):
@@ -2528,9 +2532,9 @@ def dashboard():
         col_quote = None
 
     with col_chart:
-        st.markdown('<div style="width: 100%; overflow: hidden;">', unsafe_allow_html=True)
-        renderLightweightCharts(charts, key=chart_dyn_key)
-        st.markdown('</div>', unsafe_allow_html=True)
+        render_drawing_chart([charts[0]], height=cur_main_h, key=chart_dyn_key)
+        if len(charts) > 1:
+            renderLightweightCharts(charts[1:], key=chart_dyn_key + "_sub")
 
     with col_toggle:
         btn_label = "❯" if st.session_state.get("panel_open", True) else "❮"
