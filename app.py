@@ -1,21 +1,3 @@
-
-
-
-
-
-
-from symbols import (
-    fetch_set_all_symbols, get_full_bitkub_symbols, get_full_binance_symbols,
-    get_full_sp500_symbols, get_full_china_stocks, get_full_vietnam_symbols,
-    get_full_commodities, get_full_forex, get_full_okx_symbols,
-    get_full_bybit_symbols, get_full_gate_symbols, get_full_mexc_symbols,
-    get_full_kucoin_symbols
-)
-
-from utils import _has_data, fmt_price, fmt_chg, fmt_vol
-
-from config import *
-
 # app.py — Universal Trading Terminal (Hybrid Ultra Edition)
 import os
 import time
@@ -33,13 +15,20 @@ from urllib3.util.retry import Retry
 from streamlit_lightweight_charts_ntf import renderLightweightCharts
 from ui_components import render_tv_clickable_tabs
 
+from symbols import (
+    fetch_set_all_symbols, get_full_bitkub_symbols, get_full_binance_symbols,
+    get_full_sp500_symbols, get_full_china_stocks, get_full_vietnam_symbols,
+    get_full_commodities, get_full_forex, get_full_okx_symbols,
+    get_full_bybit_symbols, get_full_gate_symbols, get_full_mexc_symbols,
+    get_full_kucoin_symbols
+)
+from utils import _has_data, fmt_price, fmt_chg, fmt_vol
+from config import *
+
 try:
     import symbols
 except ImportError:
     symbols = None
-
-
-
 
 try:
     import yfinance as yf
@@ -184,14 +173,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
-
-def _fetch_url_with_timeout(url: str, timeout: float = 1.5) -> requests.Response | None:
-    try:
-        return HTTP_SESSION.get(url, timeout=timeout)
-    except Exception:
-        return None
-
 GLOBAL_MARKET = "🌐 Global (Yahoo)"
 
 TF = {
@@ -261,10 +242,6 @@ STAR_CATEGORIES = {
     "🔵 ดาวฟ้า": {"icon": "🔵", "color": "#2962ff"},
     "🟣 ดาวม่วง": {"icon": "🟣", "color": "#ab47bc"}
 }
-
-
-
-
 
 if "star_watchlists" not in st.session_state:
     st.session_state["star_watchlists"] = {
@@ -415,8 +392,6 @@ try:
 except Exception:
     BITKUB_API_KEY = ""
 
-
-
 HTTP_SESSION = requests.Session()
 HTTP_SESSION.headers.update(BROWSER_HEADERS)
 retry_strategy = Retry(
@@ -435,6 +410,7 @@ def _fetch_url_with_timeout(url: str, timeout: float = 1.5) -> requests.Response
         return HTTP_SESSION.get(url, timeout=timeout)
     except Exception:
         return None
+
 def fetch_bitkub_raw(symbol: str, tf_code: str, sec: int, bars: int) -> pd.DataFrame:
     all_chunks = []
     curr_to = int(time.time())
@@ -862,7 +838,7 @@ def compute_full_technicals(df: pd.DataFrame) -> dict:
         elif net_score >= 2:  sum_lbl, sum_col, sum_ang = "มีแรงซื้อ", "#26a69a", 30
         elif net_score <= -6: sum_lbl, sum_col, sum_ang = "มีแรงขายรุนแรง", "#d32f2f", -55
         elif net_score <= -2: sum_lbl, sum_col, sum_ang = "มีแรงขาย", "#ef5350", -30
-        else:                 sum_lbl, sum_col, sum_ang = "เป็นกลาง", "#9aa0a6", 0
+        else:                  sum_lbl, sum_col, sum_ang = "เป็นกลาง", "#9aa0a6", 0
 
         osc_score = osc_buy - osc_sell
         osc_lbl, osc_col, osc_ang = ("มีแรงซื้อ", "#26a69a", 35) if osc_score > 1 else (("มีแรงขาย", "#ef5350", -35) if osc_score < -1 else ("เป็นกลาง", "#9aa0a6", 0))
@@ -1243,12 +1219,6 @@ def fetch_item_quote(sym: str) -> dict:
     except Exception: pass
     return {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0.0}
 
-
-
-
-
-
-
 def fetch_unified_ticker(market_type: str, exchange: str, symbol: str, df_last: pd.DataFrame) -> dict:
     try:
         if "คริปโต" in market_type:
@@ -1302,7 +1272,7 @@ def fetch_unified_ticker(market_type: str, exchange: str, symbol: str, df_last: 
                 if r.status_code == 200:
                     d = r.json().get("result", {}).get("list", [{}])[0]
                     if d:
-                        return {"price": float(d.get("lastPrice", 0)), "change": 0, # Bybit doesn't provide priceChange directly, pct is provided
+                        return {"price": float(d.get("lastPrice", 0)), "change": 0,
                                 "pct": float(d.get("price24hPcnt", 0)) * 100,
                                 "bid": float(d.get("bid1Price", 0)), "ask": float(d.get("ask1Price", 0)),
                                 "bid_vol": float(d.get("bid1Size", 0)), "ask_vol": float(d.get("ask1Size", 0)),
@@ -1313,23 +1283,23 @@ def fetch_unified_ticker(market_type: str, exchange: str, symbol: str, df_last: 
                 if r.status_code == 200:
                     d = r.json()[0]
                     if d:
-                        return {"price": float(d.get("last", 0)), "change": 0, # Gate.io doesn't provide priceChange directly
+                        return {"price": float(d.get("last", 0)), "change": 0,
                                 "pct": float(d.get("change_percentage", 0)),
                                 "bid": float(d.get("highest_bid", 0)), "ask": float(d.get("lowest_ask", 0)),
-                                "bid_vol": 0, "ask_vol": 0, # Not provided in tickers endpoint
+                                "bid_vol": 0, "ask_vol": 0,
                                 "high": float(d.get("high_24h", 0)), "low": float(d.get("low_24h", 0)),
                                 "vol": float(d.get("base_volume", 0))}
             elif exchange == "KuCoin":
                 symbol_kucoin = symbol.replace("_", "-")
-                r = HTTP_SESSION.get(f"https://api.kucoin.com/api/v1/market/allTickers", timeout=3) # Get all tickers and find the one
+                r = HTTP_SESSION.get(f"https://api.kucoin.com/api/v1/market/allTickers", timeout=3)
                 if r.status_code == 200:
                     tickers = r.json().get("data", {}).get("ticker", [])
                     d = next((t for t in tickers if t.get("symbol") == symbol_kucoin), None)
                     if d:
-                        return {"price": float(d.get("last", 0)), "change": 0, # Kucoin doesn't provide priceChange directly
+                        return {"price": float(d.get("last", 0)), "change": 0,
                                 "pct": float(d.get("changeRate", 0)) * 100,
                                 "bid": float(d.get("buy", 0)), "ask": float(d.get("sell", 0)),
-                                "bid_vol": 0, "ask_vol": 0, # Not provided
+                                "bid_vol": 0, "ask_vol": 0,
                                 "high": float(d.get("high", 0)), "low": float(d.get("low", 0)),
                                 "vol": float(d.get("vol", 0))}
         else:
@@ -2132,15 +2102,38 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.session_state["star_watchlists"][cat_name].remove(s_item)
                                 st.rerun()
 
+# ──────────────────────────── SIDEBAR ────────────────────────────
 with st.sidebar:
+    # --- กล่องแสดงเวลาระบบและสถานะเซิร์ฟเวอร์ ---
+    now_bkk = datetime.datetime.now()
+    time_str = now_bkk.strftime("%H:%M:%S")
+    date_str = now_bkk.strftime("%d/%m/%Y")
+
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, #131722 0%, #1e222d 100%); border: 1px solid #2a2e39; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="color: #787b86; font-size: 11px; font-weight: 500;">🕒 เวลาตลาด (UTC+7)</span>
+            <span style="color: #089981; font-size: 11px; font-weight: 600;">● เชื่อมต่อปกติ</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline;">
+            <span style="color: #2962ff; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; letter-spacing: 0.5px;">{time_str}</span>
+            <span style="color: #b2b5be; font-family: monospace; font-size: 12px;">{date_str}</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     st.markdown("### ⚙️ แผงควบคุมระบบ")
     col_m1, col_m2 = st.columns(2)
     with col_m1:
-        if st.button("💻 Desktop", use_container_width=True): st.session_state["mobile_mode"] = False; st.rerun()
+        if st.button("💻 Desktop", key="btn_mode_desktop_ctrl", use_container_width=True):
+            st.session_state["mobile_mode"] = False
+            st.rerun()
     with col_m2:
-        if st.button("📱 Mobile", use_container_width=True): st.session_state["mobile_mode"] = True; st.rerun()
+        if st.button("📱 Mobile", key="btn_mode_mobile_ctrl", use_container_width=True):
+            st.session_state["mobile_mode"] = True
+            st.rerun()
 
-    if st.button("🧹 เคลียร์แคชระบบ", use_container_width=True):
+    if st.button("🧹 เคลียร์แคชระบบ", key="btn_clear_cache_ctrl", use_container_width=True):
         st.cache_data.clear()
         st.cache_resource.clear()
         _clear_chart_state()
@@ -2431,7 +2424,7 @@ def dashboard():
     """
     # ใช้ราคาและ % Change ล่าสุดจาก Ticker ตรงๆ เพื่อให้เท่ากับการ์ดขวา
     cur_price = float(tk_data.get("price", stats["price"]))
-    cur_chg = float(tk_data.get("percentChange", tk_data.get("change_pct", 0.0)))
+    cur_chg = float(tk_data.get("pct", 0.0))
     chg_txt_color = "#26a69a" if cur_chg >= 0 else "#ef5350"
 
     price_fmt = f"{cur_price:,.4f}" if cur_price < 10 else f"{cur_price:,.2f}"
@@ -2479,23 +2472,6 @@ def dashboard():
 
     charts = build_charts(df, symbol, tf, cur_main_h, cur_rsi_h, cur_macd_h)
 
-    clock_html = """
-    <div style="display:flex; justify-content:space-between; align-items:center; background:#0A0A0A; border:1px solid #1E1E1E; border-top:none; border-bottom-left-radius:4px; border-bottom-right-radius:4px; padding:3px 10px; font-family:monospace; font-size:11px; color:#787b86; margin-top:-2px;">
-        <div><span>⏱️ เวลาตลาด: </span><b id="liveClock" style="color:#26a69a;">--:--:--</b> <span style="color:#555;">(UTC+7 Bangkok)</span></div>
-        <div><span>สถานะเซิร์ฟเวอร์: </span><span style="color:#00bcd4;">เชื่อมต่อปกติ</span></div>
-    </div>
-    <script>
-        function updateClock() {
-            const now = new Date();
-            const timeStr = now.toLocaleTimeString('th-TH', { hour12: false });
-            const el = document.getElementById('liveClock');
-            if (el) el.innerText = timeStr;
-        }
-        setInterval(updateClock, 1000);
-        updateClock();
-    </script>
-    """
-
     show_r = st.session_state.get('show_rsi', True)
     show_m = st.session_state.get('show_macd', True)
     p_ord = "_".join(st.session_state.get("pane_order", ["rsi", "macd"]))
@@ -2521,7 +2497,6 @@ def dashboard():
 
         with col_chart:
             renderLightweightCharts(charts, key=chart_dyn_key)
-            components.html(clock_html, height=28)
 
         with col_toggle:
             btn_label = "❯" if st.session_state.get("panel_open", True) else "❮"
@@ -2556,7 +2531,6 @@ def dashboard():
         st.markdown('<div style="width: 100%; overflow: hidden;">', unsafe_allow_html=True)
         renderLightweightCharts(charts, key=chart_dyn_key)
         st.markdown('</div>', unsafe_allow_html=True)
-        components.html(clock_html, height=28)
 
     with col_toggle:
         btn_label = "❯" if st.session_state.get("panel_open", True) else "❮"
