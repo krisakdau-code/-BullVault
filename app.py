@@ -311,7 +311,6 @@ def switch_tab(tab_id):
     st.session_state.active_tab_id = tab_id
     st.session_state.current_symbol = tab["symbol"]
     st.session_state.selected_tf = tab["tf"]
-    st.session_state["selected_symbol_picker"] = tab["symbol"]
     _clear_chart_state()
     st.rerun()
 
@@ -365,6 +364,75 @@ if "fib_window" not in st.session_state: st.session_state["fib_window"] = 120
 if "fib_tp_level" not in st.session_state: st.session_state["fib_tp_level"] = 1.618
 if "fib_confirm_on" not in st.session_state: st.session_state["fib_confirm_on"] = False
 if "chart_slot" not in st.session_state: st.session_state["chart_slot"] = None
+
+# ────────────────── SMART CATALOG LOADER ──────────────────
+def get_data_dir():
+    candidates = [
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"),
+        "data",
+        os.path.join(os.getcwd(), "data")
+    ]
+    for c in candidates:
+        if os.path.exists(c) and os.path.isdir(c):
+            return c
+    return "data"
+
+def extract_symbols_from_json(content):
+    if isinstance(content, list):
+        res = []
+        for item in content:
+            if isinstance(item, str):
+                res.append(item)
+            elif isinstance(item, dict):
+                s = item.get("symbol") or item.get("id") or item.get("ticker") or item.get("code")
+                if s: res.append(str(s))
+        return res
+    elif isinstance(content, dict):
+        for k in ["symbols", "tickers", "data", "items"]:
+            if k in content and isinstance(content[k], list):
+                return extract_symbols_from_json(content[k])
+        return [str(k) for k in content.keys()]
+    return []
+
+@st.cache_data(ttl=600, show_spinner=False)
+def load_catalog_smart(keywords: list) -> list:
+    data_dir = get_data_dir()
+    if not os.path.exists(data_dir):
+        return []
+    try:
+        all_files = os.listdir(data_dir)
+    except Exception:
+        return []
+    
+    matched_files = []
+    for f in all_files:
+        if not f.endswith(".json"):
+            continue
+        f_lower = f.lower()
+        for kw in keywords:
+            if kw.lower() in f_lower:
+                matched_files.append(f)
+                break
+    
+    all_syms = []
+    for mf in matched_files:
+        p = os.path.join(data_dir, mf)
+        try:
+            with open(p, "r", encoding="utf-8") as file:
+                content = json.load(file)
+                syms = extract_symbols_from_json(content)
+                if syms:
+                    all_syms.extend(syms)
+        except Exception:
+            continue
+    
+    seen = set()
+    clean = []
+    for s in all_syms:
+        if s and s not in seen:
+            seen.add(s)
+            clean.append(s)
+    return clean
 
 def resolve_route(symbol: str, ui_market: str = "", ui_exchange: str = "Binance"):
     s = (symbol or "").upper()
@@ -603,7 +671,7 @@ def fetch_daily_history(market_type: str, exchange: str, symbol: str) -> pd.Data
 def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "", df: pd.DataFrame = None) -> dict:
     tk = {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0.0, "high": 0.0, "low": 0.0, "bid": 0.0, "ask": 0.0}
 
-    # 1. กรณีเป็นเหรียญ Bitkub ดึงทิคเกอร์สดตรงจาก API
+    # 1. เหรียญ Bitkub ดึงทิคเกอร์ตรงจาก API
     if ("THB" in symbol) or (exchange == "Bitkub"):
         try:
             r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=3.0)
@@ -626,7 +694,7 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
         except Exception:
             pass
 
-    # 2. กรณีคำนวณจากแท่งเทียน (Fallback)
+    # 2. คำนวณจากแท่งเทียน (Fallback)
     try:
         if df is not None and not df.empty and "close" in df.columns:
             last_p = float(df["close"].iloc[-1])
@@ -774,34 +842,114 @@ def render_top_toolbar():
 
     return tf, bars, fill_gaps, auto, every, reload_btn
 
-@st.cache_data(ttl=15, show_spinner=False)
-def fetch_top_movers(category: str = "crypto") -> dict:
+@st.cache_data(ttl=30, show_spinner=False)
+def fetch_top_movers(category: str = "all") -> dict:
     empty_result = {"gainers": [], "losers": []}
-    try:
-        if category in ["crypto", "all", "binance", "bitkub", "okx", "bybit", "gate", "mexc", "kucoin"]:
-            url = "https://api.binance.com/api/v3/ticker/24hr"
-            res = requests.get(url, timeout=5).json()
-            usdt_pairs = []
-            for item in res:
-                s = item.get("symbol", "")
-                if s.endswith("USDT"):
-                    p = float(item["lastPrice"])
-                    chg = float(item["priceChangePercent"])
-                    v = float(item["quoteVolume"])
-                    usdt_pairs.append({
-                        "symbol": s,
-                        "label": f"{s} ({chg:+.2f}%)",
+
+    # 1. กลุ่ม BITKUB
+    if category == "bitkub":
+        try:
+            r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=4.0)
+            if r.status_code == 200:
+                data = r.json()
+                items = []
+                for sym_code, v in data.items():
+                    if not sym_code.startswith("THB_"):
+                        continue
+                    p = float(v.get("last", 0.0))
+                    pct = float(v.get("percentChange", 0.0))
+                    vol = float(v.get("baseVolume", 0.0))
+                    clean_name = sym_code.replace("THB_", "") + "_THB"
+                    items.append({
+                        "symbol": clean_name,
+                        "label": f"{clean_name} ({pct:+.2f}%)",
                         "price": p,
-                        "fmt_price": f"{p:,.4f}" if p < 1 else f"{p:,.2f}",
-                        "change": chg,
-                        "pct": chg,
-                        "volume": v
+                        "fmt_price": f"{p:,.4f}" if p < 10 else f"{p:,.2f}",
+                        "change": float(v.get("change", 0.0)),
+                        "pct": pct,
+                        "volume": vol
                     })
-            gainers = sorted(usdt_pairs, key=lambda x: x["change"], reverse=True)[:10]
-            losers = sorted(usdt_pairs, key=lambda x: x["change"])[:10]
-            return {"gainers": gainers, "losers": losers}
+                gainers = sorted(items, key=lambda x: x["pct"], reverse=True)[:10]
+                losers = sorted(items, key=lambda x: x["pct"])[:10]
+                return {"gainers": gainers, "losers": losers}
+        except Exception:
+            return empty_result
+
+    # 2. กลุ่ม BINANCE & คริปโตสากล
+    if category in ["all", "crypto", "binance", "okx", "bybit", "gate", "mexc", "kucoin"]:
+        try:
+            r = HTTP_SESSION.get("https://api.binance.com/api/v3/ticker/24hr", timeout=4.0)
+            if r.status_code == 200:
+                res = r.json()
+                usdt_pairs = []
+                for item in res:
+                    s = item.get("symbol", "")
+                    if s.endswith("USDT"):
+                        p = float(item["lastPrice"])
+                        chg = float(item["priceChangePercent"])
+                        usdt_pairs.append({
+                            "symbol": s,
+                            "label": f"{s} ({chg:+.2f}%)",
+                            "price": p,
+                            "fmt_price": f"{p:,.4f}" if p < 1 else f"{p:,.2f}",
+                            "change": float(item["priceChange"]),
+                            "pct": chg,
+                            "volume": float(item["quoteVolume"])
+                        })
+                gainers = sorted(usdt_pairs, key=lambda x: x["pct"], reverse=True)[:10]
+                losers = sorted(usdt_pairs, key=lambda x: x["pct"])[:10]
+                return {"gainers": gainers, "losers": losers}
+        except Exception:
+            return empty_result
+
+    # 3. กลุ่ม หุ้นไทย / สหรัฐฯ / จีน / เวียดนาม / โภคภัณฑ์ & FX
+    cat_syms = {
+        "thai": ["DELTA.BK", "PTT.BK", "AOT.BK", "ADVANC.BK", "GULF.BK", "PTTEP.BK", "BDMS.BK", "CPALL.BK", "SCB.BK", "KBANK.BK", "TRUE.BK", "SCC.BK", "BBL.BK", "CPAXT.BK", "BH.BK", "TIDLOR.BK", "MINT.BK", "HMPRO.BK", "IVL.BK", "MTC.BK"],
+        "us": ["NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AMD", "NFLX", "INTC", "PLTR", "COIN", "AVGO", "QCOM", "BABA", "ARM", "MU", "PANW", "SNOW", "UBER"],
+        "china": ["0700.HK", "9988.HK", "3690.HK", "9618.HK", "9999.HK", "9888.HK", "1810.HK", "2015.HK", "9866.HK", "9868.HK", "002594.SZ", "300750.SZ", "600519.SS", "601398.SS"],
+        "vn": ["VIC.VN", "VHM.VN", "HPG.VN", "FPT.VN", "VNM.VN", "MSN.VN", "TCB.VN", "SSI.VN", "MBB.VN", "MWG.VN", "AAA.VN", "DGC.VN"],
+        "macro": ["GC=F", "CL=F", "BZ=F", "SI=F", "HG=F", "NG=F", "USDTHB=X", "EURUSD=X", "USDJPY=X", "GBPUSD=X"]
+    }
+
+    targets = cat_syms.get(category, [])
+    if not targets:
+        return empty_result
+
+    items = []
+    try:
+        sym_str = ",".join(targets)
+        url = f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={sym_str}"
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        r = HTTP_SESSION.get(url, headers=headers, timeout=4.0)
+        if r.status_code == 200:
+            res = r.json().get("quoteResponse", {}).get("result", [])
+            for q in res:
+                s = q.get("symbol", "")
+                p = float(q.get("regularMarketPrice", 0.0))
+                pct = float(q.get("regularMarketChangePercent", 0.0))
+                chg = float(q.get("regularMarketChange", 0.0))
+                vol = float(q.get("regularMarketVolume", 0.0))
+                if p > 0:
+                    name_lbl = CHINA_STOCK_NAMES.get(s, COMMODITY_NAMES.get(s, FOREX_NAMES.get(s, s)))
+                    items.append({
+                        "symbol": s,
+                        "label": f"{name_lbl[:10]} ({pct:+.2f}%)",
+                        "price": p,
+                        "fmt_price": f"{p:,.4f}" if p < 10 else f"{p:,.2f}",
+                        "change": chg,
+                        "pct": pct,
+                        "volume": vol
+                    })
     except Exception:
         pass
+
+    if items:
+        gainers = sorted(items, key=lambda x: x["pct"], reverse=True)[:10]
+        losers = sorted(items, key=lambda x: x["pct"])[:10]
+        return {"gainers": gainers, "losers": losers}
+
     return empty_result
 
 def render_watchlist_component(key_prefix: str = "desk"):
@@ -846,7 +994,6 @@ def render_watchlist_component(key_prefix: str = "desk"):
                         cur = _find_tab(st.session_state.active_tab_id)
                         if cur: cur["symbol"] = r["symbol"]
                         st.session_state["current_symbol"] = r["symbol"]
-                        st.session_state["selected_symbol_picker"] = r["symbol"]
                         _clear_chart_state()
                         st.rerun()
                 with c_b:
@@ -862,7 +1009,6 @@ def render_watchlist_component(key_prefix: str = "desk"):
                         cur = _find_tab(st.session_state.active_tab_id)
                         if cur: cur["symbol"] = r["symbol"]
                         st.session_state["current_symbol"] = r["symbol"]
-                        st.session_state["selected_symbol_picker"] = r["symbol"]
                         _clear_chart_state()
                         st.rerun()
                 with c_b:
@@ -916,7 +1062,6 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 cur = _find_tab(st.session_state.active_tab_id)
                                 if cur: cur["symbol"] = s_item
                                 st.session_state["current_symbol"] = s_item
-                                st.session_state["selected_symbol_picker"] = s_item
                                 _clear_chart_state()
                                 st.rerun()
                         with b: st.markdown(f"<div style='font-family:monospace; font-size:11px; text-align:right; padding-top:4px; color:#fff;'>{fmt_price(q['price'])}</div>", unsafe_allow_html=True)
@@ -970,65 +1115,106 @@ with st.sidebar:
             "🇹🇭 หุ้นไทย (SET/mai)", "🇻🇳 หุ้นเวียดนาม (Vietnam)",
             "🟠 สินค้าโภคภัณฑ์ (Commodities)", "🟢 อัตราแลกเปลี่ยน (Forex)"
         ]
-        selected_category = st.selectbox("หมวดหมู่ตลาด", market_categories, key="selected_market_category")
+
+        selected_category = st.selectbox(
+            "หมวดหมู่ตลาด", 
+            market_categories, 
+            key="selected_market_category"
+        )
 
         current_available_symbols = []
         selected_exchange = None
 
-        if selected_category == "🟡 คริปโต (Crypto)":
+        if "คริปโต" in selected_category:
             exchanges = ["Bitkub", "Binance", "OKX", "Bybit", "Gate.io", "MEXC", "KuCoin"]
             selected_exchange = st.selectbox("กระดานเทรด", exchanges, key="selected_crypto_exchange")
+            
             if selected_exchange == "Bitkub":
-                current_available_symbols = get_full_bitkub_symbols()
+                syms = load_catalog_smart(["bitkub"])
+                if not syms:
+                    try:
+                        r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=3.5)
+                        if r.status_code == 200:
+                            d = r.json()
+                            syms = sorted([k.replace("THB_", "") + "_THB" for k in d.keys() if k.startswith("THB_")])
+                            d_dir = get_data_dir()
+                            if os.path.exists(d_dir):
+                                with open(os.path.join(d_dir, "bitkub_symbols.json"), "w", encoding="utf-8") as bf:
+                                    json.dump(syms, bf, ensure_ascii=False)
+                    except Exception:
+                        pass
+                current_available_symbols = syms or get_full_bitkub_symbols()
+                
             elif selected_exchange == "Binance":
-                current_available_symbols = get_full_binance_symbols()
-            elif selected_exchange == "OKX":
-                current_available_symbols = get_full_okx_symbols()
-            elif selected_exchange == "Bybit":
-                current_available_symbols = get_full_bybit_symbols()
+                syms = load_catalog_smart(["binance"])
+                if not syms:
+                    try:
+                        r = HTTP_SESSION.get("https://api.binance.com/api/v3/ticker/price", timeout=3.5)
+                        if r.status_code == 200:
+                            syms = sorted([it["symbol"] for it in r.json() if it["symbol"].endswith("USDT")])
+                    except Exception:
+                        pass
+                current_available_symbols = syms or get_full_binance_symbols()
+                
             elif selected_exchange == "Gate.io":
-                current_available_symbols = get_full_gate_symbols()
-            elif selected_exchange == "MEXC":
-                current_available_symbols = get_full_mexc_symbols()
+                current_available_symbols = load_catalog_smart(["gate"]) or get_full_gate_symbols()
             elif selected_exchange == "KuCoin":
-                current_available_symbols = get_full_kucoin_symbols()
-        elif selected_category == "🇺🇸 หุ้นสหรัฐฯ (US Stocks)":
-            current_available_symbols = get_full_sp500_symbols()
-        elif selected_category == "🇨🇳 หุ้นจีน (China)":
-            current_available_symbols = get_full_china_stocks()
-        elif selected_category == "🇹🇭 หุ้นไทย (SET/mai)":
-            current_available_symbols = fetch_set_all_symbols()
-        elif selected_category == "🇻🇳 หุ้นเวียดนาม (Vietnam)":
-            current_available_symbols = get_full_vietnam_symbols()
-        elif selected_category == "🟠 สินค้าโภคภัณฑ์ (Commodities)":
-            current_available_symbols = get_full_commodities()
-        elif selected_category == "🟢 อัตราแลกเปลี่ยน (Forex)":
-            current_available_symbols = get_full_forex()
+                current_available_symbols = load_catalog_smart(["kucoin"]) or get_full_kucoin_symbols()
+            elif selected_exchange == "OKX":
+                current_available_symbols = load_catalog_smart(["okx"]) or get_full_okx_symbols()
+            elif selected_exchange == "Bybit":
+                current_available_symbols = load_catalog_smart(["bybit"]) or get_full_bybit_symbols()
+            elif selected_exchange == "MEXC":
+                current_available_symbols = load_catalog_smart(["mexc"]) or get_full_mexc_symbols()
 
-        safe_current_symbols = current_available_symbols or []
-        custom_syms_clean = [s for s in st.session_state.get("custom_symbols", []) if s not in safe_current_symbols]
-        display_symbols = (custom_syms_clean or []) + safe_current_symbols
+        elif "หุ้นสหรัฐฯ" in selected_category or "US" in selected_category:
+            current_available_symbols = load_catalog_smart(["sp500", "us_stocks", "us_symbols", "us"]) or get_full_sp500_symbols()
 
-        if "current_symbol" in st.session_state and st.session_state["current_symbol"] not in display_symbols:
-            display_symbols.insert(0, st.session_state["current_symbol"])
+        elif "หุ้นจีน" in selected_category or "China" in selected_category:
+            current_available_symbols = load_catalog_smart(["china", "csi"]) or get_full_china_stocks() or list(CHINA_STOCK_NAMES.keys())
 
-        if not display_symbols: display_symbols = ["- Select -"]
+        elif "หุ้นไทย" in selected_category or "SET" in selected_category:
+            current_available_symbols = load_catalog_smart(["thai", "set"]) or fetch_set_all_symbols()
+
+        elif "หุ้นเวียดนาม" in selected_category or "Vietnam" in selected_category:
+            current_available_symbols = load_catalog_smart(["vietnam", "vn"]) or get_full_vietnam_symbols()
+
+        elif "โภคภัณฑ์" in selected_category or "Commodities" in selected_category:
+            current_available_symbols = load_catalog_smart(["commodit"]) or get_full_commodities() or list(COMMODITY_NAMES.keys())
+
+        elif "แลกเปลี่ยน" in selected_category or "Forex" in selected_category:
+            current_available_symbols = load_catalog_smart(["forex"]) or get_full_forex() or list(FOREX_NAMES.keys())
+
+        display_symbols = list(current_available_symbols) if current_available_symbols else []
+        custom_syms_clean = [s for s in st.session_state.get("custom_symbols", []) if s not in display_symbols]
+        display_symbols = custom_syms_clean + display_symbols
+
+        if not display_symbols:
+            display_symbols = ["- Select -"]
 
         cur_idx = 0
-        if "current_symbol" in st.session_state and st.session_state["current_symbol"] in display_symbols:
-            cur_idx = display_symbols.index(st.session_state["current_symbol"])
-        elif "- Select -" in display_symbols:
-            cur_idx = display_symbols.index("- Select -")
+        cur_sym_val = st.session_state.get("current_symbol")
+        if cur_sym_val in display_symbols:
+            cur_idx = display_symbols.index(cur_sym_val)
             
         def format_symbol_label(s: str) -> str:
-            if s in CHINA_STOCK_NAMES: return f"{s} — {CHINA_STOCK_NAMES[s]}"
-            if s in COMMODITY_NAMES: return f"{s} — {COMMODITY_NAMES[s]}"
-            if s in FOREX_NAMES: return f"{s} — {FOREX_NAMES[s]}"
-            return s
+            s_str = str(s)
+            if s_str in CHINA_STOCK_NAMES: return f"{s_str} — {CHINA_STOCK_NAMES[s_str]}"
+            if s_str in COMMODITY_NAMES: return f"{s_str} — {COMMODITY_NAMES[s_str]}"
+            if s_str in FOREX_NAMES: return f"{s_str} — {FOREX_NAMES[s_str]}"
+            return s_str
 
-        picked = st.selectbox("🔍 เลือกสินทรัพย์:", display_symbols, index=cur_idx, format_func=format_symbol_label, key="selected_symbol_picker")
+        picker_key = f"picker_{selected_category}_{selected_exchange or 'global'}"
+
+        picked = st.selectbox(
+            "🔍 เลือกสินทรัพย์:",
+            display_symbols,
+            index=cur_idx if cur_idx < len(display_symbols) else 0,
+            format_func=format_symbol_label,
+            key=picker_key
+        )
         
-        if picked != st.session_state.get("current_symbol") and picked != "- Select -":
+        if picked and picked != "- Select -" and picked != st.session_state.get("current_symbol"):
             cur = _find_tab(st.session_state.active_tab_id)
             if cur: cur["symbol"] = picked
             st.session_state["current_symbol"] = picked
@@ -1133,9 +1319,8 @@ with st.sidebar:
         st.session_state["fib_confirm_on"] = st.checkbox("ใช้ Golden Zone ยืนยันสัญญาณ BUY", value=st.session_state["fib_confirm_on"])
 
 # ──────────────────────────── LIVE TOP BAR FRAGMENT ────────────────────────────
-@st.fragment
-def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_display: str, display_title: str, gz_badge: str, base_price: float, last_vol: float, run_every: int = None):
-    # ดึงราคาเรียลไทม์สดเฉพาะแถบนี้
+@st.fragment(run_every=2)
+def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_display: str, display_title: str, gz_badge: str, base_price: float, last_vol: float):
     live_tk = fetch_unified_ticker(r_market, r_exchange, symbol)
     cur_price = float(live_tk.get("price", base_price))
     cur_chg = float(live_tk.get("pct", 0.0))
@@ -1283,11 +1468,9 @@ def dashboard():
 
     vol_val = float(df.iloc[-1].get("volume", 0.0))
 
-    # เรียกใช้ Live Top Bar ผ่าน Fragment แยกเฉพาะแถบราคา
-    frag_top_interval = every if auto else None
     render_live_top_bar(
         r_market, r_exchange, symbol, label_display, display_title,
-        gz_badge, stats["price"], vol_val, run_every=frag_top_interval
+        gz_badge, stats["price"], vol_val
     )
 
     cur_main_h = int(st.session_state.get("main_h", 520))
