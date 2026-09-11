@@ -64,36 +64,7 @@ def inject_dock_css():
             z-index: 999999 !important;
         }
 
-        /* 4. ปุ่มเครื่องมือวาดรูป: วงกลม + Active สีเขียวโปร่งแสงเรืองแสง */
-        .draw-box div[data-testid="column"] button {
-            border-radius: 50% !important;
-            width: 44px !important;
-            height: 44px !important;
-            min-height: 44px !important;
-            padding: 0 !important;
-            margin: 4px auto !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            background-color: #131722 !important;
-            border: 1px solid #2a2e39 !important;
-            color: #d1d4dc !important;
-            font-size: 1.1rem !important;
-            transition: all 0.2s ease-in-out !important;
-        }
-        .draw-box div[data-testid="column"] button:hover {
-            border-color: #089981 !important;
-            background-color: #1e222d !important;
-            box-shadow: 0 0 10px rgba(8, 153, 129, 0.3) !important;
-        }
-        .draw-box div[data-testid="column"] button[kind="primary"] {
-            background-color: rgba(8, 153, 129, 0.25) !important;
-            border: 2px solid #089981 !important;
-            color: #ffffff !important;
-            box-shadow: 0 0 12px rgba(8, 153, 129, 0.5) !important;
-        }
-
-        /* 5. ปุ่ม Dock ไอคอนหลัก 4 ตัว: วงกลม */
+        /* 4. ปุ่ม Dock ไอคอนหลัก 4 ตัว: วงกลม */
         .main-dock div[data-testid="stPopover"] > button {
             border-radius: 50% !important;
             width: 50px !important;
@@ -145,55 +116,13 @@ def inject_dock_css():
     )
 
 
-DRAW_TOOLS = [
-    {"id": "cursor", "icon": "↖️", "name": "เคอร์เซอร์ / ตรวจดูราคา"},
-    {"id": "trend_line", "icon": "📈", "name": "เส้นแนวโน้ม (Trend Line)"},
-    {"id": "horz_line", "icon": "➖", "name": "เส้นแนวนอน (Horizontal Line)"},
-    {"id": "box", "icon": "▢", "name": "กล่อง Demand/Supply (Box)"},
-    {"id": "fib", "icon": "📐", "name": "ฟิโบนัชชี (Fibonacci)"},
-    {"id": "text", "icon": "🔤", "name": "กล่องข้อความ (Text)"},
-    {"id": "circle", "icon": "⭕", "name": "วงกลมไฮไลต์ (Circle)"},
-    {"id": "pen", "icon": "✏️", "name": "ปากกาวาดอิสระ (Brush Pen)"},
-]
-
-
 def render_drawing_toolbar():
-    if "active_draw_tool" not in st.session_state:
-        st.session_state["active_draw_tool"] = "cursor"
-
-    cur = st.session_state["active_draw_tool"]
-
     st.markdown('<div class="section-label">🎨 เครื่องมือวาดกราฟ</div>', unsafe_allow_html=True)
-    st.markdown('<div class="draw-box">', unsafe_allow_html=True)
-
-    for i in range(0, len(DRAW_TOOLS), 2):
-        c1, c2 = st.columns(2)
-        t1 = DRAW_TOOLS[i]
-        with c1:
-            is_act1 = (cur == t1["id"])
-            if st.button(t1["icon"], key=f"tool_{t1['id']}", type="primary" if is_act1 else "secondary", help=t1["name"]):
-                st.session_state["active_draw_tool"] = t1["id"]
-                st.rerun()
-
-        if i + 1 < len(DRAW_TOOLS):
-            t2 = DRAW_TOOLS[i + 1]
-            with c2:
-                is_act2 = (cur == t2["id"])
-                if st.button(t2["icon"], key=f"tool_{t2['id']}", type="primary" if is_act2 else "secondary", help=t2["name"]):
-                    st.session_state["active_draw_tool"] = t2["id"]
-                    st.rerun()
-
-    c_act1, c_act2 = st.columns(2)
-    with c_act1:
-        if st.button("↩️", key="btn_draw_undo", help="ย้อนกลับเส้นล่าสุด (Undo)"):
-            st.session_state["draw_action"] = "undo"
-            st.toast("ยกเลิกเส้นล่าสุดแล้ว")
-    with c_act2:
-        if st.button("🗑️", key="btn_draw_clear", help="ลบภาพวาดทั้งหมด (Clear All)"):
-            st.session_state["draw_action"] = "clear"
-            st.toast("ล้างภาพวาดทั้งหมดแล้ว")
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.toggle(
+        "แสดงแถบเครื่องมือบนกราฟ",
+        value=st.session_state.get("show_drawing_toolbar", True),
+        key="show_drawing_toolbar",
+    )
 
 
 def render_dock_menu():

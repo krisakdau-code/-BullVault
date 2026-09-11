@@ -82,12 +82,11 @@ st.markdown("""
         background-color: #000000 !important;
     }
     
-   header[data-testid="stHeader"] {
-    background: transparent !important;
-}
-    display: none !important;
-    height: 0px !important;
-}
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+        display: none !important;
+        height: 0px !important;
+    }
     
     [data-testid="stToolbar"] {
         right: 1.5rem !important;
@@ -1241,7 +1240,9 @@ def dashboard():
     charts = build_charts(df, symbol, tf, cur_main_h, cur_rsi_h, cur_macd_h)
     cur_size = st.session_state.get("panel_size", "M")
     chart_dyn_key = f"c_{symbol}_{tf}_{st.session_state.get('active_tab_id', '0')}"
+    show_tb = st.session_state.get("show_drawing_toolbar", True)
 
+    # --- ส่วนที่ 1: โหมดมือถือ (Mobile Mode) ---
     if st.session_state.get("mobile_mode", False):
         layout_ratios_mob = {
             "S": [4.88, 0.12],
@@ -1255,11 +1256,15 @@ def dashboard():
             col_quote = None
 
         with col_chart:
-            renderLightweightCharts([charts[0]], key=chart_dyn_key)
-            if len(charts) > 1:
-                renderLightweightCharts(charts[1:], key=chart_dyn_key + "_sub")
+            render_drawing_chart(
+                charts,
+                height=cur_main_h,
+                key=chart_dyn_key,
+                show_toolbar=show_tb
+            )
+
         with col_toggle:
-            btn_label = "❯" if st.session_state.get("panel_open", True) else "❮"
+            btn_label = ">" if st.session_state.get("panel_open", True) else "<"
             if st.button(btn_label, key="toggle_panel_btn_mob", help="ย่อ/ขยายแผงขวา", use_container_width=True):
                 st.session_state["panel_open"] = not st.session_state.get("panel_open", True)
                 st.rerun()
@@ -1269,12 +1274,13 @@ def dashboard():
                 with st.expander("⭐ รายการสินทรัพย์ & อันดับขาขึ้น-ลง", expanded=True):
                     render_watchlist_component(key_prefix="mob")
                 with st.expander("📊 ข้อมูลตลาด 24h & เทคนิค", expanded=True):
-                    if st.button("⛶ ขยายดูตลาด 24h (Pop-up)", key="btn_popup_market_mob", use_container_width=True):
+                    if st.button("🔍 ขยายดูตลาด 24h (Pop-up)", key="btn_popup_market_mob", use_container_width=True):
                         st.session_state["trigger_market_modal"] = True
                         st.rerun()
                     render_tv_quote_card(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_compact)
         return
 
+    # --- ส่วนที่ 2: โหมดคอมพิวเตอร์ (Desktop Mode) ---
     layout_ratios = {
         "S": [4.1, 0.12, 0.78],
         "M": [3.6, 0.12, 1.28],
@@ -1288,12 +1294,15 @@ def dashboard():
         col_quote = None
 
     with col_chart:
-        render_drawing_chart([charts[0]], height=cur_main_h, key=chart_dyn_key)
-        if len(charts) > 1:
-            renderLightweightCharts(charts[1:], key=chart_dyn_key + "_sub")
+        render_drawing_chart(
+            charts,
+            height=cur_main_h,
+            key=chart_dyn_key,
+            show_toolbar=show_tb
+        )
 
     with col_toggle:
-        btn_label = "❯" if st.session_state.get("panel_open", True) else "❮"
+        btn_label = ">" if st.session_state.get("panel_open", True) else "<"
         if st.button(btn_label, key="toggle_panel_btn", help="ย่อ/ขยายแผงขวา", use_container_width=True):
             st.session_state["panel_open"] = not st.session_state.get("panel_open", True)
             st.rerun()
@@ -1303,13 +1312,16 @@ def dashboard():
             cs_col1, cs_col2, cs_col3 = st.columns(3)
             with cs_col1:
                 if st.button("เล็ก", use_container_width=True, key="sz_s"):
-                    st.session_state["panel_size"] = "S"; st.rerun()
+                    st.session_state["panel_size"] = "S"
+                    st.rerun()
             with cs_col2:
                 if st.button("ปกติ", use_container_width=True, key="sz_m"):
-                    st.session_state["panel_size"] = "M"; st.rerun()
+                    st.session_state["panel_size"] = "M"
+                    st.rerun()
             with cs_col3:
                 if st.button("กว้าง", use_container_width=True, key="sz_l"):
-                    st.session_state["panel_size"] = "L"; st.rerun()
+                    st.session_state["panel_size"] = "L"
+                    st.rerun()
 
             with st.expander("⭐ รายการสินทรัพย์ & อันดับขาขึ้น-ลง", expanded=True):
                 render_watchlist_component(key_prefix="desk")
