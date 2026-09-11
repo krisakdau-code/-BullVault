@@ -1,0 +1,19 @@
+{
+  "GC=F": "GC=F | ทองคำ (Gold Futures)",
+  "SI=F": "SI=F | โลหะเงิน (Silver Futures)",
+  "CL=F": "CL=F | น้ำมันดิบ WTI (Crude Oil)",
+  "BZ=F": "BZ=F | น้ำมันดิบเบรนท์ (Brent Crude)",
+  "NG=F": "NG=F | ก๊าซธรรมชาติ (Natural Gas)",
+  "HG=F": "HG=F | ทองแดง (Copper Futures)",
+  "PL=F": "PL=F | แพลทินัม (Platinum)",
+  "PA=F": "PA=F | แพลเลเดียม (Palladium)",
+  "ZC=F": "ZC=F | ข้าวโพด (Corn Futures)",
+  "ZW=F": "ZW=F | ข้าวสาลี (Wheat Futures)",
+  "ZS=F": "ZS=F | ถั่วเหลือง (Soybean Futures)",
+  "KC=F": "KC=F | กาแฟอาราบิก้า (Coffee Futures)",
+  "SB=F": "SB=F | น้ำตาลทรายดิบ (Sugar #11)",
+  "CT=F": "CT=F | ฝ้าย (Cotton #2)",
+  "CC=F": "CC=F | โกโก้ (Cocoa Futures)",
+  "HO=F": "HO=F | น้ำมันทำความร้อน (Heating Oil)",
+  "RB=F": "RB=F | น้ำมันเบนซิน RBOB Gasoline"
+}

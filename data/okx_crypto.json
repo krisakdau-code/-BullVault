@@ -1,5 +1,5 @@
-[
-  "BTCUSDT",
-  "ETHUSDT",
-  "SOLUSDT"
-]
+{
+  "BTC-USDT": "BTC/USDT | OKX",
+  "ETH-USDT": "ETH/USDT | OKX",
+  "SOL-USDT": "SOL/USDT | OKX"
+}

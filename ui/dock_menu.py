@@ -1,91 +1,71 @@
 import datetime
+import json
+import os
 import streamlit as st
-import symbols
 
 
-def _safe_fetch(func_name: str, fallback: list[str]) -> list[str]:
-    """เรียกฟังก์ชันจาก symbols.py อย่างปลอดภัย หากติด error หรือได้ลิสต์ว่างจะใช้ fallback ทันที"""
-    try:
-        if hasattr(symbols, func_name):
-            res = getattr(symbols, func_name)()
-            if res and isinstance(res, list) and len(res) > 0:
-                return res
-    except Exception:
-        pass
-    return fallback
+@st.cache_data(ttl=3600)
+def load_catalog(filename: str) -> dict[str, str]:
+    """โหลดไฟล์ JSON แคตตาล็อก {Ticker: Label} จากโฟลเดอร์ data/"""
+    file_path = os.path.join("data", filename)
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict) and len(data) > 0:
+                    return data
+        except Exception:
+            pass
+    return {}
 
 
-def get_exchange_symbols(market: str, exchange: str) -> list[str]:
-    """ดึงรายชื่อเหรียญ/หุ้นแบบสมบูรณ์ แยกตามตลาดและกระดานเทรดจริง"""
+def get_market_catalog(market: str, exchange: str) -> dict[str, str]:
+    """ดึงแคตตาล็อก {Ticker: Label} ให้ตรงกับตลาดและกระดานที่เลือก"""
     m = (market or "").lower()
-    ex = (exchange or "").lower()
+    ex = (exchange or "").lower().strip()
 
-    # 1. คริปโต
     if "คริปโต" in m or "crypto" in m:
-        if "binance" in ex:
-            return _safe_fetch("get_full_binance_symbols", [
-                "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", 
-                "ADAUSDT", "AVAXUSDT", "LINKUSDT", "SUIUSDT", "NEARUSDT", "APTUSDT", 
-                "PEPEUSDT", "SHIBUSDT", "DOTUSDT", "LTCUSDT", "UNIUSDT"
-            ])
-        elif "bitkub" in ex:
-            return _safe_fetch("get_full_bitkub_symbols", [
-                "BTC_THB", "ETH_THB", "SOL_THB", "ADA_THB", "XRP_THB", "DOGE_THB", 
-                "KUB_THB", "USDT_THB", "BNB_THB", "OP_THB", "ARB_THB", "NEAR_THB"
-            ])
-        elif "bybit" in ex:
-            return _safe_fetch("get_full_bybit_symbols", [
-                "BTCUSDT", "ETHUSDT", "SOLUSDT", "MNTUSDT", "XRPUSDT"
-            ])
-        elif "okx" in ex:
-            return _safe_fetch("get_full_okx_symbols", [
-                "BTC-USDT", "ETH-USDT", "SOL-USDT", "OKB-USDT", "XRP-USDT"
-            ])
-        else:
-            return _safe_fetch("get_full_binance_symbols", ["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+        mapping = {
+            "binance": "binance_crypto.json",
+            "binance th": "binance_th_crypto.json",
+            "bitkub": "bitkub_crypto.json",
+            "okx": "okx_crypto.json",
+            "bybit": "bybit_crypto.json",
+            "coinbase": "coinbase_crypto.json",
+            "kraken": "kraken_crypto.json",
+            "kucoin": "kucoin_crypto.json",
+            "gate.io": "gateio_crypto.json",
+            "mexc": "mexc_crypto.json",
+        }
+        filename = mapping.get(ex, "binance_crypto.json")
+        cat = load_catalog(filename)
+        return cat if cat else {"BTCUSDT": "BTC/USDT | Crypto Spot"}
 
-    # 2. หุ้นไทย
-    elif "หุ้นไทย" in m or "thai" in m or "set" in m:
-        return _safe_fetch("fetch_set_all_symbols", [
-            "DELTA.BK", "PTT.BK", "AOT.BK", "ADVANC.BK", "GULF.BK", "PTTEP.BK", 
-            "BDMS.BK", "CPALL.BK", "SCB.BK", "KBANK.BK", "TRUE.BK", "SCC.BK", 
-            "BBL.BK", "CPAXT.BK", "BH.BK", "TIDLOR.BK", "MINT.BK", "HMPRO.BK", "IVL.BK", "MTC.BK"
-        ])
+    elif "หุ้นไทย" in m:
+        cat = load_catalog("thai_stocks.json")
+        return cat if cat else {"DELTA.BK": "DELTA | เดลต้า อีเลคโทรนิคส์", "PTT.BK": "PTT | ปตท."}
 
-    # 3. หุ้นสหรัฐฯ
-    elif "สหรัฐ" in m or "us" in m or "sp500" in m:
-        return _safe_fetch("get_full_sp500_symbols", [
-            "NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AMD", 
-            "NFLX", "INTC", "PLTR", "COIN", "AVGO", "QCOM", "BABA", "ARM", "MU"
-        ])
+    elif "สหรัฐ" in m:
+        cat = load_catalog("us_stocks.json")
+        return cat if cat else {"NVDA": "NVDA | Nvidia Corporation", "AAPL": "AAPL | Apple Inc."}
 
-    # 4. หุ้นจีน
-    elif "จีน" in m or "china" in m:
-        return _safe_fetch("get_full_china_stocks", [
-            "0700.HK", "9988.HK", "3690.HK", "9618.HK", "9999.HK", "9888.HK", 
-            "1810.HK", "2015.HK", "9866.HK", "9868.HK", "002594.SZ", "300750.SZ", "600519.SS", "601398.SS"
-        ])
+    elif "จีน" in m:
+        cat = load_catalog("china_stocks.json")
+        return cat if cat else {"0700.HK": "0700.HK | Tencent Holdings"}
 
-    # 5. หุ้นเวียดนาม
-    elif "เวียดนาม" in m or "vietnam" in m or "vn" in m:
-        return _safe_fetch("get_full_vietnam_symbols", [
-            "VIC.VN", "VHM.VN", "HPG.VN", "FPT.VN", "VNM.VN", "MSN.VN", 
-            "TCB.VN", "SSI.VN", "MBB.VN", "MWG.VN", "AAA.VN", "DGC.VN"
-        ])
+    elif "เวียดนาม" in m:
+        cat = load_catalog("vietnam_stocks.json")
+        return cat if cat else {"VIC.VN": "VIC | Vingroup"}
 
-    # 6. สินค้าโภคภัณฑ์
-    elif "โภคภัณฑ์" in m or "commodity" in m:
-        return _safe_fetch("get_full_commodities", [
-            "GC=F", "SI=F", "HG=F", "CL=F", "BZ=F", "NG=F", "PL=F", "PA=F"
-        ])
+    elif "โภคภัณฑ์" in m:
+        cat = load_catalog("commodities.json")
+        return cat if cat else {"GC=F": "GC=F | ทองคำ (Gold Futures)"}
 
-    # 7. Forex
-    elif "forex" in m or "fx" in m:
-        return _safe_fetch("get_full_forex", [
-            "USDTHB=X", "EURUSD=X", "USDJPY=X", "GBPUSD=X", "EURTHB=X", "JPYTHB=X"
-        ])
+    elif "forex" in m:
+        cat = load_catalog("forex.json")
+        return cat if cat else {"USDTHB=X": "USDTHB | ดอลลาร์สหรัฐ / บาทไทย"}
 
-    return ["BTCUSDT", "ETHUSDT"]
+    return {"BTCUSDT": "BTC/USDT | Crypto Spot"}
 
 
 def inject_dock_css():
@@ -134,8 +114,8 @@ def inject_dock_css():
             top: 50% !important;
             left: 50% !important;
             transform: translate(-50%, -50%) !important;
-            width: 440px !important;
-            max-width: 90vw !important;
+            width: 480px !important;
+            max-width: 92vw !important;
             max-height: 75vh !important;
             background-color: #131722 !important;
             border: 1px solid #2a2e39 !important;
@@ -242,12 +222,15 @@ def render_dock_menu():
             market = st.selectbox(
                 "หมวดหมู่ตลาด",
                 ["คริปโต (Crypto)", "หุ้นไทย", "หุ้นสหรัฐ", "หุ้นจีน", "หุ้นเวียดนาม", "Forex", "โภคภัณฑ์"],
-                key="market_category"
+                key="dock_market_category"
             )
 
-            # กรองกระดานเทรดตามหมวดหมู่
+            # กรองกระดานเทรด (คริปโตมี 10 กระดาน)
             if "คริปโต" in market:
-                ex_options = ["Binance", "Bitkub", "Bybit", "OKX"]
+                ex_options = [
+                    "Binance", "Binance TH", "Bitkub", "OKX", 
+                    "Bybit", "Coinbase", "Kraken", "KuCoin", "Gate.io", "MEXC"
+                ]
             else:
                 ex_options = ["Yahoo", "TradeStation"]
 
@@ -257,18 +240,21 @@ def render_dock_menu():
                 key=f"dock_ex_{market}"
             )
 
-            # ดึงรายชื่อเหรียญแบบไดนามิกตามตลาดและกระดานที่เลือกจริง
-            asset_options = get_exchange_symbols(market, exchange)
+            # ดึงแคตตาล็อก {Ticker: Label}
+            catalog = get_market_catalog(market, exchange)
+            asset_options = list(catalog.keys())
             if not asset_options:
                 asset_options = ["BTCUSDT", "ETHUSDT"]
 
             cur_selected = st.session_state.get("current_symbol")
             default_idx = asset_options.index(cur_selected) if cur_selected in asset_options else 0
 
+            # แสดงผลเป็นชื่อเต็ม แต่อ่านค่าจริงเป็น Ticker
             picked_symbol = st.selectbox(
                 "เลือกสินทรัพย์:",
-                asset_options,
+                options=asset_options,
                 index=default_idx,
+                format_func=lambda s: catalog.get(s, s),
                 key=f"dock_sym_{market}_{exchange}"
             )
 
@@ -281,7 +267,7 @@ def render_dock_menu():
             if st.button("บันทึก Ticker", use_container_width=True, key="btn_save_custom_ticker"):
                 st.toast("บันทึก Ticker สำเร็จ!")
 
-            st.caption(f"⭐ ติดดาวกลุ่มสี: {st.session_state.get('selected_symbol', picked_symbol)}")
+            st.caption(f"⭐ สินทรัพย์ปัจจุบัน: **{catalog.get(picked_symbol, picked_symbol)}**")
             w1, w2, w3, w4, w5 = st.columns(5)
             if w1.button("🔴", key="btn_tag_red"): st.session_state["tag_color"] = "red"
             if w2.button("🟡", key="btn_tag_yellow"): st.session_state["tag_color"] = "yellow"
