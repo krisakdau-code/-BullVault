@@ -12,6 +12,7 @@ import requests
 import streamlit as st
 import streamlit.components.v1 as components
 from chart_builders import build_charts
+from ui.dock_menu import render_dock_menu
 from config import *
 from drawing_chart import render_drawing_chart
 from requests.adapters import HTTPAdapter
@@ -81,10 +82,12 @@ st.markdown("""
         background-color: #000000 !important;
     }
     
-    header[data-testid="stHeader"], [data-testid="stHeader"] {
-        display: none !important;
-        height: 0px !important;
-    }
+   header[data-testid="stHeader"] {
+    background: transparent !important;
+}
+    display: none !important;
+    height: 0px !important;
+}
     
     [data-testid="stToolbar"] {
         right: 1.5rem !important;
@@ -1074,249 +1077,7 @@ def render_watchlist_component(key_prefix: str = "desk"):
 
 # ──────────────────────────── SIDEBAR ────────────────────────────
 with st.sidebar:
-    now_bkk = datetime.datetime.now()
-    time_str = now_bkk.strftime("%H:%M:%S")
-    date_str = now_bkk.strftime("%d/%m/%Y")
-
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #131722 0%, #1e222d 100%); border: 1px solid #2a2e39; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.4);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-            <span style="color: #787b86; font-size: 11px; font-weight: 500;">🕒 เวลาตลาด (UTC+7)</span>
-            <span style="color: #089981; font-size: 11px; font-weight: 600;">● เชื่อมต่อปกติ</span>
-        </div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline;">
-            <span style="color: #2962ff; font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; letter-spacing: 0.5px;">{time_str}</span>
-            <span style="color: #b2b5be; font-family: monospace; font-size: 12px;">{date_str}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("### ⚙️ แผงควบคุมระบบ")
-    col_m1, col_m2 = st.columns(2)
-    with col_m1:
-        if st.button("💻 Desktop", key="btn_mode_desktop_ctrl", use_container_width=True):
-            st.session_state["mobile_mode"] = False
-            st.rerun()
-    with col_m2:
-        if st.button("📱 Mobile", key="btn_mode_mobile_ctrl", use_container_width=True):
-            st.session_state["mobile_mode"] = True
-            st.rerun()
-
-    if st.button("🧹 เคลียร์แคชระบบ", key="btn_clear_cache_ctrl", use_container_width=True):
-        st.cache_data.clear()
-        st.cache_resource.clear()
-        _clear_chart_state()
-        st.rerun()
-    st.divider()
-
-    with st.expander("📌 ตลาดและสินทรัพย์", expanded=True):
-        market_categories = [
-            "🟡 คริปโต (Crypto)", "🇺🇸 หุ้นสหรัฐฯ (US Stocks)", "🇨🇳 หุ้นจีน (China)",
-            "🇹🇭 หุ้นไทย (SET/mai)", "🇻🇳 หุ้นเวียดนาม (Vietnam)",
-            "🟠 สินค้าโภคภัณฑ์ (Commodities)", "🟢 อัตราแลกเปลี่ยน (Forex)"
-        ]
-
-        selected_category = st.selectbox(
-            "หมวดหมู่ตลาด", 
-            market_categories, 
-            key="selected_market_category"
-        )
-
-        current_available_symbols = []
-        selected_exchange = None
-
-        if "คริปโต" in selected_category:
-            exchanges = ["Bitkub", "Binance", "OKX", "Bybit", "Gate.io", "MEXC", "KuCoin"]
-            selected_exchange = st.selectbox("กระดานเทรด", exchanges, key="selected_crypto_exchange")
-            
-            if selected_exchange == "Bitkub":
-                syms = load_catalog_smart(["bitkub"])
-                if not syms:
-                    try:
-                        r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=3.5)
-                        if r.status_code == 200:
-                            d = r.json()
-                            syms = sorted([k.replace("THB_", "") + "_THB" for k in d.keys() if k.startswith("THB_")])
-                            d_dir = get_data_dir()
-                            if os.path.exists(d_dir):
-                                with open(os.path.join(d_dir, "bitkub_symbols.json"), "w", encoding="utf-8") as bf:
-                                    json.dump(syms, bf, ensure_ascii=False)
-                    except Exception:
-                        pass
-                current_available_symbols = syms or get_full_bitkub_symbols()
-                
-            elif selected_exchange == "Binance":
-                syms = load_catalog_smart(["binance"])
-                if not syms:
-                    try:
-                        r = HTTP_SESSION.get("https://api.binance.com/api/v3/ticker/price", timeout=3.5)
-                        if r.status_code == 200:
-                            syms = sorted([it["symbol"] for it in r.json() if it["symbol"].endswith("USDT")])
-                    except Exception:
-                        pass
-                current_available_symbols = syms or get_full_binance_symbols()
-                
-            elif selected_exchange == "Gate.io":
-                current_available_symbols = load_catalog_smart(["gate"]) or get_full_gate_symbols()
-            elif selected_exchange == "KuCoin":
-                current_available_symbols = load_catalog_smart(["kucoin"]) or get_full_kucoin_symbols()
-            elif selected_exchange == "OKX":
-                current_available_symbols = load_catalog_smart(["okx"]) or get_full_okx_symbols()
-            elif selected_exchange == "Bybit":
-                current_available_symbols = load_catalog_smart(["bybit"]) or get_full_bybit_symbols()
-            elif selected_exchange == "MEXC":
-                current_available_symbols = load_catalog_smart(["mexc"]) or get_full_mexc_symbols()
-
-        elif "หุ้นสหรัฐฯ" in selected_category or "US" in selected_category:
-            current_available_symbols = load_catalog_smart(["sp500", "us_stocks", "us_symbols", "us"]) or get_full_sp500_symbols()
-
-        elif "หุ้นจีน" in selected_category or "China" in selected_category:
-            current_available_symbols = load_catalog_smart(["china", "csi"]) or get_full_china_stocks() or list(CHINA_STOCK_NAMES.keys())
-
-        elif "หุ้นไทย" in selected_category or "SET" in selected_category:
-            current_available_symbols = load_catalog_smart(["thai", "set"]) or fetch_set_all_symbols()
-
-        elif "หุ้นเวียดนาม" in selected_category or "Vietnam" in selected_category:
-            current_available_symbols = load_catalog_smart(["vietnam", "vn"]) or get_full_vietnam_symbols()
-
-        elif "โภคภัณฑ์" in selected_category or "Commodities" in selected_category:
-            current_available_symbols = load_catalog_smart(["commodit"]) or get_full_commodities() or list(COMMODITY_NAMES.keys())
-
-        elif "แลกเปลี่ยน" in selected_category or "Forex" in selected_category:
-            current_available_symbols = load_catalog_smart(["forex"]) or get_full_forex() or list(FOREX_NAMES.keys())
-
-        display_symbols = list(current_available_symbols) if current_available_symbols else []
-        custom_syms_clean = [s for s in st.session_state.get("custom_symbols", []) if s not in display_symbols]
-        display_symbols = custom_syms_clean + display_symbols
-
-        if not display_symbols:
-            display_symbols = ["- Select -"]
-
-        cur_idx = 0
-        cur_sym_val = st.session_state.get("current_symbol")
-        if cur_sym_val in display_symbols:
-            cur_idx = display_symbols.index(cur_sym_val)
-            
-        def format_symbol_label(s: str) -> str:
-            s_str = str(s)
-            if s_str in CHINA_STOCK_NAMES: return f"{s_str} — {CHINA_STOCK_NAMES[s_str]}"
-            if s_str in COMMODITY_NAMES: return f"{s_str} — {COMMODITY_NAMES[s_str]}"
-            if s_str in FOREX_NAMES: return f"{s_str} — {FOREX_NAMES[s_str]}"
-            return s_str
-
-        picker_key = f"picker_{selected_category}_{selected_exchange or 'global'}"
-
-        picked = st.selectbox(
-            "🔍 เลือกสินทรัพย์:",
-            display_symbols,
-            index=cur_idx if cur_idx < len(display_symbols) else 0,
-            format_func=format_symbol_label,
-            key=picker_key
-        )
-        
-        if picked and picked != "- Select -" and picked != st.session_state.get("current_symbol"):
-            cur = _find_tab(st.session_state.active_tab_id)
-            if cur: cur["symbol"] = picked
-            st.session_state["current_symbol"] = picked
-            _clear_chart_state()
-            st.rerun()
-
-        new_ticker = st.text_input("➕ เพิ่ม Ticker (เฉพาะกิจ):", placeholder="เช่น AAA.VN, PLTR", key="add_new_ticker")
-        if st.button("บันทึก Ticker", use_container_width=True, key="save_new_ticker") and new_ticker:
-            sym_clean = new_ticker.strip().upper()
-            if sym_clean and sym_clean not in st.session_state["custom_symbols"]:
-                st.session_state["custom_symbols"].insert(0, sym_clean)
-            cur = _find_tab(st.session_state.active_tab_id)
-            if cur: cur["symbol"] = sym_clean
-            st.session_state["current_symbol"] = sym_clean
-            _clear_chart_state()
-            st.rerun()
-
-        cur_sym = st.session_state.get("current_symbol", "BTC_THB")
-        _rm, _re = resolve_route(cur_sym)
-        st.caption(f"📡 แหล่งข้อมูล: **{route_label(_rm, _re)}**")
-
-        st.caption(f"⭐ ติดดาวกลุ่มสี: **{cur_sym}**")
-        star_cols = st.columns(5)
-        for i, (cat_label, cat_info) in enumerate(STAR_CATEGORIES.items()):
-            with star_cols[i]:
-                has = cur_sym in st.session_state["star_watchlists"][cat_label]
-                btn_display = f"★{cat_info['icon']}" if has else cat_info["icon"]
-                if st.button(btn_display, key=f"qs_btn_{i}", use_container_width=True):
-                    if has: st.session_state["star_watchlists"][cat_label].remove(cur_sym)
-                    else: st.session_state["star_watchlists"][cat_label].append(cur_sym)
-                    st.rerun()
-
-    with st.expander("⚙️ ตั้งค่าอินดิเคเตอร์ (Diamond Armor)", expanded=False):
-        tab_info, tab_style = st.tabs(["ข้อมูล", "รูปแบบ"])
-
-        with tab_info:
-            st.session_state["fast_ema"] = st.number_input("Fast EMA (น้ำเงิน)", 1, 200, int(st.session_state["fast_ema"]))
-            st.session_state["slow_ema"] = st.number_input("Slow EMA (แดง)", 1, 200, int(st.session_state["slow_ema"]))
-            st.session_state["trend_ema"] = st.number_input("Trend Filter (ขาว)", 1, 400, int(st.session_state["trend_ema"]))
-            st.divider()
-            st.session_state["min_tp"] = st.number_input("Minimum TP Threshold (%)", 0.0, 100.0, float(st.session_state["min_tp"]), 0.5)
-            st.session_state["warn_pct"] = st.number_input("Orange Dot Warning (%)", 0.0, 100.0, float(st.session_state["warn_pct"]), 0.5)
-            st.session_state["danger_pct"] = st.number_input("Red Dot Danger (%)", 0.0, 100.0, float(st.session_state["danger_pct"]), 0.5)
-            st.session_state["show_stars"] = st.checkbox("Show Stars (⭐)", value=st.session_state["show_stars"])
-
-        with tab_style:
-            st.session_state["show_fast"]  = st.checkbox("Fast EMA", value=st.session_state["show_fast"])
-            st.session_state["show_slow"]  = st.checkbox("Slow EMA", value=st.session_state["show_slow"])
-            st.session_state["show_trend"] = st.checkbox("Trend Filter", value=st.session_state["show_trend"])
-            st.session_state["show_rsi"]   = st.checkbox("ช่อง RSI (14)", value=st.session_state["show_rsi"])
-            st.session_state["show_macd"]  = st.checkbox("ช่อง MACD", value=st.session_state["show_macd"])
-            st.session_state["show_sig"]   = st.checkbox("ป้ายสัญญาณ BUY/SELL", value=st.session_state["show_sig"])
-            st.session_state["show_dots"]  = st.checkbox("จุดเตือน Orange/Red Dots", value=st.session_state["show_dots"])
-            st.divider()
-            st.session_state["ema_opacity"]   = st.slider("EMA Transparency", 0, 100, int(st.session_state["ema_opacity"]))
-            st.session_state["trend_opacity"] = st.slider("Trend Filter Transparency", 0, 100, int(st.session_state["trend_opacity"]))
-            st.session_state["line_width"]    = st.slider("ความหนาเส้น EMA", 1, 3, int(st.session_state["line_width"]))
-
-            st.divider()
-            if st.button("⇅ สลับตำแหน่ง RSI / MACD", use_container_width=True):
-                st.session_state["pane_order"] = list(reversed(st.session_state["pane_order"]))
-                st.rerun()
-
-            st.session_state["main_h"] = st.slider("ความสูงกราฟหลัก", 300, 900, value=int(st.session_state.get("main_h", 520)), step=20)
-            if st.session_state.get("show_rsi", True):
-                st.session_state["rsi_h"] = st.slider("ความสูง RSI", 80, 400, value=int(st.session_state.get("rsi_h", 120)), step=10)
-            if st.session_state.get("show_macd", True):
-                st.session_state["macd_h"] = st.slider("ความสูง MACD", 80, 400, value=int(st.session_state.get("macd_h", 120)), step=10)
-
-        st.divider()
-        if st.button("🔄 คืนค่าเริ่มต้น (Reset)", use_container_width=True):
-            st.session_state["fast_ema"] = 7
-            st.session_state["slow_ema"] = 13
-            st.session_state["trend_ema"] = 45
-            st.session_state["min_tp"] = 3.0
-            st.session_state["warn_pct"] = 3.0
-            st.session_state["danger_pct"] = 7.0
-            st.session_state["show_stars"] = True
-            st.session_state["show_fast"] = True
-            st.session_state["show_slow"] = True
-            st.session_state["show_trend"] = True
-            st.session_state["show_rsi"] = True
-            st.session_state["show_macd"] = True
-            st.session_state["show_sig"] = False
-            st.session_state["show_dots"] = False
-            st.session_state["ema_opacity"] = 0
-            st.session_state["trend_opacity"] = 60
-            st.session_state["line_width"] = 2
-            st.session_state["main_h"] = 520
-            st.session_state["rsi_h"] = 120
-            st.session_state["macd_h"] = 120
-            st.rerun()
-
-    with st.expander("📐 ระบบ Fibonacci Suite", expanded=True):
-        if st.button("🔍 เปิดแผงวิเคราะห์ Fibonacci (Pop-up)", use_container_width=True):
-            st.session_state["trigger_fib_modal"] = True
-
-        st.divider()
-        st.session_state["fib_lookback"] = st.slider("ความไวการหา Swing", 2, 15, int(st.session_state["fib_lookback"]))
-        st.session_state["fib_window"] = st.slider("จำนวนแท่งวิเคราะห์", 30, 400, int(st.session_state["fib_window"]), step=10)
-        st.session_state["fib_tp_level"] = st.selectbox("ระดับ Fib เป้าหมายหลัก", [1.272, 1.414, 1.618, 2.0, 2.618], index=2)
-        st.session_state["fib_confirm_on"] = st.checkbox("ใช้ Golden Zone ยืนยันสัญญาณ BUY", value=st.session_state["fib_confirm_on"])
+    render_dock_menu()
 
 # ──────────────────────────── LIVE TOP BAR FRAGMENT ────────────────────────────
 @st.fragment(run_every=2)
@@ -1494,7 +1255,7 @@ def dashboard():
             col_quote = None
 
         with col_chart:
-            render_drawing_chart([charts[0]], height=cur_main_h, key=chart_dyn_key)
+            renderLightweightCharts([charts[0]], key=chart_dyn_key)
             if len(charts) > 1:
                 renderLightweightCharts(charts[1:], key=chart_dyn_key + "_sub")
         with col_toggle:

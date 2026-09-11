@@ -1,4 +1,4 @@
-# chart_builders.py — Chart Assembly & Multi-pane Engine
+# chart_builders.py — Full Engine: Synced Crosshair, Dynamic 3-Tab Settings & 4-Color MACD
 import pandas as pd
 import streamlit as st
 import chart_theme as theme
@@ -37,14 +37,27 @@ def min_move(df: pd.DataFrame) -> float:
     return 10 ** -price_precision(df)
 
 
+def is_timeframe_visible(tf: str) -> bool:
+    """ตรวจสอบแท็บ Visibility ว่าอนุญาตให้แสดงตัวชี้วัดใน Timeframe ปัจจุบันหรือไม่"""
+    tf_str = str(tf).lower()
+    if "s" in tf_str:
+        return st.session_state.get("vis_sec", True)
+    if "m" in tf_str and not "mo" in tf_str:
+        return st.session_state.get("vis_min", True)
+    if "h" in tf_str:
+        return st.session_state.get("vis_hour", True)
+    if "d" in tf_str:
+        return st.session_state.get("vis_day", True)
+    if "w" in tf_str or "mo" in tf_str:
+        return st.session_state.get("vis_week_month", True)
+    return True
+
+
 def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
     if df is None or df.empty:
         return []
 
-    show_r = st.session_state.get("show_rsi", True)
-    show_m = st.session_state.get("show_macd", True)
     d = df.copy()
-
     if hasattr(d.columns, "str"):
         d.columns = d.columns.astype(str).str.lower()
     d = d.loc[:, ~d.columns.duplicated()]
@@ -57,11 +70,6 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         else:
             d["time"] = range(len(d))
 
-    if "time" not in d.columns:
-        d["time"] = range(len(d))
-
-    d.columns = [str(c).lower() for c in d.columns]
-
     if pd.api.types.is_datetime64_any_dtype(d["time"]):
         d["time"] = (d["time"].astype("int64") // 10**9).astype("int64") + 25200
     else:
@@ -73,8 +81,50 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         else:
             d[col] = pd.to_numeric(d[col], errors="coerce").fillna(0.0)
 
+    # 1. คำนวณ RSI & RSI MA จากแท็บ Inputs
+    r_len = int(st.session_state.get("rsi_len", 14))
+    r_src = str(st.session_state.get("rsi_source", "close")).lower()
+    src_series = d[r_src] if r_src in d.columns else d["close"]
+
+    delta = src_series.diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.ewm(alpha=1 / r_len, min_periods=r_len, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1 / r_len, min_periods=r_len, adjust=False).mean()
+    rs = avg_gain / avg_loss.replace(0, 1e-9)
+    d["calc_rsi"] = 100.0 - (100.0 / (1.0 + rs))
+
+    ma_type = st.session_state.get("rsi_ma_type", "SMA")
+    ma_len = int(st.session_state.get("rsi_ma_len", 14))
+    if ma_type == "EMA":
+        d["calc_rsi_ma"] = d["calc_rsi"].ewm(span=ma_len, adjust=False).mean()
+    else:
+        d["calc_rsi_ma"] = d["calc_rsi"].rolling(ma_len).mean()
+
+    # 2. คำนวณ MACD จากแท็บ Inputs
+    m_fast = int(st.session_state.get("macd_fast_len", 12))
+    m_slow = int(st.session_state.get("macd_slow_len", 26))
+    m_sig  = int(st.session_state.get("macd_sig_len", 9))
+    m_src  = str(st.session_state.get("macd_source", "close")).lower()
+    m_series = d[m_src] if m_src in d.columns else d["close"]
+
+    fast_ema = m_series.ewm(span=m_fast, adjust=False).mean()
+    slow_ema = m_series.ewm(span=m_slow, adjust=False).mean()
+    d["calc_macd"] = fast_ema - slow_ema
+    d["calc_macd_sig"] = d["calc_macd"].ewm(span=m_sig, adjust=False).mean()
+    d["calc_macd_hist"] = d["calc_macd"] - d["calc_macd_sig"]
+
+    # 3. คำนวณเส้น EMA กราฟหลัก
+    ema_f_len = int(st.session_state.get("ema_fast_len", 12))
+    ema_s_len = int(st.session_state.get("ema_slow_len", 26))
+    ema_t_len = int(st.session_state.get("ema_trend_len", 200))
+    d["calc_ema_fast"] = d["close"].ewm(span=ema_f_len, adjust=False).mean()
+    d["calc_ema_slow"] = d["close"].ewm(span=ema_s_len, adjust=False).mean()
+    d["calc_ema_trend"] = d["close"].ewm(span=ema_t_len, adjust=False).mean()
+
     records = d.to_dict("records")
 
+    # TimeScale ซิงค์การลากและซูมเวลา
     pane_ts = {
         "visible": True,
         "timeVisible": True,
@@ -87,6 +137,27 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         "handleScale": {"axisPressedMouseMove": True, "mouseWheel": True, "pinch": True},
     }
 
+    # เส้น Crosshair ไข่ปลาเชื่อมทะลุทั้ง 3 หน้าต่าง
+    crosshair_synced = {
+        "mode": 1,
+        "vertLine": {
+            "visible": True,
+            "style": 3,
+            "width": 1,
+            "color": "rgba(255, 255, 255, 0.40)",
+            "labelVisible": True,
+            "labelBackgroundColor": theme.BORDER_COLOR,
+        },
+        "horzLine": {
+            "visible": True,
+            "style": 3,
+            "width": 1,
+            "color": "rgba(255, 255, 255, 0.40)",
+            "labelVisible": True,
+            "labelBackgroundColor": theme.BORDER_COLOR,
+        },
+    }
+
     base_chart = {
         "layout": {
             "background": {"type": "solid", "color": theme.CHART_BG},
@@ -97,11 +168,7 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
             "vertLines": {"color": theme.GRID_COLOR, "style": 1},
             "horzLines": {"color": theme.GRID_COLOR, "style": 1},
         },
-        "crosshair": {
-            "mode": 1,
-            "vertLine": {"color": theme.CROSSHAIR_COLOR, "style": 3, "labelBackgroundColor": theme.BORDER_COLOR},
-            "horzLine": {"color": theme.CROSSHAIR_COLOR, "style": 3, "labelBackgroundColor": theme.BORDER_COLOR},
-        },
+        "crosshair": crosshair_synced,
         "rightPriceScale": {
             "autoScale": True,
             "borderColor": theme.BORDER_COLOR,
@@ -109,13 +176,13 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
             "scaleMargins": {"top": theme.PRICE_SCALE_TOP, "bottom": theme.PRICE_SCALE_BTM},
             "mode": 0,
         },
-        # ควบคุมสเกล Overlay (Volume) ให้ยืนติดขอบล่างสุด และไม่ให้สูงเกิน 20%
         "overlayPriceScales": {
             "scaleMargins": {"top": theme.VOL_TOP_MARGIN, "bottom": 0.0},
         },
         "timeScale": pane_ts,
     }
 
+    # แท่งเทียนหลัก
     candles = [
         {
             "time": int(r["time"]),
@@ -147,67 +214,26 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         },
     }]
 
-    show_sig = st.session_state.get("show_sig", False)
-    show_stars = st.session_state.get("show_stars", True)
-    show_dots = st.session_state.get("show_dots", False)
+    # เส้น EMA กราฟหลัก
+    fast_data = [{"time": int(r["time"]), "value": float(r["calc_ema_fast"])} for r in records if pd.notna(r.get("calc_ema_fast")) and r["time"] > 0]
+    price_series.append({
+        "type": "Line", "data": fast_data,
+        "options": {"color": theme.EMA_FAST_COLOR, "lineWidth": 2, "priceLineVisible": False, "lastValueVisible": False},
+    })
 
-    if show_sig or show_stars or show_dots:
-        marker_map = {}
-        for r in records:
-            t = int(r["time"])
-            labels = []
-            sig = str(r.get("signal", ""))
-            is_buy = sig == "BUY"
-            is_sell = sig == "SELL ALL"
+    slow_data = [{"time": int(r["time"]), "value": float(r["calc_ema_slow"])} for r in records if pd.notna(r.get("calc_ema_slow")) and r["time"] > 0]
+    price_series.append({
+        "type": "Line", "data": slow_data,
+        "options": {"color": theme.EMA_SLOW_COLOR, "lineWidth": 2, "priceLineVisible": False, "lastValueVisible": False},
+    })
 
-            if show_sig and (is_buy or is_sell):
-                labels.append(sig)
-            if show_stars and r.get("star", False):
-                labels.append("⭐")
-            dot = str(r.get("dot_warn", ""))
-            if show_dots and dot:
-                labels.append("🔴" if dot == "RED" else "🟠")
+    trend_data = [{"time": int(r["time"]), "value": float(r["calc_ema_trend"])} for r in records if pd.notna(r.get("calc_ema_trend")) and r["time"] > 0]
+    price_series.append({
+        "type": "Line", "data": trend_data,
+        "options": {"color": theme.EMA_TREND_COLOR, "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False},
+    })
 
-            if labels:
-                marker_map[t] = {
-                    "time": t,
-                    "position": "belowBar" if is_buy else "aboveBar",
-                    "color": theme.CANDLE_UP if is_buy else (theme.CANDLE_DOWN if is_sell else "#FFD700"),
-                    "shape": "arrowUp" if is_buy else ("arrowDown" if is_sell else "circle"),
-                    "text": " ".join(labels),
-                    "size": 1,
-                }
-
-        clean_markers = sanitize_markers(list(marker_map.values()))
-        if clean_markers:
-            price_series[0]["markers"] = clean_markers
-
-    ema_alpha = (100 - st.session_state.get("ema_opacity", 0)) / 100.0
-    trend_alpha = (100 - st.session_state.get("trend_opacity", 60)) / 100.0
-    lw = int(st.session_state.get("line_width", 2))
-
-    if st.session_state.get("show_fast", True) and "ema_fast" in d:
-        fast_data = [{"time": int(r["time"]), "value": float(r["ema_fast"])} for r in records if pd.notna(r.get("ema_fast")) and r["time"] > 0]
-        price_series.append({
-            "type": "Line", "data": fast_data,
-            "options": {"color": theme.EMA_FAST_COLOR, "lineWidth": lw, "priceLineVisible": False, "lastValueVisible": False},
-        })
-
-    if st.session_state.get("show_slow", True) and "ema_slow" in d:
-        slow_data = [{"time": int(r["time"]), "value": float(r["ema_slow"])} for r in records if pd.notna(r.get("ema_slow")) and r["time"] > 0]
-        price_series.append({
-            "type": "Line", "data": slow_data,
-            "options": {"color": theme.EMA_SLOW_COLOR, "lineWidth": lw, "priceLineVisible": False, "lastValueVisible": False},
-        })
-
-    if st.session_state.get("show_trend", True) and "ema_trend" in d:
-        trend_data = [{"time": int(r["time"]), "value": float(r["ema_trend"])} for r in records if pd.notna(r.get("ema_trend")) and r["time"] > 0]
-        price_series.append({
-            "type": "Line", "data": trend_data,
-            "options": {"color": theme.EMA_TREND_COLOR, "lineWidth": max(1, lw - 1), "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False},
-        })
-
-    # Volume: priceScaleId เป็น "" (Overlay) แยกเด็ดขาดจากแกนราคา และตั้งติดพื้นล่างสุด 0px
+    # Volume Overlay ชิดขอบล่าง
     if theme.SHOW_VOLUME:
         vol = [
             {
@@ -222,75 +248,93 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
             "data": vol,
             "options": {
                 "priceFormat": {"type": "volume"},
-                "priceScaleId": "",            # กำหนดเป็น Overlay อิสระ ไม่ดึงสเกลแท่งเทียน
-                "priceLineVisible": False,    # ปิดเส้นประแนวนอนยาว
-                "lastValueVisible": False,    # ปิดป้ายตัวเลขราคา
+                "priceScaleId": "",
+                "priceLineVisible": False,
+                "lastValueVisible": False,
             },
         })
 
+    # กราฟ RSI (14) พร้อม RSI MA และ Bands
     def make_rsi_pane():
-        rsi_data = [{"time": int(r["time"]), "value": float(r["rsi"])} for r in records if pd.notna(r.get("rsi")) and r["time"] > 0]
+        rsi_col = st.session_state.get("rsi_col_line", theme.RSI_LINE_COLOR)
+        rsi_lw = int(st.session_state.get("rsi_lw_line", 2))
+        u_band = float(st.session_state.get("rsi_band_70", 70.0))
+        m_band = float(st.session_state.get("rsi_band_50", 50.0))
+        l_band = float(st.session_state.get("rsi_band_30", 30.0))
+
+        rsi_data = [{"time": int(r["time"]), "value": float(r["calc_rsi"])} for r in records if pd.notna(r.get("calc_rsi")) and r["time"] > 0]
         mk = lambda v: [{"time": int(r["time"]), "value": v} for r in records if r["time"] > 0]
+
+        series_list = [
+            {"type": "Line", "data": mk(u_band), "options": {"color": "rgba(242,54,69,0.5)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}},
+            {"type": "Line", "data": mk(m_band), "options": {"color": "rgba(120,123,134,0.25)", "lineWidth": 1, "lineStyle": 3, "priceLineVisible": False, "lastValueVisible": False}},
+            {"type": "Line", "data": mk(l_band), "options": {"color": "rgba(8,153,129,0.5)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}},
+            {"type": "Line", "data": rsi_data, "options": {"color": rsi_col, "lineWidth": rsi_lw, "priceLineVisible": True}},
+        ]
+
+        if st.session_state.get("rsi_show_ma", True):
+            ma_col = st.session_state.get("rsi_col_ma", theme.RSI_MA_COLOR)
+            ma_data = [{"time": int(r["time"]), "value": float(r["calc_rsi_ma"])} for r in records if pd.notna(r.get("calc_rsi_ma")) and r["time"] > 0]
+            series_list.append({"type": "Line", "data": ma_data, "options": {"color": ma_col, "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
+
         return {
             "chart": {
                 **base_chart,
                 "height": rsi_h,
                 "timeScale": pane_ts,
-                "rightPriceScale": {
-                    **base_chart["rightPriceScale"],
-                    "scaleMargins": {"top": theme.RSI_TOP_MARGIN, "bottom": theme.RSI_BTM_MARGIN},
-                },
-                "watermark": {
-                    "visible": True,
-                    "text": "RSI (14)",
-                    "fontSize": 18,
-                    "color": theme.RSI_TITLE_COLOR,
-                    "horzAlign": "left",
-                    "vertAlign": "top",
-                },
+                "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": theme.RSI_TOP_MARGIN, "bottom": theme.RSI_BTM_MARGIN}},
+                "watermark": {"visible": True, "text": f"RSI ({r_len})", "fontSize": 18, "color": theme.RSI_TITLE_COLOR, "horzAlign": "left", "vertAlign": "top"},
             },
-            "series": [
-                {"type": "Line", "data": mk(70.0), "options": {"color": theme.RSI_LEVEL_70, "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}},
-                {"type": "Line", "data": mk(50.0), "options": {"color": theme.RSI_LEVEL_50, "lineWidth": 1, "lineStyle": 3, "priceLineVisible": False, "lastValueVisible": False}},
-                {"type": "Line", "data": mk(30.0), "options": {"color": theme.RSI_LEVEL_30, "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}},
-                {"type": "Line", "data": rsi_data, "options": {"color": theme.RSI_LINE_COLOR, "lineWidth": theme.RSI_LINE_WIDTH, "priceLineVisible": True}},
-            ],
+            "series": series_list,
         }
 
+    # กราฟ MACD (4-Color Histogram & Zero Line)
     def make_macd_pane():
-        macd_line = [{"time": int(r["time"]), "value": float(r["macd"])} for r in records if pd.notna(r.get("macd")) and r["time"] > 0]
-        sig_line  = [{"time": int(r["time"]), "value": float(r["macd_sig"])} for r in records if pd.notna(r.get("macd_sig")) and r["time"] > 0]
-        hist = [
-            {
-                "time": int(r["time"]),
-                "value": float(r["macd_hist"]),
-                "color": theme.MACD_HIST_UP if float(r.get("macd_hist", 0)) >= 0 else theme.MACD_HIST_DOWN,
-            }
-            for r in records if pd.notna(r.get("macd_hist")) and r["time"] > 0
-        ]
+        m_col = st.session_state.get("macd_col_line", theme.MACD_LINE_COLOR)
+        m_lw = int(st.session_state.get("macd_lw_line", 2))
+        s_col = st.session_state.get("macd_col_sig", theme.MACD_SIG_COLOR)
+        s_lw = int(st.session_state.get("macd_lw_sig", 2))
+
+        c0 = st.session_state.get("macd_col_h0", theme.MACD_HIST_H0)
+        c1 = st.session_state.get("macd_col_h1", theme.MACD_HIST_H1)
+        c2 = st.session_state.get("macd_col_h2", theme.MACD_HIST_H2)
+        c3 = st.session_state.get("macd_col_h3", theme.MACD_HIST_H3)
+
+        macd_data = [{"time": int(r["time"]), "value": float(r["calc_macd"])} for r in records if pd.notna(r.get("calc_macd")) and r["time"] > 0]
+        sig_data  = [{"time": int(r["time"]), "value": float(r["calc_macd_sig"])} for r in records if pd.notna(r.get("calc_macd_sig")) and r["time"] > 0]
+
+        hist_data = []
+        for i, r in enumerate(records):
+            if r["time"] <= 0 or pd.isna(r.get("calc_macd_hist")):
+                continue
+            val = float(r["calc_macd_hist"])
+            prev = float(records[i - 1]["calc_macd_hist"]) if i > 0 and pd.notna(records[i - 1].get("calc_macd_hist")) else val
+            if val >= 0:
+                col = c0 if val >= prev else c1
+            else:
+                col = c2 if val <= prev else c3
+            hist_data.append({"time": int(r["time"]), "value": val, "color": col})
+
+        series_list = []
+        if st.session_state.get("macd_show_hist", True):
+            series_list.append({"type": "Histogram", "data": hist_data, "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "macd_hist", "priceLineVisible": False, "lastValueVisible": False}})
+
+        if st.session_state.get("macd_show_zero", True):
+            mk_zero = [{"time": int(r["time"]), "value": 0.0} for r in records if r["time"] > 0]
+            series_list.append({"type": "Line", "data": mk_zero, "options": {"color": theme.MACD_ZERO_COLOR, "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+
+        series_list.append({"type": "Line", "data": macd_data, "options": {"color": m_col, "lineWidth": m_lw, "priceLineVisible": False}})
+        series_list.append({"type": "Line", "data": sig_data, "options": {"color": s_col, "lineWidth": s_lw, "priceLineVisible": False}})
+
         return {
             "chart": {
                 **base_chart,
                 "height": macd_h,
                 "timeScale": pane_ts,
-                "rightPriceScale": {
-                    **base_chart["rightPriceScale"],
-                    "scaleMargins": {"top": theme.MACD_TOP_MARGIN, "bottom": theme.MACD_BTM_MARGIN},
-                },
-                "watermark": {
-                    "visible": True,
-                    "text": "MACD (12, 26, 9)",
-                    "fontSize": 18,
-                    "color": theme.MACD_TITLE_COLOR,
-                    "horzAlign": "left",
-                    "vertAlign": "top",
-                },
+                "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": theme.MACD_TOP_MARGIN, "bottom": theme.MACD_BTM_MARGIN}},
+                "watermark": {"visible": True, "text": f"MACD ({m_fast}, {m_slow}, {m_sig})", "fontSize": 18, "color": theme.MACD_TITLE_COLOR, "horzAlign": "left", "vertAlign": "top"},
             },
-            "series": [
-                {"type": "Histogram", "data": hist, "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "macd_hist", "priceLineVisible": False, "lastValueVisible": False}},
-                {"type": "Line", "data": macd_line, "options": {"color": theme.MACD_LINE_COLOR, "lineWidth": theme.MACD_LINE_WIDTH, "priceLineVisible": False}},
-                {"type": "Line", "data": sig_line, "options": {"color": theme.MACD_SIG_COLOR, "lineWidth": theme.MACD_SIG_WIDTH, "priceLineVisible": False}},
-            ],
+            "series": series_list,
         }
 
     charts = [{
@@ -303,10 +347,8 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         "series": price_series,
     }]
 
-    for p in st.session_state.get("pane_order", ["rsi", "macd"]):
-        if p == "rsi" and show_r:
-            charts.append(make_rsi_pane())
-        elif p == "macd" and show_m:
-            charts.append(make_macd_pane())
+    if is_timeframe_visible(tf):
+        charts.append(make_rsi_pane())
+        charts.append(make_macd_pane())
 
     return charts
