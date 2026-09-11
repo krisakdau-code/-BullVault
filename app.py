@@ -1091,8 +1091,15 @@ def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_displ
     live_tk = fetch_unified_ticker(r_market, r_exchange, symbol)
     cur_price = float(live_tk.get("price", base_price))
     cur_chg = float(live_tk.get("pct", 0.0))
-    chg_txt_color = "#26a69a" if cur_chg >= 0 else "#ef5350"
+    
+    # ─── บันทึกค่ากลางลงใน Session State (SSOT Pattern) ───
+    st.session_state[f"live_price_{symbol}"] = cur_price
+    st.session_state[f"live_pct_{symbol}"] = cur_chg
+    st.session_state[f"live_high_{symbol}"] = float(live_tk.get("high", cur_price))
+    st.session_state[f"live_low_{symbol}"] = float(live_tk.get("low", cur_price))
+    # ──────────────────────────────────────────────────────
 
+    chg_txt_color = "#26a69a" if cur_chg >= 0 else "#ef5350"
     price_fmt = f"{cur_price:,.4f}" if cur_price < 10 else f"{cur_price:,.2f}"
     bid_p = float(live_tk.get("bid", cur_price))
     bid_fmt = f"{bid_p:,.4f}" if bid_p < 10 else f"{bid_p:,.2f}"
@@ -1215,6 +1222,12 @@ def dashboard():
     gauges_html_compact = render_3_gauges_html(tech_data, compact=True)
     gauges_html_modal = render_3_gauges_html(tech_data, compact=False)
     tk_data = fetch_unified_ticker(r_market, r_exchange, symbol, df)
+    
+    # ─── ดึงค่าจาก State กลางมาใช้เพื่อให้ตัวเลขตรงกัน 100% ───
+    if f"live_price_{symbol}" in st.session_state:
+        tk_data["price"] = st.session_state[f"live_price_{symbol}"]
+        tk_data["pct"] = st.session_state[f"live_pct_{symbol}"]
+    # ────────────────────────────────────────────────────────
 
     if st.session_state.get("trigger_fib_modal", False):
         st.session_state["trigger_fib_modal"] = False
