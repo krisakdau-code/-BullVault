@@ -13,6 +13,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from chart_builders import build_charts
 from ui.dock_menu import render_dock_menu
+from ui.asset_tabs import asset_tab_bar
 from config import *
 from drawing_chart import render_drawing_chart
 from requests.adapters import HTTPAdapter
@@ -813,10 +814,6 @@ def render_top_toolbar():
     i += 1
 
     with cols[i]:
-        st.markdown("<div style='height:18px;border-left:1px solid #222;margin:0 auto;'></div>", unsafe_allow_html=True)
-    i += 1
-
-    with cols[i]:
         tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.selected_tf) if st.session_state.selected_tf in TF_OPTIONS else 5, key="tf_select", label_visibility="collapsed")
         if tf != st.session_state.selected_tf:
             st.session_state.selected_tf = tf
@@ -1164,16 +1161,31 @@ def dashboard():
     tf, bars, fill_gaps, auto, every, reload_btn = render_top_toolbar()
 
     symbol = st.session_state.get("current_symbol", "BTC_THB")
+    tabs_data = st.session_state.get("open_tabs", st.session_state.get("tabs", []))
+    if tabs_data and isinstance(tabs_data[0], dict):
+        SYMBOLS = [t.get("symbol") for t in tabs_data if t.get("symbol")]
+    elif tabs_data and isinstance(tabs_data[0], str):
+        SYMBOLS = tabs_data
+    else:
+        SYMBOLS = [symbol]
+
+    if symbol not in SYMBOLS:
+        SYMBOLS.insert(0, symbol)
+
+    active_symbol = asset_tab_bar(SYMBOLS, state_key="current_symbol")
+    symbol = active_symbol or symbol
+    st.divider()
+
     r_market, r_exchange = resolve_route(symbol)
     label_display = route_label(r_market, r_exchange)
 
     state_key = f"{r_market}_{r_exchange}_{symbol}_{tf}_{bars}_{fill_gaps}"
     
     if ("df_data" not in st.session_state) or (st.session_state.get("active_key") != state_key) or reload_btn:
-        with st.spinner(f"กำลังโหลดประวัติ {symbol} ({bars:,} แท่ง) …"):
+        with st.spinner(f"กำลังโหลดประวัติ {symbol} ({bars:,} แท่ง) ..."):
             df = fetch_ohlcv(r_market, r_exchange, symbol, tf, bars, fill_gaps)
-        st.session_state["df_data"] = df
-        st.session_state["active_key"] = state_key
+            st.session_state["df_data"] = df
+            st.session_state["active_key"] = state_key
     else:
         df = st.session_state.get("df_data", pd.DataFrame())
 

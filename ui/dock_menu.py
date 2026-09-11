@@ -1,13 +1,97 @@
-# ui/dock_menu.py — Native Styled Sidebar Toggle & Circular UI
-from datetime import datetime
+import datetime
 import streamlit as st
+import symbols
+
+
+def _safe_fetch(func_name: str, fallback: list[str]) -> list[str]:
+    """เรียกฟังก์ชันจาก symbols.py อย่างปลอดภัย หากติด error หรือได้ลิสต์ว่างจะใช้ fallback ทันที"""
+    try:
+        if hasattr(symbols, func_name):
+            res = getattr(symbols, func_name)()
+            if res and isinstance(res, list) and len(res) > 0:
+                return res
+    except Exception:
+        pass
+    return fallback
+
+
+def get_exchange_symbols(market: str, exchange: str) -> list[str]:
+    """ดึงรายชื่อเหรียญ/หุ้นแบบสมบูรณ์ แยกตามตลาดและกระดานเทรดจริง"""
+    m = (market or "").lower()
+    ex = (exchange or "").lower()
+
+    # 1. คริปโต
+    if "คริปโต" in m or "crypto" in m:
+        if "binance" in ex:
+            return _safe_fetch("get_full_binance_symbols", [
+                "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT", 
+                "ADAUSDT", "AVAXUSDT", "LINKUSDT", "SUIUSDT", "NEARUSDT", "APTUSDT", 
+                "PEPEUSDT", "SHIBUSDT", "DOTUSDT", "LTCUSDT", "UNIUSDT"
+            ])
+        elif "bitkub" in ex:
+            return _safe_fetch("get_full_bitkub_symbols", [
+                "BTC_THB", "ETH_THB", "SOL_THB", "ADA_THB", "XRP_THB", "DOGE_THB", 
+                "KUB_THB", "USDT_THB", "BNB_THB", "OP_THB", "ARB_THB", "NEAR_THB"
+            ])
+        elif "bybit" in ex:
+            return _safe_fetch("get_full_bybit_symbols", [
+                "BTCUSDT", "ETHUSDT", "SOLUSDT", "MNTUSDT", "XRPUSDT"
+            ])
+        elif "okx" in ex:
+            return _safe_fetch("get_full_okx_symbols", [
+                "BTC-USDT", "ETH-USDT", "SOL-USDT", "OKB-USDT", "XRP-USDT"
+            ])
+        else:
+            return _safe_fetch("get_full_binance_symbols", ["BTCUSDT", "ETHUSDT", "SOLUSDT"])
+
+    # 2. หุ้นไทย
+    elif "หุ้นไทย" in m or "thai" in m or "set" in m:
+        return _safe_fetch("fetch_set_all_symbols", [
+            "DELTA.BK", "PTT.BK", "AOT.BK", "ADVANC.BK", "GULF.BK", "PTTEP.BK", 
+            "BDMS.BK", "CPALL.BK", "SCB.BK", "KBANK.BK", "TRUE.BK", "SCC.BK", 
+            "BBL.BK", "CPAXT.BK", "BH.BK", "TIDLOR.BK", "MINT.BK", "HMPRO.BK", "IVL.BK", "MTC.BK"
+        ])
+
+    # 3. หุ้นสหรัฐฯ
+    elif "สหรัฐ" in m or "us" in m or "sp500" in m:
+        return _safe_fetch("get_full_sp500_symbols", [
+            "NVDA", "AAPL", "MSFT", "AMZN", "GOOGL", "META", "TSLA", "AMD", 
+            "NFLX", "INTC", "PLTR", "COIN", "AVGO", "QCOM", "BABA", "ARM", "MU"
+        ])
+
+    # 4. หุ้นจีน
+    elif "จีน" in m or "china" in m:
+        return _safe_fetch("get_full_china_stocks", [
+            "0700.HK", "9988.HK", "3690.HK", "9618.HK", "9999.HK", "9888.HK", 
+            "1810.HK", "2015.HK", "9866.HK", "9868.HK", "002594.SZ", "300750.SZ", "600519.SS", "601398.SS"
+        ])
+
+    # 5. หุ้นเวียดนาม
+    elif "เวียดนาม" in m or "vietnam" in m or "vn" in m:
+        return _safe_fetch("get_full_vietnam_symbols", [
+            "VIC.VN", "VHM.VN", "HPG.VN", "FPT.VN", "VNM.VN", "MSN.VN", 
+            "TCB.VN", "SSI.VN", "MBB.VN", "MWG.VN", "AAA.VN", "DGC.VN"
+        ])
+
+    # 6. สินค้าโภคภัณฑ์
+    elif "โภคภัณฑ์" in m or "commodity" in m:
+        return _safe_fetch("get_full_commodities", [
+            "GC=F", "SI=F", "HG=F", "CL=F", "BZ=F", "NG=F", "PL=F", "PA=F"
+        ])
+
+    # 7. Forex
+    elif "forex" in m or "fx" in m:
+        return _safe_fetch("get_full_forex", [
+            "USDTHB=X", "EURUSD=X", "USDJPY=X", "GBPUSD=X", "EURTHB=X", "JPYTHB=X"
+        ])
+
+    return ["BTCUSDT", "ETHUSDT"]
 
 
 def inject_dock_css():
     st.markdown(
         """
         <style>
-        /* 1. บังคับให้ปุ่มเปิด Sidebar (ลูกศร Streamlit) ลอยขึ้นมาเป็นวงกลมเขียวเรืองแสงชั้นบนสุด */
         [data-testid="stSidebarCollapsedControl"] {
             display: flex !important;
             visibility: visible !important;
@@ -37,7 +121,6 @@ def inject_dock_css():
             height: 22px !important;
         }
 
-        /* 2. สไตล์พื้นหลัง Sidebar */
         [data-testid="stSidebar"] {
             background-color: #0b0e14 !important;
             border-right: 1px solid #1f2430 !important;
@@ -46,7 +129,6 @@ def inject_dock_css():
             padding: 0.6rem 0.6rem 2rem 0.6rem !important;
         }
 
-        /* 3. จัดตำแหน่ง Popover กึ่งกลางหน้าจอ (Center Modal) */
         div[data-testid="stPopoverBody"] {
             position: fixed !important;
             top: 50% !important;
@@ -64,7 +146,6 @@ def inject_dock_css():
             z-index: 999999 !important;
         }
 
-        /* 4. ปุ่ม Dock ไอคอนหลัก 4 ตัว: วงกลม */
         .main-dock div[data-testid="stPopover"] > button {
             border-radius: 50% !important;
             width: 50px !important;
@@ -128,7 +209,7 @@ def render_drawing_toolbar():
 def render_dock_menu():
     inject_dock_css()
 
-    now = datetime.now()
+    now = datetime.datetime.now()
     st.markdown(
         f"""
         <div class="status-badge">
@@ -158,20 +239,55 @@ def render_dock_menu():
     with c1:
         with st.popover("🪙", help="ตลาด, กระดาน และสินทรัพย์"):
             st.markdown("### 🪙 ตลาดและสินทรัพย์")
-            st.selectbox("หมวดหมู่ตลาด", ["คริปโต (Crypto)", "หุ้นเวียดนาม", "หุ้นไทย", "Forex"], key="market_category")
-            st.selectbox("กระดานเทรด", ["Bitkub", "Binance", "TradeStation"], key="selected_exchange")
-            st.selectbox("เลือกสินทรัพย์:", ["BTC_THB", "ETH_THB", "ADA_THB", "SOL_THB"], key="selected_symbol")
+            market = st.selectbox(
+                "หมวดหมู่ตลาด",
+                ["คริปโต (Crypto)", "หุ้นไทย", "หุ้นสหรัฐ", "หุ้นจีน", "หุ้นเวียดนาม", "Forex", "โภคภัณฑ์"],
+                key="market_category"
+            )
+
+            # กรองกระดานเทรดตามหมวดหมู่
+            if "คริปโต" in market:
+                ex_options = ["Binance", "Bitkub", "Bybit", "OKX"]
+            else:
+                ex_options = ["Yahoo", "TradeStation"]
+
+            exchange = st.selectbox(
+                "กระดานเทรด", 
+                ex_options, 
+                key=f"dock_ex_{market}"
+            )
+
+            # ดึงรายชื่อเหรียญแบบไดนามิกตามตลาดและกระดานที่เลือกจริง
+            asset_options = get_exchange_symbols(market, exchange)
+            if not asset_options:
+                asset_options = ["BTCUSDT", "ETHUSDT"]
+
+            cur_selected = st.session_state.get("current_symbol")
+            default_idx = asset_options.index(cur_selected) if cur_selected in asset_options else 0
+
+            picked_symbol = st.selectbox(
+                "เลือกสินทรัพย์:",
+                asset_options,
+                index=default_idx,
+                key=f"dock_sym_{market}_{exchange}"
+            )
+
+            if picked_symbol != st.session_state.get("current_symbol"):
+                st.session_state["current_symbol"] = picked_symbol
+                st.session_state["selected_symbol"] = picked_symbol
+                st.rerun()
+
             st.text_input("➕ เพิ่ม Ticker (เฉพาะกิจ):", placeholder="เช่น AAA.VN, PLTR", key="custom_ticker")
-            if st.button("บันทึก Ticker", use_container_width=True):
+            if st.button("บันทึก Ticker", use_container_width=True, key="btn_save_custom_ticker"):
                 st.toast("บันทึก Ticker สำเร็จ!")
 
-            st.caption(f"⭐ ติดดาวกลุ่มสี: {st.session_state.get('selected_symbol', 'BTC_THB')}")
+            st.caption(f"⭐ ติดดาวกลุ่มสี: {st.session_state.get('selected_symbol', picked_symbol)}")
             w1, w2, w3, w4, w5 = st.columns(5)
-            if w1.button("🔴"): st.session_state["tag_color"] = "red"
-            if w2.button("🟡"): st.session_state["tag_color"] = "yellow"
-            if w3.button("🟢"): st.session_state["tag_color"] = "green"
-            if w4.button("🔵"): st.session_state["tag_color"] = "blue"
-            if w5.button("🟣"): st.session_state["tag_color"] = "purple"
+            if w1.button("🔴", key="btn_tag_red"): st.session_state["tag_color"] = "red"
+            if w2.button("🟡", key="btn_tag_yellow"): st.session_state["tag_color"] = "yellow"
+            if w3.button("🟢", key="btn_tag_green"): st.session_state["tag_color"] = "green"
+            if w4.button("🔵", key="btn_tag_blue"): st.session_state["tag_color"] = "blue"
+            if w5.button("🟣", key="btn_tag_purple"): st.session_state["tag_color"] = "purple"
 
     # --- 📊 หมวด 2: การตั้งค่าตัวชี้วัด 3 แท็บ ---
     with c2:
@@ -201,7 +317,7 @@ def render_dock_menu():
 
             with tab_style:
                 st.markdown("**ฮิสโทแกรม MACD (4 สี)**")
-                st.session_state["macd_show_hist"] = st.checkbox("เปิดแสดง ฮิสโทแกรม", value=True)
+                st.session_state["macd_show_hist"] = st.checkbox("เปิดแสดง ฮิสโทแกรม", value=True, key="cb_show_hist")
                 col_h1, col_h2 = st.columns(2)
                 with col_h1:
                     st.color_picker("สี 0 (บวกเพิ่ม)", "#00E676", key="macd_col_h0")
@@ -216,13 +332,13 @@ def render_dock_menu():
                 st.slider("ความหนา MACD Line", 1, 4, 2, key="macd_lw_line")
                 st.color_picker("สี Signal Line", "#FFD700", key="macd_col_sig")
                 st.slider("ความหนา Signal Line", 1, 4, 2, key="macd_lw_sig")
-                st.session_state["macd_show_zero"] = st.checkbox("แสดงเส้น 0 (Zero Line)", value=True)
+                st.session_state["macd_show_zero"] = st.checkbox("แสดงเส้น 0 (Zero Line)", value=True, key="cb_show_zero")
 
                 st.divider()
                 st.markdown("**สไตล์ RSI**")
                 st.color_picker("สีเส้น RSI", "#2962FF", key="rsi_col_line")
                 st.slider("ความหนาเส้น RSI", 1, 4, 2, key="rsi_lw_line")
-                st.session_state["rsi_show_ma"] = st.checkbox("แสดงเส้น RSI MA", value=True)
+                st.session_state["rsi_show_ma"] = st.checkbox("แสดงเส้น RSI MA", value=True, key="cb_show_rsi_ma")
                 st.color_picker("สีเส้น RSI MA", "#FF6D00", key="rsi_col_ma")
                 st.number_input("ระดับบน (Upper Band)", value=70, key="rsi_band_70")
                 st.number_input("ระดับกลาง (Middle Band)", value=50, key="rsi_band_50")
@@ -240,7 +356,7 @@ def render_dock_menu():
     with c3:
         with st.popover("📐", help="ระบบคำนวณ Fibonacci Suite"):
             st.markdown("### 📐 Fibonacci Suite")
-            if st.button("🔍 เปิดแผงวิเคราะห์ Fib (Pop-up)", use_container_width=True):
+            if st.button("🔍 เปิดแผงวิเคราะห์ Fib (Pop-up)", use_container_width=True, key="btn_open_fib"):
                 st.session_state["open_fib_popup"] = True
             st.slider("ความไวการหา Swing", 2, 20, value=5, key="fib_swing")
             st.slider("จำนวนแท่งวิเคราะห์", 50, 300, value=120, key="fib_bars")
@@ -251,10 +367,10 @@ def render_dock_menu():
     with c4:
         with st.popover("⚙️", help="แผงควบคุมระบบ และอุปกรณ์"):
             st.markdown("### ⚙️ แผงควบคุมระบบ")
-            mode = st.radio("Display Mode", ["🖥️ Desktop", "📱 Mobile"], horizontal=True, label_visibility="collapsed")
+            mode = st.radio("Display Mode", ["🖥️ Desktop", "📱 Mobile"], horizontal=True, label_visibility="collapsed", key="radio_dock_mode")
             st.session_state["device_mode"] = mode
             st.divider()
-            if st.button("🧹 ล้างแคชระบบ", use_container_width=True):
+            if st.button("🧹 ล้างแคชระบบ", use_container_width=True, key="btn_dock_clear_cache"):
                 st.cache_data.clear()
                 st.rerun()
 
