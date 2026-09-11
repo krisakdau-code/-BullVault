@@ -82,10 +82,17 @@ st.markdown("""
         background-color: #000000 !important;
     }
     
-    header[data-testid="stHeader"] {
+  header[data-testid="stHeader"] {
         background: transparent !important;
-        display: none !important;
-        height: 0px !important;
+        height: 32px !important;
+        z-index: 99 !important;
+    }
+    
+    /* บังคับแสดงปุ่มลูกศรเปิด/ปิด Sidebar ฝั่งซ้าย */
+    [data-testid="stSidebarCollapseButton"] {
+        display: flex !important;
+        visibility: visible !important;
+        color: #FFFFFF !important;
     }
     
     [data-testid="stToolbar"] {

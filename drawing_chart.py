@@ -79,6 +79,29 @@ def render_drawing_chart(
                 box-shadow: 0 4px 16px rgba(0,0,0,0.7);
                 user-select: none;
             }}
+   .drag-handle {{
+                width: 100%;
+                height: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: grab;
+                color: #787b86;
+                font-size: 13px;
+                font-weight: bold;
+                letter-spacing: 2px;
+                user-select: none;
+                margin-bottom: 2px;
+                border-radius: 3px;
+                transition: background 0.15s ease;
+            }}
+            .drag-handle:hover {{
+                background: #2a2e39;
+                color: #2962ff;
+            }}
+            .drag-handle:active {{
+                cursor: grabbing;
+            }}
             .tool-btn {{
                 width: 32px;
                 height: 32px;
@@ -155,6 +178,7 @@ def render_drawing_chart(
             <div id="main-pane-container">
                 <!-- แถบเครื่องมือแนวตั้งชิดขอบซ้าย -->
                 <div class="draw-toolbar" id="main-draw-toolbar">
+                    <div class="drag-handle" id="tb-drag-handle" title="คลิกค้างเพื่อลากย้าย">⋮⋮</div>
                     <button class="tool-btn active" id="btn-cursor" title="↖ เคอร์เซอร์ / เลือกวัตถุเพื่อขยับหรือลบ (V)">↖</button>
                     <button class="tool-btn" id="btn-eraser" title="🧽 ยางลบเจาะจง / คลิกลบวัตถุทีละชิ้น (E)">🧽</button>
                     <div class="tool-sep"></div>
@@ -264,6 +288,42 @@ def render_drawing_chart(
                 }}
             }});
 
+            // --- ระบบลากย้ายแถบเครื่องมืออิสระ (Draggable Toolbar) ---
+            const toolbar = document.getElementById('main-draw-toolbar');
+            const dragHandle = document.getElementById('tb-drag-handle');
+            let isTbDragging = false;
+            let tbOffsetX = 0, tbOffsetY = 0;
+
+            dragHandle.addEventListener('mousedown', (e) => {{
+                isTbDragging = true;
+                tbOffsetX = e.clientX - toolbar.offsetLeft;
+                tbOffsetY = e.clientY - toolbar.offsetTop;
+                dragHandle.style.cursor = 'grabbing';
+                e.preventDefault();
+                e.stopPropagation();
+            }});
+
+            window.addEventListener('mousemove', (e) => {{
+                if (!isTbDragging) return;
+                let newX = e.clientX - tbOffsetX;
+                let newY = e.clientY - tbOffsetY;
+
+                // ล็อกขอบเขตไม่ให้ลากหลุดจอกราฟ
+                const maxX = mainPaneBox.clientWidth - toolbar.offsetWidth - 6;
+                const maxY = mainPaneBox.clientHeight - toolbar.offsetHeight - 6;
+                newX = Math.max(6, Math.min(newX, maxX));
+                newY = Math.max(6, Math.min(newY, maxY));
+
+                toolbar.style.left = newX + 'px';
+                toolbar.style.top = newY + 'px';
+            }});
+
+            window.addEventListener('mouseup', () => {{
+                if (isTbDragging) {{
+                    isTbDragging = false;
+                    dragHandle.style.cursor = 'grab';
+                }}
+            }});
             // 3. ซิงค์แกนเวลาระหว่างกราฟ
             let isSyncing = false;
             allCharts.forEach((c, idx) => {{
