@@ -13,7 +13,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from chart_builders import build_charts
 from ui.dock_menu import render_dock_menu
-from ui.asset_tabs import asset_tab_bar
+from ui.asset_tabs import asset_tab_bar, fetch_mini_ticker_data
 from config import *
 from drawing_chart import render_drawing_chart
 from requests.adapters import HTTPAdapter
@@ -765,66 +765,46 @@ def get_symbol_badge(sym: str) -> str:
     return "📈"
 
 def render_top_toolbar():
-    # Define widths for tab display if any
-    tabs = st.session_state.get('open_tabs', [])
-    n_tabs = len(tabs)
-    tab_widths = [0.95, 0.25] * n_tabs
-
-    # Define widths for the main control toolbar
-    # This creates a flexible space for tabs and a fixed layout for controls.
-    toolbar_widths = tab_widths + [1, 1.8, 0.5, 0.5, 0.6, 0.8, 4]
-    cols = st.columns(toolbar_widths, gap="small", vertical_alignment="center")
-
-    # This counter will keep track of our position in the `cols` array
-    i = 0
+    # If toolbar is visible, render all controls.
+    # The visibility check is now handled by the caller.
+    col_tf, col_slider, col_fill, col_auto, col_sec, col_load = st.columns([1.5, 5, 1.2, 1.2, 1.5, 1.8])
     
-    # NOTE: Assuming the tab rendering logic is handled elsewhere or was part of the omitted code.
-    # If tab rendering is needed here, it would increment `i`.
-    # For now, `i` will start at the position after the tab placeholders.
-    i = len(tab_widths)
-
-    # Timeframe Selector
-    with cols[i]:
-        tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.selected_tf) if st.session_state.selected_tf in TF_OPTIONS else 5, key="tf_select", label_visibility="collapsed")
-        if tf != st.session_state.selected_tf:
-            st.session_state.selected_tf = tf
-            cur = _find_tab(st.session_state.active_tab_id)
-            if cur: cur["tf"] = tf
-            _clear_chart_state()
-            st.rerun()
-    i += 1
-
-    # Bars Count Slider
-    with cols[i]:
-        bars = st.slider("Bars", 300, 25000, int(st.session_state.get("bars_count", 2500)), 500, label_visibility="collapsed", key="bars_count")
-    i += 1
-
-    # Fill Gaps Checkbox
-    with cols[i]:
-        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="fill_gaps", help="เติมช่องว่างของข้อมูลราคาที่ขาดหายไป")
-    i += 1
-
-    # Auto Refresh Checkbox
-    with cols[i]:
-        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="auto_refresh", help="เปิดใช้งานการรีเฟรชข้อมูลอัตโนมัติ")
-    i += 1
+    with col_tf:
+        tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.get("selected_tf", "1h")) if st.session_state.get("selected_tf", "1h") in TF_OPTIONS else 0, key="toolbar_tf", label_visibility="collapsed")
     
-    # Refresh Interval Input
-    with cols[i]:
-        every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="refresh_sec", help="ตั้งค่าช่วงเวลาการรีเฟรช (วินาที)")
-    i += 1
+    with col_slider:
+        bars = st.slider("Bars", 300, 25000, int(st.session_state.get("bars_count", 2500)), 500, label_visibility="collapsed", key="toolbar_bars")
+    
+    with col_fill:
+        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="toolbar_fill", help="เติมช่องว่างของข้อมูลราคาที่ขาดหายไป")
+    
+    with col_auto:
+        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="toolbar_auto", help="เปิดใช้งานการรีเฟรชข้อมูลอัตโนมัติ")
+    
+    with col_sec:
+        every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="toolbar_sec", help="ตั้งค่าช่วงเวลาการรีเฟรช (วินาที)")
+    
+    with col_load:
+        reload_btn = st.button("🔄 โหลด", key="toolbar_reload_btn", use_container_width=True, help="โหลดข้อมูลใหม่ด้วยตนเอง")
 
-    # Manual Reload Button
-    with cols[i]:
-        reload_btn = st.button("🔄 โหลด", key="load_btn", use_container_width=True, help="โหลดข้อมูลใหม่ด้วยตนเอง")
-    i += 1
+    # Update session state based on widget values
+    if tf != st.session_state.get("selected_tf"):
+        st.session_state.selected_tf = tf
+        cur = _find_tab(st.session_state.active_tab_id)
+        if cur: cur["tf"] = tf
+        _clear_chart_state()
+        st.rerun()
 
-    # Spacer
-    with cols[i]:
-        st.empty()
+    st.session_state.bars_count = bars
+    st.session_state.fill_gaps = fill_gaps
+    st.session_state.auto_refresh = auto
+    st.session_state.refresh_sec = every
+
+    if reload_btn:
+        _clear_chart_state()
+        st.rerun()
 
     return tf, bars, fill_gaps, auto, every, reload_btn
-
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_top_movers(category: str = "all") -> dict:
     empty_result = {"gainers": [], "losers": []}
@@ -1055,8 +1035,67 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.session_state["star_watchlists"][cat_name].remove(s_item)
                                 st.rerun()
 
+def render_neon_clock():
+    """Renders a stylized clock with Glassmorphism and Neon Glow effects."""
+    st.markdown("""
+    <style>
+        .neon-clock-card {
+            background: rgba(10, 15, 25, 0.55);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 240, 255, 0.2);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+            text-align: center;
+        }
+        .neon-clock-card .clock-time {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #00F0FF;
+            letter-spacing: 1.5px;
+            text-shadow: 0 0 5px rgba(0, 240, 255, 0.7);
+        }
+        .neon-clock-card .clock-label {
+            font-size: 0.7rem;
+            color: #9EB0C1;
+            text-transform: uppercase;
+        }
+    </style>
+    <div class="neon-clock-card">
+        <div id="bkk-time" class="clock-time">--:--:--</div>
+        <div class="clock-label">Bangkok (UTC+7)</div>
+    </div>
+    <script>
+        function updateNeonClock() {
+            const clockElement = document.getElementById('bkk-time');
+            if (!clockElement) return;
+            const bkkTime = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
+            clockElement.textContent = bkkTime;
+        }
+        if (window.neonClockInterval) clearInterval(window.neonClockInterval);
+        window.neonClockInterval = setInterval(updateNeonClock, 1000);
+        updateNeonClock();
+    </script>
+    """, unsafe_allow_html=True)
+
+
 # ──────────────────────────── SIDEBAR ────────────────────────────
 with st.sidebar:
+    render_neon_clock()
+
+    st.toggle(
+        "แสดงแถบควบคุมด้านบน (TF/แท่ง)",
+        value=st.session_state.get("show_toolbar", True),
+        key="show_toolbar"
+    )
+    st.toggle(
+        "แสดงแถบเครื่องมือวาดบนกราฟ",
+        value=st.session_state.get("show_drawing_tools", True),
+        key="show_drawing_tools"
+    )
+
     render_dock_menu()
 
 # ──────────────────────────── LIVE TOP BAR FRAGMENT ────────────────────────────
@@ -1101,41 +1140,62 @@ def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_displ
     </script>
     """
 
-    top_bar_html = f"""
-    <div style="background-color:#0A0A0A; border:1px solid #1E1E1E; border-radius:4px; padding:6px 12px; font-family:-apple-system,BlinkMacSystemFont,monospace; color:#D1D4DC; display:flex; justify-content:space-between; align-items:center; width:100%; box-sizing:border-box;">
-        <div style="display:flex; align-items:center; gap:16px;">
+    # --- New Chart Header using st.columns ---
+    ch_left, ch_mid, ch_right = st.columns([6, 3, 3])
+
+    with ch_left:
+        st.markdown(f'''
+        <div style="display:flex; align-items:center; gap:16px; height:38px;">
             <div style="display:flex; align-items:center; gap:8px;">
                 <span style="color:#26a69a; font-size:14px;">●</span>
                 <span style="color:#FFFFFF; font-weight:700; font-size:16px;">{price_fmt}</span>
                 <span style="color:{chg_txt_color}; font-weight:700; font-size:14px;">({cur_chg:+.2f}%)</span>
-                <span style="color:#787b86; font-size:11px; margin-left:4px;">ปริมาณ {last_vol:,.2f}</span>
+                <span style="color:#787b86; font-size:11px; margin-left:4px;">Vol {last_vol:,.2f}</span>
                 <span style="color:#00bcd4; font-weight:600; font-size:12px;">{display_title}</span>
                 <span style="background:#1A1A1A; padding:1px 5px; border-radius:3px; font-size:10px; color:#9aa0a6;">{label_display}</span>
                 {gz_badge}
             </div>
-            <div style="display:flex; align-items:center; gap:6px;">
-                <div style="border:1px solid #ef5350; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(239,83,80,0.08);">
-                    <div style="color:#ef5350; font-weight:bold; font-size:11px;">{bid_fmt}</div>
-                    <div style="color:#ef5350; font-size:9px;">ขาย</div>
-                </div>
-                <div style="font-size:10px; color:#787b86; font-family:monospace;">{spread_fmt}</div>
-                <div style="border:1px solid #2962ff; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(41,98,255,0.08);">
-                    <div style="color:#2962ff; font-weight:bold; font-size:11px;">{ask_fmt}</div>
-                    <div style="color:#2962ff; font-size:9px;">ซื้อ</div>
-                </div>
+        </div>
+        ''', unsafe_allow_html=True)
+
+    with ch_mid:
+        st.markdown(f'''
+        <div style="display:flex; align-items:center; gap:6px; height:38px;">
+            <div style="border:1px solid #ef5350; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(239,83,80,0.08);">
+                <div style="color:#ef5350; font-weight:bold; font-size:11px;">{bid_fmt}</div>
+                <div style="color:#ef5350; font-size:9px;">Sell</div>
+            </div>
+            <div style="font-size:10px; color:#787b86; font-family:monospace;">{spread_fmt}</div>
+            <div style="border:1px solid #2962ff; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(41,98,255,0.08);">
+                <div style="color:#2962ff; font-weight:bold; font-size:11px;">{ask_fmt}</div>
+                <div style="color:#2962ff; font-size:9px;">Buy</div>
             </div>
         </div>
-        <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-            <span style="font-size:10px; color:#787b86;">● LIVE TICK</span>
-            <button id="tvFsBtn" style="background:#161a21; border:1px solid #2a2e39; color:#d1d4dc; border-radius:4px; font-size:11px; font-weight:bold; padding:2px 8px; cursor:pointer; height:24px;" title="โหมดเต็มหน้าจอ">⛶ เต็มจอ</button>
-        </div>
-    </div>""" + fs_script
-    components.html(top_bar_html, height=52)
+        ''', unsafe_allow_html=True)
+
+    with ch_right:
+        rhs_cols = st.columns([1, 3]) # Adjusted for 2 items
+        with rhs_cols[0]:
+            st.markdown('<div style="padding-top:8px; font-size:10px; color:#787b86;">● LIVE</div>', unsafe_allow_html=True)
+        with rhs_cols[1]:
+            st.markdown(f'<button id="tvFsBtn" style="background:#161a21; border:1px solid #2a2e39; color:#d1d4dc; border-radius:4px; font-size:11px; font-weight:bold; padding:4px 8px; cursor:pointer; width:100%; height:30px;" title="โหมดเต็มหน้าจอ">⛶ เต็มจอ</button>', unsafe_allow_html=True)
+            components.html(fs_script, height=0)
+    # --- End of new Chart Header ---
 
 # ──────────────────────────── DASHBOARD (STATIC GRAPH) ────────────────────────────
 @st.fragment
 def dashboard():
-    tf, bars, fill_gaps, auto, every, reload_btn = render_top_toolbar()
+    # Conditionally render the toolbar and get its values
+    if st.session_state.get("show_toolbar", True):
+        tf, bars, fill_gaps, auto, every, reload_btn = render_top_toolbar()
+    else:
+        # If toolbar is hidden, use values from session state without rendering anything
+        tf = st.session_state.get("selected_tf", "1h")
+        bars = st.session_state.get("bars_count", 2500)
+        fill_gaps = st.session_state.get("fill_gaps", False)
+        auto = st.session_state.get("auto_refresh", False)
+        every = st.session_state.get("refresh_sec", 5)
+        reload_btn = False
 
     symbol = st.session_state.get("current_symbol", "BTC_THB")
     tabs_data = st.session_state.get("open_tabs", st.session_state.get("tabs", []))

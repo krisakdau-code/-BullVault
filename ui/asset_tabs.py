@@ -21,6 +21,7 @@ def fetch_mini_ticker_data(symbol_input) -> dict:
         return {"price": "--", "change": 0.0, "bid": "-", "ask": "-", "spread": "-"}
 
     headers = {"User-Agent": "Mozilla/5.0"}
+    # 1. Bitkub
     if "_THB" in sym or sym.endswith("THB"):
         try:
             r = requests.get("https://api.bitkub.com/api/market/ticker", headers=headers, timeout=3).json()
@@ -42,6 +43,7 @@ def fetch_mini_ticker_data(symbol_input) -> dict:
                 }
         except Exception:
             pass
+    # 2. Binance
     elif "USDT" in sym:
         try:
             r = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={sym}", headers=headers, timeout=3).json()
@@ -59,8 +61,8 @@ def fetch_mini_ticker_data(symbol_input) -> dict:
             }
         except Exception:
             pass
-    
-    # รองรับหุ้น/Forex ผ่าน Yahoo Finance
+
+    # 3. Yahoo Finance (หุ้นไทย / US / Forex)
     try:
         url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=2d"
         r = requests.get(url, headers=headers, timeout=3).json()
@@ -78,51 +80,54 @@ def fetch_mini_ticker_data(symbol_input) -> dict:
 
     return {"price": "--", "change": 0.0, "bid": "-", "ask": "-", "spread": "-"}
 
-def inject_tab_card_css():
+def inject_tab_css():
     st.markdown(
         """
         <style>
-        .terminal-tab-card {
-            background-color: #0d1117;
-            border: 1px solid #21262d;
-            border-radius: 8px;
-            padding: 8px 12px;
-            margin-bottom: 2px;
+        .tab-card {
+            background-color: #0b0f19;
+            border: 1px solid #1e2638;
+            border-radius: 6px;
+            padding: 8px 12px 6px 12px;
+            margin-bottom: 4px;
             font-family: monospace;
-            position: relative;
         }
-        .terminal-tab-card.active {
-            background-color: #111a24;
+        .tab-card.active {
             border: 1.5px solid #00f0ff !important;
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
         }
-        .tab-top {
+        .tab-card-row1 {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            justify-content: space-between;
             font-size: 13px;
             font-weight: 700;
             color: #ffffff;
         }
-        .tab-price-txt { color: #e0e3eb; font-family: monospace; }
-        .chg-up { color: #00E676; font-size: 11px; }
-        .chg-down { color: #FF5252; font-size: 11px; }
-        .tab-bot {
+        .tab-dot { color: #8b949e; font-size: 10px; margin: 0 4px; }
+        .tab-price { color: #ffffff; }
+        .chg-green { color: #00E676; font-size: 12px; }
+        .chg-red { color: #FF5252; font-size: 12px; }
+        .tab-card-row2 {
             display: flex;
             gap: 8px;
             font-size: 10px;
-            margin-top: 2px;
-            color: #8b949e;
+            margin-top: 3px;
         }
-        /* ซ่อนปุ่มสลับเดิมให้กลืนไปกับการคลิกการ์ด */
+        .sub-bid { color: #00f0ff; }
+        .sub-ask { color: #ff5252; }
+        .sub-spread { color: #8b949e; }
+
+        /* ปรับปุ่มใต้การ์ดให้อยู่ในระนาบเดียวกับรูปที่ 1 */
         div[data-testid="column"] div.stButton > button {
             width: 100% !important;
-            padding: 2px 4px !important;
             min-height: 24px !important;
+            height: 24px !important;
+            padding: 1px 4px !important;
             font-size: 11px !important;
             border-radius: 4px !important;
-            background-color: #161b22 !important;
-            border: 1px solid #30363d !important;
+            background-color: #121721 !important;
+            border: 1px solid #252d3d !important;
             color: #c9d1d9 !important;
         }
         div[data-testid="column"] div.stButton > button:hover {
@@ -135,15 +140,18 @@ def inject_tab_card_css():
     )
 
 def render_asset_tabs(symbols=None, state_key="current_symbol", *args, **kwargs) -> str:
-    inject_tab_card_css()
+    inject_tab_css()
 
     current = to_clean_str(st.session_state.get(state_key, "BTC_THB")) or "BTC_THB"
     st.session_state[state_key] = current
     st.session_state["selected_symbol"] = current
 
     if "open_tabs" not in st.session_state or not st.session_state["open_tabs"]:
-        st.session_state["open_tabs"] = [{"id": current, "symbol": current}]
-    
+        st.session_state["open_tabs"] = [
+            {"id": "BTCUSDT", "symbol": "BTCUSDT"},
+            {"id": current, "symbol": current}
+        ]
+
     tabs = st.session_state["open_tabs"]
     cols = st.columns(len(tabs) + 1)
 
@@ -153,45 +161,45 @@ def render_asset_tabs(symbols=None, state_key="current_symbol", *args, **kwargs)
             is_active = (sym == current)
             data = fetch_mini_ticker_data(sym)
             chg = data["change"]
-            chg_class = "chg-up" if chg >= 0 else "chg-down"
+            chg_cls = "chg-green" if chg >= 0 else "chg-red"
             chg_sign = "+" if chg >= 0 else ""
-            active_class = "active" if is_active else ""
+            active_cls = "active" if is_active else ""
 
-            # แสดงผลการ์ดแท็บดีไซน์นีออน
+            # 1. กล่องการ์ดด้านบน (เหมือนรูปที่ 1)
             st.markdown(
                 f"""
-                <div class="terminal-tab-card {active_class}">
-                    <div class="tab-top">
-                        <span>{"🟢 " if is_active else ""}{sym}</span>
-                        <span class="tab-price-txt">{data['price']} <span class="{chg_class}">({chg_sign}{chg:.2f}%)</span></span>
+                <div class="tab-card {active_cls}">
+                    <div class="tab-card-row1">
+                        <span>{sym}</span>
+                        <span class="tab-dot">▪</span>
+                        <span class="tab-price">{data['price']}</span>
+                        <span class="{chg_cls}">{chg_sign}{chg:.2f}%</span>
                     </div>
-                    <div class="tab-bot">
-                        <span>B: {data['bid']}</span>
-                        <span>A: {data['ask']}</span>
-                        <span>Spread: {data['spread']}</span>
+                    <div class="tab-card-row2">
+                        <span class="sub-bid">B {data['bid']}</span>
+                        <span class="sub-ask">A {data['ask']}</span>
+                        <span class="sub-spread">S {data['spread']}</span>
                     </div>
                 </div>
                 """,
                 unsafe_allow_html=True,
             )
 
-            # ควบคุมการสลับและปุ่มปิดแบบ Inline ในแถวเดียวกัน
-            c_switch, c_close = st.columns([5, 1])
-            with c_switch:
-                if not is_active:
-                    if st.button("คลิกเพื่อดูกราฟ", key=f"switch_card_{idx}_{sym}", use_container_width=True):
-                        st.session_state[state_key] = sym
-                        st.session_state["selected_symbol"] = sym
+            # 2. แถวปุ่มใต้การ์ด (ปุ่มสลับดูกราฟ + ปุ่มปิด X)
+            c_view, c_del = st.columns([4, 1])
+            with c_view:
+                if is_active:
+                    st.button("🟢 กำลังดู", key=f"act_tab_{idx}_{sym}", disabled=True, use_container_width=True)
+                else:
+                    if st.button("⚪ ดูกราฟ", key=f"sw_tab_{idx}_{sym}", use_container_width=True):
                         st.session_state["current_symbol"] = sym
                         st.rerun()
-                else:
-                    st.button("กำลังแสดงผล", key=f"active_badge_{idx}_{sym}", disabled=True, use_container_width=True)
 
-            with c_close:
+            with c_del:
                 if len(tabs) > 1:
-                    if st.button("✕", key=f"close_card_{idx}_{sym}", use_container_width=True):
+                    if st.button("✕", key=f"del_tab_{idx}_{sym}", use_container_width=True):
                         st.session_state["open_tabs"] = [
-                            t for t in st.session_state["open_tabs"] 
+                            t for t in st.session_state["open_tabs"]
                             if (t.get("id") if isinstance(t, dict) else str(t)) != sym
                         ]
                         if current == sym:
@@ -202,25 +210,33 @@ def render_asset_tabs(symbols=None, state_key="current_symbol", *args, **kwargs)
                             st.session_state["current_symbol"] = new_sym
                         st.rerun()
 
-    # ช่องขวาสุด: ปุ่มเพิ่มแท็บ (Popover)
+    # 3. เมนูเพิ่มแท็บ (เชื่อมโยง ตลาด -> สินทรัพย์)
     with cols[-1]:
-        st.markdown('<div style="height: 2px;"></div>', unsafe_allow_html=True)
-        with st.popover("➕ เพิ่มแท็บสินทรัพย์", use_container_width=True):
-            st.markdown("**เลือกหรือพิมพ์รหัสสินทรัพย์ที่ต้องการเปิดเพิ่ม:**")
-            pool = ["ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "ETH_THB", "KUB_THB", "PTT.BK", "NVDA", "AAPL"]
-            current_ids = [t.get("id") if isinstance(t, dict) else str(t) for t in tabs]
-            available = [c for c in pool if c not in current_ids]
+        st.markdown('<div style="height: 6px;"></div>', unsafe_allow_html=True)
+        with st.popover("+ เพิ่มแท็บ ˅", use_container_width=True):
+            st.markdown("**เลือกตลาดและสินทรัพย์:**")
 
-            chosen = st.selectbox("รายการยอดนิยม:", options=available if available else ["ETHUSDT"])
-            custom = st.text_input("ระบุ Ticker เอง:", placeholder="เช่น SOLUSDT")
+            market_data = {
+                "🇹🇭 Bitkub (THB)": ["BTC_THB", "ETH_THB", "KUB_THB", "USDT_THB", "DOGE_THB", "XRP_THB", "ADA_THB"],
+                "🌐 Binance (USDT)": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT", "PEPEUSDT"],
+                "📈 หุ้นไทย (SET)": ["DELTA.BK", "PTT.BK", "AOT.BK", "KBANK.BK", "CPALL.BK", "ADVANC.BK", "GULF.BK"],
+                "🇺🇸 หุ้นสหรัฐฯ (US)": ["NVDA", "AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "META"],
+                "💱 Forex & สินค้าโภคภัณฑ์": ["GC=F", "CL=F", "USDTHB=X", "EURUSD=X"]
+            }
 
-            if st.button("ยืนยันเปิดแท็บใหม่", use_container_width=True, key="confirm_add_tab_btn"):
-                target = to_clean_str(custom).upper() if custom else chosen
-                if target and target not in current_ids:
-                    st.session_state["open_tabs"].append({"id": target, "symbol": target})
-                    st.session_state[state_key] = target
-                    st.session_state["selected_symbol"] = target
-                    st.session_state["current_symbol"] = target
+            selected_market = st.selectbox("เลือกตลาด:", list(market_data.keys()), key="pop_mkt_select")
+            available_symbols = market_data[selected_market]
+            selected_asset = st.selectbox("เลือกสินทรัพย์:", available_symbols, key="pop_sym_select")
+            custom_sym = st.text_input("หรือระบุ Ticker เอง:", placeholder="เช่น BTCUSDT, AOT.BK", key="pop_custom_input")
+
+            if st.button("ยืนยันเพิ่มแท็บ", use_container_width=True, key="pop_add_confirm_btn"):
+                final_sym = to_clean_str(custom_sym).upper() if custom_sym else selected_asset
+                current_ids = [t.get("id") if isinstance(t, dict) else str(t) for t in tabs]
+                if final_sym and final_sym not in current_ids:
+                    st.session_state["open_tabs"].append({"id": final_sym, "symbol": final_sym})
+                    st.session_state[state_key] = final_sym
+                    st.session_state["selected_symbol"] = final_sym
+                    st.session_state["current_symbol"] = final_sym
                     st.rerun()
 
     return st.session_state.get(state_key, current)

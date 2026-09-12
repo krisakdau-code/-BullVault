@@ -68,6 +68,27 @@ def get_market_catalog(market: str, exchange: str) -> dict[str, str]:
     return {"BTCUSDT": "BTC/USDT | Crypto Spot"}
 
 
+
+# Placeholder functions to be implemented elsewhere
+def render_search_ui(): 
+    st.info("Search UI not implemented.")
+
+def render_indicator_settings(): 
+    st.info("Indicator settings not implemented.")
+
+def render_drawing_toolbar():
+    st.markdown("### 🎨 เครื่องมือวาดกราฟ")
+    st.toggle(
+        "แสดงแถบเครื่องมือวาดบนกราฟ",
+        value=st.session_state.get("show_drawing_tools", True),
+        key="show_drawing_tools",
+        help="แสดง/ซ่อนแผงเครื่องมือวาดบนกราฟหลัก"
+    )
+
+def render_system_controls():
+    st.info("System controls not implemented.")
+
+
 def inject_dock_css():
     st.markdown(
         """
