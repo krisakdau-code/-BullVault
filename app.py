@@ -27,6 +27,7 @@ from ui_components import (
     render_market_modal_content,
     render_tv_clickable_tabs,
     render_tv_quote_card,
+    render_panel_controls,
 )
 from urllib3.util.retry import Retry
 from utils import _has_data, fmt_chg, fmt_price, fmt_vol
@@ -83,11 +84,11 @@ st.markdown("""
         background-color: #000000 !important;
     }
     
-  header[data-testid="stHeader"], .stAppHeader {
-      display: none !important;
-      height: 0px !important;
-      pointer-events: none !important;
-  }
+    header[data-testid="stHeader"], .stAppHeader {
+        display: none !important;
+        height: 0px !important;
+        pointer-events: none !important;
+    }
     
     /* บังคับแสดงปุ่มลูกศรเปิด/ปิด Sidebar ฝั่งซ้าย */
     [data-testid="stSidebarCollapseButton"] {
@@ -125,6 +126,29 @@ st.markdown("""
         width: 100% !important;
     }
 
+    /* ปิดระยะห่าง gap อัตโนมัติระหว่างบล็อกแนวตั้งทั้งหมด */
+    div[data-testid="stVerticalBlock"],
+    div.st-emotion-cache-q25c81,
+    div.st-emotion-cache-1ndxyp5 {
+        gap: 0px !important;
+    }
+
+    /* ซ่อน Container ที่ว่างเปล่า และบีบระยะห่างส่วนเกิน */
+    div.stElementContainer:has(div.st-emotion-cache-1t7xbyr:empty),
+    div[data-testid="stMarkdownContainer"]:empty {
+        display: none !important;
+        height: 0px !important;
+        margin: 0px !important;
+        padding: 0px !important;
+    }
+
+    /* บังคับให้คอลัมน์แนบชิดกันสนิท ไร้ช่องว่าง */
+    div[data-testid="stHorizontalBlock"] { 
+        gap: 0px !important; 
+        align-items: flex-start !important; 
+    }
+    div[data-testid="column"] { padding: 0 0px !important; }
+
     [data-testid="stSidebar"] {
         background-color: #050505 !important;
         border-right: 1px solid #1E1E1E !important;
@@ -143,11 +167,6 @@ st.markdown("""
         margin-bottom: 8px !important;
         font-size: 15px !important;
     }
-    div[data-testid="stHorizontalBlock"] { 
-        gap: 2px !important; 
-        align-items: flex-start !important; 
-    }
-    div[data-testid="column"] { padding: 0 1px !important; }
 
     .stButton>button {
         background: #101010 !important; color: #D1D4DC !important;
@@ -189,12 +208,6 @@ st.markdown("""
         padding: 4px 2px; font-size: 10px; font-weight: 600; color: #787b86;
         border-bottom: 1px solid #1E1E1E; margin-bottom: 4px;
     }
-    .pane-toolbar {
-        background: #0A0A0A; border: 1px solid #1E1E1E; border-bottom: none;
-        border-top-left-radius: 4px; border-top-right-radius: 4px; padding: 2px 8px;
-        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-        font-size: 11px; font-weight: 600; color: #D1D4DC; margin-top: 2px;
-    }
 
     .scrollable-market-card {
         max-height: 72vh;
@@ -206,6 +219,12 @@ st.markdown("""
     .scrollable-market-card::-webkit-scrollbar-thumb { background: #262626; border-radius: 2px; }
 </style>
 """, unsafe_allow_html=True)
+
+# ────────────────────────── PANEL STATE MANAGEMENT ──────────────────────────
+if "panel_open" not in st.session_state:
+    st.session_state["panel_open"] = True
+if "panel_size" not in st.session_state:
+    st.session_state["panel_size"] = "M"
 
 GLOBAL_MARKET = "🌐 Global (Yahoo)"
 
@@ -338,9 +357,6 @@ init_tabs()
 
 if "pane_order" not in st.session_state: st.session_state["pane_order"] = ["rsi", "macd"]
 if "mobile_mode" not in st.session_state: st.session_state["mobile_mode"] = False
-if "panel_open" not in st.session_state: st.session_state["panel_open"] = True
-if "panel_size" not in st.session_state: st.session_state["panel_size"] = "M"
-
 if "main_h" not in st.session_state: st.session_state["main_h"] = 520
 if "rsi_h" not in st.session_state: st.session_state["rsi_h"] = 120
 if "macd_h" not in st.session_state: st.session_state["macd_h"] = 120
@@ -765,8 +781,6 @@ def get_symbol_badge(sym: str) -> str:
     return "📈"
 
 def render_top_toolbar():
-    # If toolbar is visible, render all controls.
-    # The visibility check is now handled by the caller.
     col_tf, col_slider, col_fill, col_auto, col_sec, col_load = st.columns([1.5, 5, 1.2, 1.2, 1.5, 1.8])
     
     with col_tf:
@@ -787,7 +801,6 @@ def render_top_toolbar():
     with col_load:
         reload_btn = st.button("🔄 โหลด", key="toolbar_reload_btn", use_container_width=True, help="โหลดข้อมูลใหม่ด้วยตนเอง")
 
-    # Update session state based on widget values
     if tf != st.session_state.get("selected_tf"):
         st.session_state.selected_tf = tf
         cur = _find_tab(st.session_state.active_tab_id)
@@ -805,6 +818,7 @@ def render_top_toolbar():
         st.rerun()
 
     return tf, bars, fill_gaps, auto, every, reload_btn
+
 @st.cache_data(ttl=30, show_spinner=False)
 def fetch_top_movers(category: str = "all") -> dict:
     empty_result = {"gainers": [], "losers": []}
@@ -1036,7 +1050,6 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.rerun()
 
 def render_neon_clock():
-    """Renders a stylized clock with Glassmorphism and Neon Glow effects."""
     st.markdown("""
     <style>
         .neon-clock-card {
@@ -1105,12 +1118,11 @@ def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_displ
     cur_price = float(live_tk.get("price", base_price))
     cur_chg = float(live_tk.get("pct", 0.0))
     
-    # ─── บันทึกค่ากลางลงใน Session State (SSOT Pattern) ───
+    # บันทึกค่ากลางลงใน Session State (SSOT Pattern)
     st.session_state[f"live_price_{symbol}"] = cur_price
     st.session_state[f"live_pct_{symbol}"] = cur_chg
     st.session_state[f"live_high_{symbol}"] = float(live_tk.get("high", cur_price))
     st.session_state[f"live_low_{symbol}"] = float(live_tk.get("low", cur_price))
-    # ──────────────────────────────────────────────────────
 
     chg_txt_color = "#26a69a" if cur_chg >= 0 else "#ef5350"
     price_fmt = f"{cur_price:,.4f}" if cur_price < 10 else f"{cur_price:,.2f}"
@@ -1121,75 +1133,47 @@ def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_displ
     spread_p = abs(ask_p - bid_p)
     spread_fmt = f"{spread_p:,.4f}" if spread_p < 1 else f"{spread_p:,.2f}"
 
-    fs_script = """
-    <script>
-        const btn = document.getElementById('tvFsBtn');
-        if (btn && !btn.hasAttribute('data-bound')) {
-            btn.setAttribute('data-bound', 'true');
-            btn.addEventListener('click', () => {
-                const doc = window.parent.document;
-                if (!doc.fullscreenElement) {
-                    doc.documentElement.requestFullscreen().catch(e => {});
-                    btn.innerText = "🗗 ย่อจอ";
-                } else {
-                    if (doc.exitFullscreen) { doc.exitFullscreen().catch(e => {}); }
-                    btn.innerText = "⛶ เต็มจอ";
-                }
-            });
-        }
-    </script>
-    """
-
-    # --- New Chart Header using st.columns ---
     ch_left, ch_mid, ch_right = st.columns([6, 3, 3])
 
     with ch_left:
-        st.markdown(f'''
-        <div style="display:flex; align-items:center; gap:16px; height:38px;">
-            <div style="display:flex; align-items:center; gap:8px;">
-                <span style="color:#26a69a; font-size:14px;">●</span>
-                <span style="color:#FFFFFF; font-weight:700; font-size:16px;">{price_fmt}</span>
-                <span style="color:{chg_txt_color}; font-weight:700; font-size:14px;">({cur_chg:+.2f}%)</span>
-                <span style="color:#787b86; font-size:11px; margin-left:4px;">Vol {last_vol:,.2f}</span>
-                <span style="color:#00bcd4; font-weight:600; font-size:12px;">{display_title}</span>
-                <span style="background:#1A1A1A; padding:1px 5px; border-radius:3px; font-size:10px; color:#9aa0a6;">{label_display}</span>
-                {gz_badge}
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="display:flex; align-items:center; gap:16px; height:38px;">'
+            f'<div style="display:flex; align-items:center; gap:8px;">'
+            f'<span style="color:#26a69a; font-size:14px;">●</span>'
+            f'<span style="color:#FFFFFF; font-weight:700; font-size:16px;">{price_fmt}</span>'
+            f'<span style="color:{chg_txt_color}; font-weight:700; font-size:14px;">({cur_chg:+.2f}%)</span>'
+            f'<span style="color:#787b86; font-size:11px; margin-left:4px;">Vol {last_vol:,.2f}</span>'
+            f'<span style="color:#00bcd4; font-weight:600; font-size:12px;">{display_title}</span>'
+            f'<span style="background:#1A1A1A; padding:1px 5px; border-radius:3px; font-size:10px; color:#9aa0a6;">{label_display}</span>'
+            f'{gz_badge}'
+            f'</div></div>',
+            unsafe_allow_html=True
+        )
 
     with ch_mid:
-        st.markdown(f'''
-        <div style="display:flex; align-items:center; gap:6px; height:38px;">
-            <div style="border:1px solid #ef5350; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(239,83,80,0.08);">
-                <div style="color:#ef5350; font-weight:bold; font-size:11px;">{bid_fmt}</div>
-                <div style="color:#ef5350; font-size:9px;">Sell</div>
-            </div>
-            <div style="font-size:10px; color:#787b86; font-family:monospace;">{spread_fmt}</div>
-            <div style="border:1px solid #2962ff; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(41,98,255,0.08);">
-                <div style="color:#2962ff; font-weight:bold; font-size:11px;">{ask_fmt}</div>
-                <div style="color:#2962ff; font-size:9px;">Buy</div>
-            </div>
-        </div>
-        ''', unsafe_allow_html=True)
+        st.markdown(
+            f'<div style="display:flex; align-items:center; gap:6px; height:38px;">'
+            f'<div style="border:1px solid #ef5350; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(239,83,80,0.08);">'
+            f'<div style="color:#ef5350; font-weight:bold; font-size:11px;">{bid_fmt}</div>'
+            f'<div style="color:#ef5350; font-size:9px;">Sell</div>'
+            f'</div>'
+            f'<div style="font-size:10px; color:#787b86; font-family:monospace;">{spread_fmt}</div>'
+            f'<div style="border:1px solid #2962ff; border-radius:4px; padding:2px 8px; text-align:center; min-width:55px; background:rgba(41,98,255,0.08);">'
+            f'<div style="color:#2962ff; font-weight:bold; font-size:11px;">{ask_fmt}</div>'
+            f'<div style="color:#2962ff; font-size:9px;">Buy</div>'
+            f'</div></div>',
+            unsafe_allow_html=True
+        )
 
     with ch_right:
-        rhs_cols = st.columns([1, 3]) # Adjusted for 2 items
-        with rhs_cols[0]:
-            st.markdown('<div style="padding-top:8px; font-size:10px; color:#787b86;">● LIVE</div>', unsafe_allow_html=True)
-        with rhs_cols[1]:
-            st.markdown(f'<button id="tvFsBtn" style="background:#161a21; border:1px solid #2a2e39; color:#d1d4dc; border-radius:4px; font-size:11px; font-weight:bold; padding:4px 8px; cursor:pointer; width:100%; height:30px;" title="โหมดเต็มหน้าจอ">⛶ เต็มจอ</button>', unsafe_allow_html=True)
-            components.html(fs_script, height=0)
-    # --- End of new Chart Header ---
+        st.markdown('<div style="padding-top:8px; font-size:10px; color:#787b86; text-align:right; padding-right:12px;">● LIVE</div>', unsafe_allow_html=True)
 
 # ──────────────────────────── DASHBOARD (STATIC GRAPH) ────────────────────────────
 @st.fragment
 def dashboard():
-    # Conditionally render the toolbar and get its values
     if st.session_state.get("show_toolbar", True):
         tf, bars, fill_gaps, auto, every, reload_btn = render_top_toolbar()
     else:
-        # If toolbar is hidden, use values from session state without rendering anything
         tf = st.session_state.get("selected_tf", "1h")
         bars = st.session_state.get("bars_count", 2500)
         fill_gaps = st.session_state.get("fill_gaps", False)
@@ -1211,7 +1195,6 @@ def dashboard():
 
     active_symbol = asset_tab_bar(SYMBOLS, state_key="current_symbol")
     symbol = active_symbol or symbol
-    st.divider()
 
     r_market, r_exchange = resolve_route(symbol)
     label_display = route_label(r_market, r_exchange)
@@ -1272,11 +1255,9 @@ def dashboard():
     gauges_html_modal = render_3_gauges_html(tech_data, compact=False)
     tk_data = fetch_unified_ticker(r_market, r_exchange, symbol, df)
     
-    # ─── ดึงค่าจาก State กลางมาใช้เพื่อให้ตัวเลขตรงกัน 100% ───
     if f"live_price_{symbol}" in st.session_state:
         tk_data["price"] = st.session_state[f"live_price_{symbol}"]
         tk_data["pct"] = st.session_state[f"live_pct_{symbol}"]
-    # ────────────────────────────────────────────────────────
 
     if st.session_state.get("trigger_fib_modal", False):
         st.session_state["trigger_fib_modal"] = False
@@ -1309,7 +1290,7 @@ def dashboard():
     charts = build_charts(df, symbol, tf, cur_main_h, cur_rsi_h, cur_macd_h)
     cur_size = st.session_state.get("panel_size", "M")
     chart_dyn_key = f"c_{symbol}_{tf}_{st.session_state.get('active_tab_id', '0')}"
-    show_tb = st.session_state.get("show_drawing_toolbar", True)
+    show_tb = st.session_state.get("show_drawing_tools", True)
 
     # --- ส่วนที่ 1: โหมดมือถือ (Mobile Mode) ---
     if st.session_state.get("mobile_mode", False):
@@ -1349,17 +1330,21 @@ def dashboard():
                     render_tv_quote_card(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_compact)
         return
 
-    # --- ส่วนที่ 2: โหมดคอมพิวเตอร์ (Desktop Mode) ---
-    layout_ratios = {
-        "S": [4.1, 0.12, 0.78],
-        "M": [3.6, 0.12, 1.28],
-        "L": [3.1, 0.12, 1.78]
+   # --- ส่วนที่ 2: โหมดคอมพิวเตอร์ (Desktop Mode) ---
+    panel_ratios = {
+       "S": [4.25, 0.75],   # เล็ก: ประมาณ 15% ของหน้าจอ
+        "M": [3.85, 1.15],   # ปกติ: ประมาณ 23% ของหน้าจอ
+        "L": [3.40, 1.60]    # กว้าง: ประมาณ 32% ของหน้าจ
     }
 
-    if st.session_state.get("panel_open", True):
-        col_chart, col_toggle, col_quote = st.columns(layout_ratios[cur_size])
+    p_open = st.session_state.get("panel_open", True)
+    p_size = st.session_state.get("panel_size", "M")
+
+    if p_open:
+        col_chart, col_quote = st.columns(panel_ratios.get(p_size, [3.4, 1.6]))
+        col_toggle = None
     else:
-        col_chart, col_toggle = st.columns([4.88, 0.12])
+        col_chart, col_toggle = st.columns([4.92, 0.08])
         col_quote = None
 
     with col_chart:
@@ -1370,35 +1355,128 @@ def dashboard():
             show_toolbar=show_tb
         )
 
-    with col_toggle:
-        btn_label = ">" if st.session_state.get("panel_open", True) else "<"
-        if st.button(btn_label, key="toggle_panel_btn", help="ย่อ/ขยายแผงขวา", use_container_width=True):
-            st.session_state["panel_open"] = not st.session_state.get("panel_open", True)
-            st.rerun()
+    if col_toggle is not None:
+        with col_toggle:
+            if st.button("<", key="toggle_panel_btn", help="เปิดแผงขวา", use_container_width=True):
+                st.session_state["panel_open"] = True
+                st.rerun()
 
-    if st.session_state.get("panel_open", True) and col_quote:
+    if p_open and col_quote:
         with col_quote:
-            cs_col1, cs_col2, cs_col3 = st.columns(3)
-            with cs_col1:
-                if st.button("เล็ก", use_container_width=True, key="sz_s"):
+            # --- CSS: ปุ่มกลมสไตล์ Mac + Tooltip แสดงเฉพาะตอน Hover ---
+            st.markdown("""
+            <style>
+            div[data-baseweb="tooltip"] { display: none !important; }
+
+            .st-key-sz_s button, .st-key-sz_m button, .st-key-sz_l button {
+                border: none !important; background: transparent !important;
+                box-shadow: none !important; min-height: 24px !important;
+                height: 24px !important; padding: 0 !important;
+                display: flex !important; align-items: center !important; justify-content: center !important;
+            }
+            .st-key-sz_s button p, .st-key-sz_m button p, .st-key-sz_l button p { display: none !important; }
+            .st-key-sz_s button::before {
+                content: ""; display: inline-block; width: 12px; height: 12px;
+                border-radius: 50%; background-color: #ff5f56 !important;
+            }
+            .st-key-sz_m button::before {
+                content: ""; display: inline-block; width: 12px; height: 12px;
+                border-radius: 50%; background-color: #ffbd2e !important;
+            }
+            .st-key-sz_l button::before {
+                content: ""; display: inline-block; width: 12px; height: 12px;
+                border-radius: 50%; background-color: #27c93f !important;
+            }
+            .st-key-sz_full button {
+                border: none !important; background: transparent !important;
+                box-shadow: none !important; color: #787b86 !important; font-size: 15px !important;
+                padding: 0 !important; height: 24px !important; min-height: 24px !important;
+            }
+            .st-key-sz_full button:hover { color: #ffffff !important; }
+
+            .st-key-sz_s, .st-key-sz_m, .st-key-sz_l, .st-key-sz_full {
+                position: relative !important;
+            }
+            .st-key-sz_s:hover::after {
+                content: "เล็ก"; position: absolute; top: -24px; left: 50%;
+                transform: translateX(-50%); background: #1E222D; color: #D1D4DC;
+                padding: 2px 6px; font-size: 10px; border-radius: 4px;
+                border: 1px solid #2A2E39; white-space: nowrap; pointer-events: none; z-index: 9999;
+            }
+            .st-key-sz_m:hover::after {
+                content: "ปกติ"; position: absolute; top: -24px; left: 50%;
+                transform: translateX(-50%); background: #1E222D; color: #D1D4DC;
+                padding: 2px 6px; font-size: 10px; border-radius: 4px;
+                border: 1px solid #2A2E39; white-space: nowrap; pointer-events: none; z-index: 9999;
+            }
+            .st-key-sz_l:hover::after {
+                content: "กว้าง"; position: absolute; top: -24px; left: 50%;
+                transform: translateX(-50%); background: #1E222D; color: #D1D4DC;
+                padding: 2px 6px; font-size: 10px; border-radius: 4px;
+                border: 1px solid #2A2E39; white-space: nowrap; pointer-events: none; z-index: 9999;
+            }
+            .st-key-sz_full:hover::after {
+                content: "เต็มจอ"; position: absolute; top: -24px; left: 50%;
+                transform: translateX(-50%); background: #1E222D; color: #D1D4DC;
+                padding: 2px 6px; font-size: 10px; border-radius: 4px;
+                border: 1px solid #2A2E39; white-space: nowrap; pointer-events: none; z-index: 9999;
+            }
+            </style>
+            """, unsafe_allow_html=True)
+
+            c_red, c_yel, c_grn, c_space, c_full = st.columns([0.08, 0.08, 0.08, 0.64, 0.12])
+            with c_red:
+                if st.button(" ", key="sz_s"):
+                    cur = st.session_state.get("panel_size", "M")
+                    st.session_state["panel_open"] = False if cur == "S" else True
                     st.session_state["panel_size"] = "S"
                     st.rerun()
-            with cs_col2:
-                if st.button("ปกติ", use_container_width=True, key="sz_m"):
+            with c_yel:
+                if st.button(" ", key="sz_m"):
+                    st.session_state["panel_open"] = True
                     st.session_state["panel_size"] = "M"
                     st.rerun()
-            with cs_col3:
-                if st.button("กว้าง", use_container_width=True, key="sz_l"):
+            with c_grn:
+                if st.button(" ", key="sz_l"):
+                    st.session_state["panel_open"] = True
                     st.session_state["panel_size"] = "L"
                     st.rerun()
+            with c_full:
+                st.button("⛶", key="sz_full")
+                components.html("""
+                <script>
+                const pDoc = window.parent.document;
+                function bindFs() {
+                    const btn = pDoc.querySelector('.st-key-sz_full button');
+                    if (btn && !btn.dataset.bound) {
+                        btn.dataset.bound = "true";
+                        btn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (!pDoc.fullscreenElement) {
+                                pDoc.documentElement.requestFullscreen().catch(()=>{});
+                            } else {
+                                if (pDoc.exitFullscreen) pDoc.exitFullscreen().catch(()=>{});
+                            }
+                        }, true);
+                    }
+                }
+                bindFs();
+                const timer = setInterval(() => {
+                    bindFs();
+                    if (pDoc.querySelector('.st-key-sz_full button[data-bound="true"]')) {
+                        clearInterval(timer);
+                    }
+                }, 150);
+                </script>
+                """, height=0, width=0)
 
+            # นำกล่องทั้ง 2 กลับเข้ามาอยู่ใต้ with col_quote: (เยื้อง 12 เคาะ)
             with st.expander("⭐ รายการสินทรัพย์ & อันดับขาขึ้น-ลง", expanded=True):
                 render_watchlist_component(key_prefix="desk")
 
             with st.expander("📊 ข้อมูลตลาด 24h & เทคนิค", expanded=True):
-                if st.button("⛶ ขยายดูตลาด 24h (Pop-up)", key="btn_popup_market_desk", use_container_width=True):
+                if st.button("🔍 ขยายดูตลาด 24h (Pop-up)", key="btn_popup_market_desk", use_container_width=True):
                     st.session_state["trigger_market_modal"] = True
                     st.rerun()
                 render_tv_quote_card(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_compact)
-
 dashboard()

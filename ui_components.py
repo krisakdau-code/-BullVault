@@ -519,3 +519,109 @@ def build_asset_icon_html(sym: str, tag_color: str = "#1E1E1E", size: int = 18) 
         <div style="width:3px;height:16px;border-radius:2px;background:{tag_color};flex-shrink:0;"></div>
         <img src="{icon_url}" style="width:{size}px;height:{size}px;border-radius:50%;object-fit:cover;background:#050505;border:1px solid #1E1E1E;">
     </div>"""
+
+
+def render_panel_controls():
+    panel_state = st.session_state.get("panel_state", "normal")
+
+    if panel_state == "hidden":
+        handle_html = """
+        <style>
+            .edge-dock-handle {
+                position: fixed;
+                top: 50%;
+                right: 0px;
+                transform: translateY(-50%);
+                width: 22px;
+                height: 48px;
+                background-color: #1e222d;
+                border: 1px solid #363a45;
+                border-right: none;
+                border-radius: 8px 0 0 8px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                z-index: 999;
+                transition: background-color 0.15s ease;
+            }
+            .edge-dock-handle:hover {
+                background-color: #2a2e39;
+            }
+            .edge-dock-handle span {
+                color: #d1d4dc;
+                font-size: 16px;
+                font-weight: bold;
+            }
+        </style>
+        <div class="edge-dock-handle" onclick="window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'restore_panel'}, '*')">
+            <span><</span>
+        </div>
+        """
+        return components.html(handle_html, height=0)
+
+    else:
+        controls_html = """
+        <style>
+            .panel-header {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                height: 32px;
+                padding: 0 8px 0 4px;
+                user-select: none;
+            }
+            .traffic-lights {
+                display: flex;
+                gap: 6px;
+            }
+            .traffic-btn {
+                width: 12px;
+                height: 12px;
+                border-radius: 50%;
+                cursor: pointer;
+            }
+            .btn-red { background-color: #ff5f57; }
+            .btn-yellow { background-color: #ffbd2e; }
+            .btn-green { background-color: #28c940; }
+
+            .panel-status {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+            .live-badge {
+                color: #26a69a;
+                font-size: 11px;
+                font-weight: 700;
+            }
+            .fullscreen-btn {
+                width: 26px;
+                height: 26px;
+                font-size: 16px;
+                color: #787b86;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background-color 0.15s ease;
+            }
+            .fullscreen-btn:hover {
+                background-color: #2a2e39;
+                color: #d1d4dc;
+            }
+        </style>
+        <div class="panel-header">
+            <div class="traffic-lights">
+                <div class="traffic-btn btn-red" onclick="window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'red_click'}, '*')"></div>
+                <div class="traffic-btn btn-yellow" onclick="window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'yellow_click'}, '*')"></div>
+                <div class="traffic-btn btn-green" onclick="window.parent.postMessage({type: 'streamlit:setComponentValue', value: 'green_click'}, '*')"></div>
+            </div>
+            <div class="panel-status">
+                <span class="live-badge">• LIVE</span>
+                <div class="fullscreen-btn">⛶</div>
+            </div>
+        </div>
+        """
+        return components.html(controls_html, height=32)
