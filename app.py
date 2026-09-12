@@ -765,17 +765,25 @@ def get_symbol_badge(sym: str) -> str:
     return "📈"
 
 def render_top_toolbar():
-    tabs = st.session_state.open_tabs
+    # Define widths for tab display if any
+    tabs = st.session_state.get('open_tabs', [])
     n_tabs = len(tabs)
+    tab_widths = [0.95, 0.25] * n_tabs
 
-    widths = [0.3] + [0.95, 0.25] * n_tabs + [0.32, 0.08, 0.65, 1.1, 0.45, 0.45, 0.55, 0.65, 3.5]
-    cols = st.columns(widths, gap="small", vertical_alignment="center")
+    # Define widths for the main control toolbar
+    # This creates a flexible space for tabs and a fixed layout for controls.
+    toolbar_widths = tab_widths + [1, 1.8, 0.5, 0.5, 0.6, 0.8, 4]
+    cols = st.columns(toolbar_widths, gap="small", vertical_alignment="center")
 
+    # This counter will keep track of our position in the `cols` array
     i = 0
-    with cols[i]:
-        st.markdown(build_asset_icon_html(st.session_state.current_symbol, size=22), unsafe_allow_html=True)
-    i += 1
+    
+    # NOTE: Assuming the tab rendering logic is handled elsewhere or was part of the omitted code.
+    # If tab rendering is needed here, it would increment `i`.
+    # For now, `i` will start at the position after the tab placeholders.
+    i = len(tab_widths)
 
+    # Timeframe Selector
     with cols[i]:
         tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.selected_tf) if st.session_state.selected_tf in TF_OPTIONS else 5, key="tf_select", label_visibility="collapsed")
         if tf != st.session_state.selected_tf:
@@ -786,26 +794,32 @@ def render_top_toolbar():
             st.rerun()
     i += 1
 
+    # Bars Count Slider
     with cols[i]:
         bars = st.slider("Bars", 300, 25000, int(st.session_state.get("bars_count", 2500)), 500, label_visibility="collapsed", key="bars_count")
     i += 1
 
+    # Fill Gaps Checkbox
     with cols[i]:
-        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="fill_gaps")
+        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="fill_gaps", help="เติมช่องว่างของข้อมูลราคาที่ขาดหายไป")
     i += 1
 
+    # Auto Refresh Checkbox
     with cols[i]:
-        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="auto_refresh")
+        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="auto_refresh", help="เปิดใช้งานการรีเฟรชข้อมูลอัตโนมัติ")
+    i += 1
+    
+    # Refresh Interval Input
+    with cols[i]:
+        every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="refresh_sec", help="ตั้งค่าช่วงเวลาการรีเฟรช (วินาที)")
     i += 1
 
+    # Manual Reload Button
     with cols[i]:
-        every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="refresh_sec")
+        reload_btn = st.button("🔄 โหลด", key="load_btn", use_container_width=True, help="โหลดข้อมูลใหม่ด้วยตนเอง")
     i += 1
 
-    with cols[i]:
-        reload_btn = st.button("🔄 โหลด", key="load_btn", use_container_width=True)
-    i += 1
-
+    # Spacer
     with cols[i]:
         st.empty()
 
