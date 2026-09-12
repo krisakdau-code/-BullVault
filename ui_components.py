@@ -27,7 +27,7 @@ def render_tv_clickable_tabs(open_tabs, active_sym, quotes_dict, key="tv_tabs_ba
 
         tab_markup = f"""
         <div class="tv-tab {'active' if is_active else ''}" onclick="selectTab('{sym}')">
-          <img class="tv-logo" src="{logo_url}" onerror="this.src='https://assets.coincap.io/assets/icons/btc@2x.png'">
+          <img class="tv-logo" src="{logo_url}">
           <span class="tv-sym">{disp_sym}</span>
           <span class="tv-price {cls}">{arr} {p_str}</span>
           <span class="tv-chg {cls}">{sign}{chg:.2f}%</span>
@@ -517,5 +517,5 @@ def build_asset_icon_html(sym: str, tag_color: str = "#1E1E1E", size: int = 18) 
     icon_url = f"https://assets.coincap.io/assets/icons/{clean_lower}@2x.png"
     return f"""<div style="display:flex;align-items:center;justify-content:center;height:24px;gap:3px;">
         <div style="width:3px;height:16px;border-radius:2px;background:{tag_color};flex-shrink:0;"></div>
-        <img src="{icon_url}" onerror="this.onerror=null;this.src='{fallback_avatar}';" style="width:{size}px;height:{size}px;border-radius:50%;object-fit:cover;background:#050505;border:1px solid #1E1E1E;">
+        <img src="{icon_url}" style="width:{size}px;height:{size}px;border-radius:50%;object-fit:cover;background:#050505;border:1px solid #1E1E1E;">
     </div>"""
