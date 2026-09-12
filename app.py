@@ -776,43 +776,6 @@ def render_top_toolbar():
         st.markdown(build_asset_icon_html(st.session_state.current_symbol, size=22), unsafe_allow_html=True)
     i += 1
 
-    now = time.time()
-    for tab in tabs:
-        tab_id = tab["id"]
-        is_active = (tab_id == st.session_state.active_tab_id)
-        badge = get_symbol_badge(tab["symbol"])
-        try:
-            _q = fetch_item_quote(tab["symbol"])
-            _p = float(_q.get("price", 0.0))
-            _c = float(_q.get("percentChange", _q.get("pct", 0.0)))
-            _arr = "▲" if _c >= 0 else "▼"
-            _p_str = f"{_p:,.4f}" if _p < 10 else f"{_p:,.2f}"
-            _chg_str = f"{_c:+.2f}%"
-            tab_label = f"{badge} {tab['symbol'].replace('_', '')} {_arr}{_p_str} {_chg_str}"
-        except Exception:
-            tab_label = f"{badge} {tab['symbol']}"
-
-        with cols[i]:
-            if st.button(tab_label, key=f"tab_btn_{tab_id}", type="primary" if is_active else "secondary", use_container_width=True):
-                last_time = st.session_state.get(f"last_click_{tab_id}", 0)
-                if (now - last_time) < 0.4:
-                    st.session_state[f"last_click_{tab_id}"] = 0
-                    add_tab(tab["symbol"])
-                else:
-                    st.session_state[f"last_click_{tab_id}"] = now
-                    switch_tab(tab_id)
-            i += 1
-
-        with cols[i]:
-            if st.button("✕", key=f"tab_close_{tab_id}", disabled=(n_tabs <= 1), use_container_width=True):
-                close_tab(tab_id)
-        i += 1
-
-    with cols[i]:
-        if st.button("➕", key="tab_add_btn", use_container_width=True, help="เปิดแท็บใหม่"):
-            add_tab(st.session_state.current_symbol)
-    i += 1
-
     with cols[i]:
         tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.selected_tf) if st.session_state.selected_tf in TF_OPTIONS else 5, key="tf_select", label_visibility="collapsed")
         if tf != st.session_state.selected_tf:

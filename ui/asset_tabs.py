@@ -1,164 +1,291 @@
-# asset_tabs.py
-from __future__ import annotations
-import html
-from collections import deque
 import streamlit as st
+import requests
 
-_UP, _DOWN, _FLAT = "▲", "▼", "■"
-_GREEN, _RED, _GREY = "#26a69a", "#ef5350", "#8b949e"
-_SPARK_LEN = 40          
-_SPARK_W, _SPARK_H = 62, 20
 
-def _f(key: str):
+# ──────────────────────────────────────────────────────────
+# 0. ฟังก์ชันทำความสะอาดรหัส Symbol
+# ──────────────────────────────────────────────────────────
+def to_clean_str(val) -> str:
+    """แปลงค่าให้เป็น String Ticker เสมอ"""
+    if isinstance(val, str):
+        return val.strip()
+    if isinstance(val, dict):
+        for k in ["symbol", "ticker", "code", "name", "id"]:
+            if k in val and isinstance(val[k], str):
+                return val[k].strip()
+        if len(val) > 0:
+            first_val = list(val.values())[0]
+            if isinstance(first_val, str):
+                return first_val.strip()
+            first_key = list(val.keys())[0]
+            if isinstance(first_key, str):
+                return first_key.strip()
+    return str(val).strip() if val is not None else ""
+
+
+# ──────────────────────────────────────────────────────────
+# 1. ระบบดึงราคาแบบด่วน (Cache 10 วินาที)
+# ──────────────────────────────────────────────────────────
+@st.cache_data(ttl=10)
+def fetch_mini_ticker_data(symbol_input) -> dict:
+    sym = to_clean_str(symbol_input).upper()
+    if not sym:
+        return {"price": "--", "change": 0.0, "bid": "-", "ask": "-", "spread": "-"}
+
+    headers = {"User-Agent": "Mozilla/5.0"}
+
+    # 1. Bitkub
+    if "_THB" in sym or sym.endswith("THB"):
+        try:
+            r = requests.get("https://api.bitkub.com/api/market/ticker", headers=headers, timeout=3).json()
+            coin = sym.replace("_THB", "").replace("THB", "")
+            key = f"THB_{coin}"
+            if key in r:
+                d = r[key]
+                last = float(d.get("last", 0))
+                change = float(d.get("percentChange", 0))
+                bid = float(d.get("highestBid", 0))
+                ask = float(d.get("lowestAsk", 0))
+                spread = ask - bid if ask > bid else 0
+                return {
+                    "price": f"{last:,.2f}" if last < 1000 else f"{last:,.0f}",
+                    "change": change,
+                    "bid": f"{bid:,.0f}" if bid >= 100 else f"{bid:.2f}",
+                    "ask": f"{ask:,.0f}" if ask >= 100 else f"{ask:.2f}",
+                    "spread": f"{spread:.2f}"
+                }
+        except Exception:
+            pass
+
+    # 2. Binance
+    elif "USDT" in sym:
+        try:
+            r = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={sym}", headers=headers, timeout=3).json()
+            last = float(r.get("lastPrice", 0))
+            change = float(r.get("priceChangePercent", 0))
+            bid = float(r.get("bidPrice", 0))
+            ask = float(r.get("askPrice", 0))
+            spread = ask - bid if ask > bid else 0
+            return {
+                "price": f"{last:,.4f}" if last < 1 else f"{last:,.2f}",
+                "change": change,
+                "bid": f"{bid:.2f}",
+                "ask": f"{ask:.2f}",
+                "spread": f"{spread:.2f}"
+            }
+        except Exception:
+            pass
+
+    # 3. หุ้นไทย / สหรัฐฯ / Forex / โภคภัณฑ์ (Yahoo Finance)
     try:
-        return float(st.session_state.get(key))
-    except (TypeError, ValueError):
-        return None
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{sym}?interval=1d&range=2d"
+        r = requests.get(url, headers=headers, timeout=3).json()
+        meta = r["chart"]["result"][0]["meta"]
+        price = meta.get("regularMarketPrice", 0)
+        prev = meta.get("chartPreviousClose", price)
+        change = ((price - prev) / prev * 100) if prev else 0
+        return {
+            "price": f"{price:,.2f}",
+            "change": change,
+            "bid": "-",
+            "ask": "-",
+            "spread": "-"
+        }
+    except Exception:
+        pass
 
-def push_tick(sym: str) -> None:
-    px = _f(f"live_price_{sym}")
-    if px is None:
-        return
-    buf_key = f"spark_buf_{sym}"
-    if buf_key not in st.session_state:
-        st.session_state[buf_key] = deque(maxlen=_SPARK_LEN)
-    buf = st.session_state[buf_key]
-    if not buf or buf[-1] != px:
-        buf.append(px)
+    return {"price": "--", "change": 0.0, "bid": "-", "ask": "-", "spread": "-"}
 
-def read_quote(sym: str) -> dict:
-    price, pct = _f(f"live_price_{sym}"), _f(f"live_pct_{sym}")
-    bid, ask = _f(f"live_bid_{sym}"), _f(f"live_ask_{sym}")
 
-    if pct is None:
-        arrow, color = _FLAT, _GREY
-    elif pct > 0:
-        arrow, color = _UP, _GREEN
-    elif pct < 0:
-        arrow, color = _DOWN, _RED
-    else:
-        arrow, color = _FLAT, _GREY
+# ──────────────────────────────────────────────────────────
+# 2. สไตล์ CSS รวมการ์ดและปุ่มเป็นหนึ่งเดียว
+# ──────────────────────────────────────────────────────────
+def inject_tab_card_css():
+    st.markdown(
+        """
+        <style>
+        .tab-box {
+            background-color: #0d1117;
+            border: 1px solid #1f2636;
+            border-radius: 8px;
+            padding: 8px 10px 6px 10px;
+            margin-bottom: 4px;
+            transition: all 0.2s ease-in-out;
+        }
+        .tab-box:hover {
+            border-color: #2962ff;
+        }
+        .tab-box.active {
+            background-color: #0b1726;
+            border: 1.5px solid #00f0ff !important;
+            box-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+        }
+        .tab-top-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 700;
+            color: #ffffff;
+            font-family: monospace;
+        }
+        .dot-icon { color: #787b86; margin: 0 4px; font-size: 10px; }
+        .tab-price { color: #e0e3eb; }
+        .tab-chg-up { color: #00E676; font-size: 11px; margin-left: 6px; }
+        .tab-chg-down { color: #FF5252; font-size: 11px; margin-left: 6px; }
+        .tab-sub-row {
+            display: flex;
+            gap: 8px;
+            font-size: 10px;
+            margin-top: 2px;
+            margin-bottom: 6px;
+            font-family: monospace;
+        }
+        .sub-b { color: #00f0ff; }
+        .sub-a { color: #ff5252; }
+        .sub-s { color: #787b86; }
 
-    if bid is not None and ask is not None and ask > 0:
-        spread_abs = ask - bid
-        spread_bps = spread_abs / ((ask + bid) / 2) * 10_000
-        spread_txt = f"{spread_abs:,.2f} ({spread_bps:.1f}bp)"
-    else:
-        spread_txt = "—"
-
-    return {
-        "price_txt": "—" if price is None else f"{price:,.2f}",
-        "pct_txt": "—" if pct is None else f"{pct:+.2f}%",
-        "bid_txt": "—" if bid is None else f"{bid:,.2f}",
-        "ask_txt": "—" if ask is None else f"{ask:,.2f}",
-        "spread_txt": spread_txt,
-        "arrow": arrow,
-        "color": color,
-    }
-
-def _sparkline_svg(sym: str, color: str) -> str:
-    buf = list(st.session_state.get(f"spark_buf_{sym}", []))
-    if len(buf) < 2:
-        return (f'<svg class="tspark" width="{_SPARK_W}" height="{_SPARK_H}">'
-                f'<line x1="0" y1="{_SPARK_H/2}" x2="{_SPARK_W}" y2="{_SPARK_H/2}" '
-                f'stroke="{_GREY}" stroke-width="1" stroke-dasharray="2 2"/></svg>')
-
-    lo, hi = min(buf), max(buf)
-    rng = (hi - lo) or 1e-9
-    pad = 2
-    step = _SPARK_W / (len(buf) - 1)
-    pts = " ".join(
-        f"{i*step:.1f},{pad + (1 - (v - lo) / rng) * (_SPARK_H - 2*pad):.1f}"
-        for i, v in enumerate(buf)
+        /* ปรับปุ่มใต้การ์ดให้แนบสนิท */
+        div[data-testid="column"] div.stButton > button {
+            width: 100% !important;
+            padding: 1px 4px !important;
+            min-height: 22px !important;
+            height: 22px !important;
+            font-size: 11px !important;
+            border-radius: 4px !important;
+            background-color: #161b22 !important;
+            border: 1px solid #30363d !important;
+            color: #c9d1d9 !important;
+        }
+        div[data-testid="column"] div.stButton > button:hover {
+            border-color: #00f0ff !important;
+            color: #00f0ff !important;
+            background-color: #1f242c !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
     )
-    lx, ly = pts.split(" ")[-1].split(",")
-    area = f"0,{_SPARK_H} {pts} {_SPARK_W},{_SPARK_H}"
-    uid = abs(hash(sym)) % 100000
-    return (
-        f'<svg class="tspark" width="{_SPARK_W}" height="{_SPARK_H}" '
-        f'viewBox="0 0 {_SPARK_W} {_SPARK_H}" preserveAspectRatio="none">'
-        f'<defs><linearGradient id="g{uid}" x1="0" y1="0" x2="0" y2="1">'
-        f'<stop offset="0%" stop-color="{color}" stop-opacity=".35"/>'
-        f'<stop offset="100%" stop-color="{color}" stop-opacity="0"/>'
-        f'</linearGradient></defs>'
-        f'<polygon points="{area}" fill="url(#g{uid})"/>'
-        f'<polyline points="{pts}" fill="none" stroke="{color}" '
-        f'stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>'
-        f'<circle cx="{lx}" cy="{ly}" r="1.8" fill="{color}"/></svg>'
-    )
 
-_CSS = """
-<style>
-.tbar{display:flex;gap:8px;overflow-x:auto;padding:6px 2px 10px;
-     border-bottom:1px solid rgba(255,255,255,.08);scrollbar-width:thin}
-.tbar::-webkit-scrollbar{height:4px}
-.tbar::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
-.tcell{flex:0 0 auto;display:flex;align-items:center;gap:10px;
-       padding:6px 14px;border-radius:8px;white-space:nowrap;
-       font-family:"SF Mono",Consolas,monospace;line-height:1.15;
-       background:rgba(255,255,255,.02);transition:background .15s}
-.tcell.on{background:rgba(38,166,154,.10);box-shadow:inset 0 -2px 0 0 #26a69a}
-.tmain{display:flex;flex-direction:column;gap:2px}
-.trow1{display:flex;align-items:baseline;gap:8px}
-.tsym{font-size:.82rem;font-weight:700;letter-spacing:.4px;color:#e6edf3}
-.tpx{font-size:.86rem;font-weight:600}
-.tpct{font-size:.72rem;opacity:.9}
-.trow2{display:flex;gap:8px;font-size:.63rem;color:#7d8590}
-.tbid{color:#26a69a}.task{color:#ef5350}
-.tspread{opacity:.75}
-.tspark{display:block;flex:0 0 auto}
-div[data-testid="stHorizontalBlock"].tabclicks div.stButton>button{
-    border:none;background:transparent;color:#7d8590;
-    padding:0;min-height:0;height:22px;font-size:.70rem;width:100%}
-div[data-testid="stHorizontalBlock"].tabclicks div.stButton>button:hover{
-    color:#e6edf3;background:rgba(255,255,255,.05);border:none}
-</style>
-"""
 
-def _strip_html(symbols: list[str], active: str) -> str:
-    cells = []
-    for s in symbols:
-        push_tick(s)
-        q = read_quote(s)
-        cls = "tcell on" if s == active else "tcell"
-        cells.append(
-            f'<div class="{cls}">'
-            f'<div class="tmain">'
-            f'<div class="trow1">'
-            f'<span class="tsym">{html.escape(s)}</span>'
-            f'<span class="tpx" style="color:{q["color"]}">{q["arrow"]} {q["price_txt"]}</span>'
-            f'<span class="tpct" style="color:{q["color"]}">{q["pct_txt"]}</span>'
-            f'</div>'
-            f'<div class="trow2">'
-            f'<span class="tbid">B {q["bid_txt"]}</span>'
-            f'<span class="task">A {q["ask_txt"]}</span>'
-            f'<span class="tspread">S {q["spread_txt"]}</span>'
-            f'</div></div>'
-            f'{_sparkline_svg(s, q["color"])}'
-            f'</div>'
-        )
-    return f'<div class="tbar">{"".join(cells)}</div>'
+# ──────────────────────────────────────────────────────────
+# 3. ฟังก์ชันเรนเดอร์แท็บสินทรัพย์ (Unified Tab System)
+# ──────────────────────────────────────────────────────────
+def render_asset_tabs(symbols=None, state_key="current_symbol", *args, **kwargs) -> str:
+    inject_tab_card_css()
 
-def render_asset_tabs(symbols: list[str], state_key: str = "active_symbol") -> str:
-    if not symbols:
-        return ""
-    st.session_state.setdefault(state_key, symbols[0])
-    if st.session_state[state_key] not in symbols:
-        st.session_state[state_key] = symbols[0]
+    current = to_clean_str(st.session_state.get(state_key, "BTC_THB")) or "BTC_THB"
+    st.session_state[state_key] = current
+    st.session_state["selected_symbol"] = current
+# ค่าเริ่มต้นสำหรับแท็บ (แปลงเป็น Dict รองรับ app.py line 781)
+    if "open_tabs" not in st.session_state or not st.session_state["open_tabs"]:
+        st.session_state["open_tabs"] = [
+            {"id": current, "symbol": current},
+            {"id": "BTCUSDT", "symbol": "BTCUSDT"}
+        ]
+    else:
+        clean_tabs = []
+        seen_ids = set()
+        for item in st.session_state["open_tabs"]:
+            sym_str = to_clean_str(item)
+            if sym_str and sym_str not in seen_ids:
+                seen_ids.add(sym_str)
+                clean_tabs.append({"id": sym_str, "symbol": sym_str})
+        st.session_state["open_tabs"] = clean_tabs if clean_tabs else [{"id": current, "symbol": current}]
 
-    st.markdown(_CSS, unsafe_allow_html=True)
-    st.markdown(_strip_html(symbols, st.session_state[state_key]), unsafe_allow_html=True)
+    existing_ids = [t["id"] for t in st.session_state["open_tabs"]]
+    if current not in existing_ids:
+        st.session_state["open_tabs"].append({"id": current, "symbol": current})
 
-    cols = st.columns(len(symbols), gap="small")
-    for col, sym in zip(cols, symbols):
-        with col:
-            st.markdown('<div class="tabclicks">', unsafe_allow_html=True)
-            if st.button(sym, key=f"tabbtn_{sym}", use_container_width=True):
-                st.session_state[state_key] = sym
-                st.rerun(scope="fragment")
-            st.markdown('</div>', unsafe_allow_html=True)
-    return st.session_state[state_key]
+    tabs = st.session_state["open_tabs"]
+    cols = st.columns(len(tabs) + 1)
 
-@st.fragment(run_every="1s")
-def asset_tab_bar(symbols: list[str], state_key: str = "active_symbol") -> None:
-    render_asset_tabs(symbols, state_key)
+   # 1. แสดงแท็บแต่ละตัว
+    for idx, tab_item in enumerate(tabs):
+        sym = tab_item.get("symbol", tab_item.get("id", str(tab_item))) if isinstance(tab_item, dict) else str(tab_item)
+        with cols[idx]:
+            is_active = (sym == current)
+            data = fetch_mini_ticker_data(sym)
+
+            chg = data["change"]
+            chg_class = "tab-chg-up" if chg >= 0 else "tab-chg-down"
+            chg_sign = "+" if chg >= 0 else ""
+            active_class = "active" if is_active else ""
+
+            # กล่องการ์ดราคา
+            st.markdown(
+                f"""
+                <div class="tab-box {active_class}">
+                    <div class="tab-top-row">
+                        <span>{sym}</span>
+                        <span class="dot-icon">■</span>
+                        <span class="tab-price">{data['price']}</span>
+                        <span class="{chg_class}">{chg_sign}{chg:.2f}%</span>
+                    </div>
+                    <div class="tab-sub-row">
+                        <span class="sub-b">B {data['bid']}</span>
+                        <span class="sub-a">A {data['ask']}</span>
+                        <span class="sub-s">S {data['spread']}</span>
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            # ปุ่มสลับดูกราฟ และปุ่มปิดแท็บ
+            c_sel, c_close = st.columns([4, 1])
+            with c_sel:
+                if is_active:
+                    st.button("🟢 กำลังดู", key=f"active_badge_{sym}", disabled=True, use_container_width=True)
+                else:
+                    if st.button("🔘 ดูกราฟ", key=f"btn_switch_{sym}", use_container_width=True):
+                        st.session_state[state_key] = sym
+                        st.session_state["selected_symbol"] = sym
+                        st.session_state["current_symbol"] = sym
+                        st.rerun()
+
+            with c_close:
+                if len(tabs) > 1:
+                    if st.button("✕", key=f"btn_del_{sym}", use_container_width=True):
+                        st.session_state["open_tabs"] = [
+                            t for t in st.session_state["open_tabs"]
+                            if (t.get("id") if isinstance(t, dict) else str(t)) != sym
+                        ]
+                        if current == sym:
+                            first_tab = st.session_state["open_tabs"][0]
+                            new_sym = first_tab.get("id") if isinstance(first_tab, dict) else str(first_tab)
+                            st.session_state[state_key] = new_sym
+                            st.session_state["selected_symbol"] = new_sym
+                            st.session_state["current_symbol"] = new_sym
+                        st.rerun()
+
+    # 2. ปุ่มเพิ่มแท็บใหม่แบบ Popover
+    with cols[-1]:
+        st.markdown('<div style="height: 4px;"></div>', unsafe_allow_html=True)
+        with st.popover("➕ เพิ่มแท็บ", use_container_width=True):
+            st.markdown("**เลือกสินทรัพย์ที่ต้องการเปิดแท็บเพิ่ม:**")
+
+            quick_pool = [
+                "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT",
+                "ETH_THB", "KUB_THB", "DELTA.BK", "PTT.BK", "NVDA", "AAPL", "GC=F", "USDTHB=X"
+            ]
+            current_ids = [t.get("id") if isinstance(t, dict) else str(t) for t in tabs]
+            available_pool = [c for c in quick_pool if c not in current_ids]
+
+            selected_add = st.selectbox("สินทรัพย์ยอดนิยม:", options=available_pool if available_pool else ["ETHUSDT"])
+            custom_input = st.text_input("หรือพิมพ์รหัส Ticker เอง:", placeholder="เช่น SOLUSDT, AOT.BK")
+
+            if st.button("ยืนยันเพิ่มแท็บ", use_container_width=True, key="btn_confirm_add_tab"):
+                target_sym = to_clean_str(custom_input).upper() if custom_input else selected_add
+                if target_sym and target_sym not in current_ids:
+                    st.session_state["open_tabs"].append({"id": target_sym, "symbol": target_sym})
+                    st.session_state[state_key] = target_sym
+                    st.session_state["selected_symbol"] = target_sym
+                    st.session_state["current_symbol"] = target_sym
+                    st.rerun()
+
+    return st.session_state.get(state_key, current)
+
+
+# เชื่อมฟังก์ชันให้ app.py ใช้งานได้ทันที
+asset_tab_bar = render_asset_tabs
