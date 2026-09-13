@@ -19,6 +19,9 @@ except ImportError:
     get_full_commodities = get_full_forex = get_full_sp500_symbols = get_full_vietnam_symbols = None
 
 def render_sidebar():
+    show_top = True
+    show_tool = True
+
     with st.sidebar:
         st.markdown("""
         <div style="background: #0B0E14; border: 1px solid #FF7A00; border-radius: 8px; padding: 6px; margin-bottom: 8px;">
@@ -59,34 +62,29 @@ def render_sidebar():
 
         sym_list = []
 
-    # ==========================================
-    # 1. กลุ่มราคาข้าว (เชื่อมเข้ากราฟแท่งเทียน)
-    # ==========================================
-    if "สินค้าเกษตร" in main_category:
-        sym_list = get_rice_symbols_list()
-        selected_sym = st.selectbox("เลือกชนิดข้าว / ตลาดส่งออก", sym_list, key="sb_rice_select_v2")
+        # ==========================================
+        # 1. กลุ่มราคาข้าว (เชื่อมเข้ากราฟแท่งเทียน)
+        # ==========================================
+        if "สินค้าเกษตร" in main_category:
+            sym_list = get_rice_symbols_list()
+            selected_sym = st.selectbox("เลือกชนิดข้าว / ตลาดส่งออก", sym_list)
 
-        if st.button("📈 ดูกราฟแท่งเทียนสายพันธุ์นี้", use_container_width=True, key="btn_open_rice_chart"):
-            st.session_state["current_symbol"] = selected_sym
-            st.session_state["selected_tf"] = "1D"
-            st.session_state["app_mode"] = "chart"
-            if "open_tabs" not in st.session_state:
-                st.session_state.open_tabs = []
-            existing_ids = [t["symbol"] for t in st.session_state.open_tabs]
-            if selected_sym not in existing_ids:
-                import uuid
-                new_id = uuid.uuid4().hex[:8]
-                st.session_state.open_tabs.append({"id": new_id, "symbol": selected_sym, "tf": "1D"})
-                st.session_state.active_tab_id = new_id
-            else:
-                for t in st.session_state.open_tabs:
-                    if t["symbol"] == selected_sym:
-                        t["tf"] = "1D"
-            st.rerun()
-
-            st.write("")
-            if st.button("📋 ตารางราคากลาง & คำนวณความชื้น", use_container_width=True, key="btn_open_rice_modal_side"):
-                st.session_state["show_rice_dialog"] = True
+            if st.button("📈 ดูกราฟแท่งเทียนสายพันธุ์นี้", use_container_width=True, key="btn_open_rice_chart"):
+                st.session_state["current_symbol"] = selected_sym
+                st.session_state["selected_tf"] = "1D"
+                st.session_state["app_mode"] = "chart"
+                if "open_tabs" not in st.session_state:
+                    st.session_state.open_tabs = []
+                existing_ids = [t["symbol"] for t in st.session_state.open_tabs]
+                if selected_sym not in existing_ids:
+                    import uuid
+                    new_id = uuid.uuid4().hex[:8]
+                    st.session_state.open_tabs.append({"id": new_id, "symbol": selected_sym, "tf": "1D"})
+                    st.session_state.active_tab_id = new_id
+                else:
+                    for t in st.session_state.open_tabs:
+                        if t["symbol"] == selected_sym:
+                            t["tf"] = "1D"
                 st.rerun()
 
         # ==========================================
@@ -132,7 +130,7 @@ def render_sidebar():
                 st.rerun()
 
         st.divider()
-        st.markdown("### ⚙️ ตั้งค่าอินดิเคเตอร์")
+        st.markdown("### ⚙ ตั้งค่าอินดิเคเตอร์")
         st.session_state["fast_ema"] = st.number_input("Fast EMA", min_value=1, max_value=200, value=st.session_state.get("fast_ema", 7))
         st.session_state["slow_ema"] = st.number_input("Slow EMA", min_value=1, max_value=200, value=st.session_state.get("slow_ema", 13))
         st.session_state["trend_ema"] = st.number_input("Trend EMA", min_value=1, max_value=500, value=st.session_state.get("trend_ema", 45))
