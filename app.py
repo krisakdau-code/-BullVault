@@ -80,7 +80,7 @@ st.set_page_config(
 )
 apply_theme()
 
-# ----------------------- PANEL STATE MANAGEMENT -----------------------
+# ────────────────────────── PANEL STATE MANAGEMENT ──────────────────────────
 if "panel_open" not in st.session_state:
     st.session_state["panel_open"] = True
 if "panel_size" not in st.session_state:
@@ -250,75 +250,6 @@ if "fib_window" not in st.session_state: st.session_state["fib_window"] = 120
 if "fib_tp_level" not in st.session_state: st.session_state["fib_tp_level"] = 1.618
 if "fib_confirm_on" not in st.session_state: st.session_state["fib_confirm_on"] = False
 if "chart_slot" not in st.session_state: st.session_state["chart_slot"] = None
-
-# ────────────────── SMART CATALOG LOADER ──────────────────
-def get_data_dir():
-    candidates = [
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"),
-        "data",
-        os.path.join(os.getcwd(), "data")
-    ]
-    for c in candidates:
-        if os.path.exists(c) and os.path.isdir(c):
-            return c
-    return "data"
-
-def extract_symbols_from_json(content):
-    if isinstance(content, list):
-        res = []
-        for item in content:
-            if isinstance(item, str):
-                res.append(item)
-            elif isinstance(item, dict):
-                s = item.get("symbol") or item.get("id") or item.get("ticker") or item.get("code")
-                if s: res.append(str(s))
-        return res
-    elif isinstance(content, dict):
-        for k in ["symbols", "tickers", "data", "items"]:
-            if k in content and isinstance(content[k], list):
-                return extract_symbols_from_json(content[k])
-        return [str(k) for k in content.keys()]
-    return []
-
-@st.cache_data(ttl=600, show_spinner=False)
-def load_catalog_smart(keywords: list) -> list:
-    data_dir = get_data_dir()
-    if not os.path.exists(data_dir):
-        return []
-    try:
-        all_files = os.listdir(data_dir)
-    except Exception:
-        return []
-    
-    matched_files = []
-    for f in all_files:
-        if not f.endswith(".json"):
-            continue
-        f_lower = f.lower()
-        for kw in keywords:
-            if kw.lower() in f_lower:
-                matched_files.append(f)
-                break
-    
-    all_syms = []
-    for mf in matched_files:
-        p = os.path.join(data_dir, mf)
-        try:
-            with open(p, "r", encoding="utf-8") as file:
-                content = json.load(file)
-                syms = extract_symbols_from_json(content)
-                if syms:
-                    all_syms.extend(syms)
-        except Exception:
-            continue
-    
-    seen = set()
-    clean = []
-    for s in all_syms:
-        if s and s not in seen:
-            seen.add(s)
-            clean.append(s)
-    return clean
 
 def resolve_route(symbol: str, ui_market: str = "", ui_exchange: str = "Binance"):
     s = (symbol or "").upper()
@@ -556,7 +487,6 @@ def fetch_daily_history(market_type: str, exchange: str, symbol: str) -> pd.Data
 
 def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "", df: pd.DataFrame = None) -> dict:
     tk = {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0.0, "high": 0.0, "low": 0.0, "bid": 0.0, "ask": 0.0}
-
     if ("THB" in symbol) or (exchange == "Bitkub"):
         try:
             r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=3.0)
@@ -576,8 +506,7 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                         "bid": float(item.get("highestBid", last_p)),
                         "ask": float(item.get("lowestAsk", last_p))
                     }
-        except Exception:
-            pass
+        except Exception: pass
 
     try:
         if df is not None and not df.empty and "close" in df.columns:
@@ -592,17 +521,14 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                 "price": last_p, "change": chg, "pct": pct,
                 "high": h, "low": l, "vol": v, "bid": last_p, "ask": last_p
             })
-    except Exception:
-        pass
+    except Exception: pass
     return tk
 
 def fetch_item_quote(sym: str) -> dict:
     try:
         t = fetch_unified_ticker(symbol=sym)
-        if t and t.get("price", 0) > 0:
-            return t
-    except Exception:
-        pass
+        if t and t.get("price", 0) > 0: return t
+    except Exception: pass
     return {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0, "high": 0.0, "low": 0.0, "bid": 0.0, "ask": 0.0}
 
 if hasattr(st, "dialog"):
@@ -622,24 +548,19 @@ else:
         with st.expander("📊 ข้อมูลตลาด 24h & บทวิเคราะห์เทคนิคขั้นสูง", expanded=True):
             render_market_modal_content(tk, an, symbol, label_name, seasonality_html, gauges_html)
 
+# ──────────────────────────── TOP TOOLBAR ────────────────────────────
 def render_top_toolbar():
     col_tf, col_slider, col_fill, col_auto, col_sec, col_load = st.columns([1.5, 5, 1.2, 1.2, 1.5, 1.8])
-    
     with col_tf:
         tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.get("selected_tf", "1h")) if st.session_state.get("selected_tf", "1h") in TF_OPTIONS else 0, key="toolbar_tf", label_visibility="collapsed")
-    
     with col_slider:
         bars = st.slider("Bars", 300, 25000, int(st.session_state.get("bars_count", 2500)), 500, label_visibility="collapsed", key="toolbar_bars")
-    
     with col_fill:
         fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="toolbar_fill")
-    
     with col_auto:
         auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="toolbar_auto")
-    
     with col_sec:
         every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="toolbar_sec")
-    
     with col_load:
         reload_btn = st.button("🔄 โหลด", key="toolbar_reload_btn", use_container_width=True)
 
@@ -668,18 +589,16 @@ def fetch_top_movers(category: str = "all") -> dict:
         try:
             r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=4.0)
             if r.status_code == 200:
-                data = r.json()
                 items = []
-                for sym_code, v in data.items():
+                for sym_code, v in r.json().items():
                     if not sym_code.startswith("THB_"): continue
                     p = float(v.get("last", 0.0))
                     pct = float(v.get("percentChange", 0.0))
-                    vol = float(v.get("baseVolume", 0.0))
                     clean_name = sym_code.replace("THB_", "") + "_THB"
                     items.append({
                         "symbol": clean_name, "label": f"{clean_name} ({pct:+.2f}%)",
                         "price": p, "fmt_price": f"{p:,.4f}" if p < 10 else f"{p:,.2f}",
-                        "change": float(v.get("change", 0.0)), "pct": pct, "volume": vol
+                        "change": float(v.get("change", 0.0)), "pct": pct, "volume": float(v.get("baseVolume", 0.0))
                     })
                 return {"gainers": sorted(items, key=lambda x: x["pct"], reverse=True)[:10], "losers": sorted(items, key=lambda x: x["pct"])[:10]}
         except Exception: return empty_result
@@ -735,7 +654,6 @@ def fetch_top_movers(category: str = "all") -> dict:
 
 def render_watchlist_component(key_prefix: str = "desk"):
     tab_highlight, tab_starred = st.tabs(["🔥 สินทรัพย์โดดเด่น", "⭐ กลุ่มสีโปรด"])
-
     with tab_highlight:
         market_cats = [
             ("🌐 รวม", "all"), ("🟡 Bitkub", "bitkub"), ("🟡 Binance", "binance"),
@@ -801,7 +719,6 @@ def render_watchlist_component(key_prefix: str = "desk"):
                         q = starred_quotes.get(s_item, fetch_item_quote(s_item))
                         s_lbl = s_item.replace("_THB", "")
                         val_col = UP if q["change"] >= 0 else DOWN
-                        
                         c_ico, a, b, c, dcol, f = st.columns([0.6, 1.6, 1.3, 1.1, 1.1, 0.4])
                         with c_ico: st.markdown(build_asset_icon_html(s_item, STAR_CATEGORIES[cat_name]["color"]), unsafe_allow_html=True)
                         with a:
@@ -819,16 +736,15 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.session_state["star_watchlists"][cat_name].remove(s_item)
                                 st.rerun()
 
-# ──────────────────────────── LOAD SIDEBAR (Centralized) ────────────────────────────
+# ──────────────────────────── LOAD SIDEBAR ────────────────────────────
 app_config = render_sidebar()
 
-# ──────────────────────────── LIVE TOP BAR FRAGMENT ────────────────────────────
+# ──────────────────────────── LIVE TOP BAR ────────────────────────────
 @st.fragment(run_every=2)
 def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_display: str, display_title: str, gz_badge: str, base_price: float, last_vol: float):
     live_tk = fetch_unified_ticker(r_market, r_exchange, symbol)
     cur_price = float(live_tk.get("price", base_price))
     cur_chg = float(live_tk.get("pct", 0.0))
-    
     st.session_state[f"live_price_{symbol}"] = cur_price
     st.session_state[f"live_pct_{symbol}"] = cur_chg
 
@@ -853,13 +769,17 @@ def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_displ
     with ch_right:
         st.markdown('<div style="padding-top:8px; font-size:10px; color:#787b86; text-align:right; padding-right:12px;">● LIVE</div>', unsafe_allow_html=True)
 
-# ──────────────────────────── DASHBOARD (MAIN RENDER) ────────────────────────────
+# ──────────────────────────── DASHBOARD (MAIN) ────────────────────────────
 def dashboard():
-    tf = st.session_state.get("selected_tf", "1h")
-    bars = st.session_state.get("bars_count", 2500)
-    fill_gaps = st.session_state.get("fill_gaps", False)
-    symbol = st.session_state.get("current_symbol", "BTC_THB")
+    # 1. แถบควบคุมบนสุด (Timeframe / Bars)
+    if app_config.get("show_top_bar", True):
+        tf, bars, fill_gaps, auto, every, reload_btn = render_top_toolbar()
+    else:
+        tf = st.session_state.get("selected_tf", "1h")
+        bars = st.session_state.get("bars_count", 2500)
+        fill_gaps = st.session_state.get("fill_gaps", False)
 
+    symbol = st.session_state.get("current_symbol", "BTC_THB")
     tabs_data = st.session_state.get("open_tabs", [])
     SYMBOLS = [t.get("symbol") for t in tabs_data if t.get("symbol")] or [symbol]
     if symbol not in SYMBOLS: SYMBOLS.insert(0, symbol)
@@ -890,7 +810,6 @@ def dashboard():
 
     fib = auto_fib_retracement(df, lookback=st.session_state["fib_lookback"], window=st.session_state["fib_window"]) if auto_fib_retracement else None
     ext = trend_based_fib_extension(df, lookback=st.session_state["fib_lookback"], window=st.session_state["fib_window"]) if auto_fib_retracement else None
-    
     last_close = float(df["close"].iloc[-1])
     fib_zone = current_fib_zone(last_close, fib) if (auto_fib_retracement and fib) else None
     fib_tp = fib_tp_target(last_close, ext, min_tp_pct=st.session_state["min_tp"], preferred_level=st.session_state["fib_tp_level"]) if (auto_fib_retracement and ext) else None
@@ -923,15 +842,17 @@ def dashboard():
     cur_macd_h = int(st.session_state.get("macd_h", 120))
 
     charts = build_charts(df, symbol, tf, cur_main_h, cur_rsi_h, cur_macd_h)
+    cur_size = st.session_state.get("panel_size", "M")
     chart_dyn_key = f"c_{symbol}_{tf}_{st.session_state.get('active_tab_id', '0')}"
     show_tb = app_config.get("show_draw_toolbar", True)
 
+    # 2. การจัดวางหน้าจอ (Desktop vs Mobile)
     panel_ratios = {"S": [4.25, 0.75], "M": [3.85, 1.15], "L": [3.40, 1.60]}
     p_open = st.session_state.get("panel_open", True)
     p_size = st.session_state.get("panel_size", "M")
 
     if p_open:
-        col_chart, col_quote = st.columns(panel_ratios.get(p_size, [3.4, 1.6]))
+        col_chart, col_quote = st.columns(panel_ratios.get(p_size, [3.85, 1.15]))
         col_toggle = None
     else:
         col_chart, col_toggle = st.columns([4.92, 0.08])
@@ -946,8 +867,64 @@ def dashboard():
                 st.session_state["panel_open"] = True
                 st.rerun()
 
+    # 3. แผงควบคุมฝั่งขวา + ปุ่มกลม Mac 3 สี + ปุ่มขยายเต็มจอ
     if p_open and col_quote:
         with col_quote:
+            st.markdown("""
+            <style>
+            div[data-baseweb="tooltip"] { display: none !important; }
+            .st-key-sz_s button, .st-key-sz_m button, .st-key-sz_l button {
+                border: none !important; background: transparent !important;
+                box-shadow: none !important; min-height: 24px !important;
+                height: 24px !important; padding: 0 !important;
+                display: flex !important; align-items: center !important; justify-content: center !important;
+            }
+            .st-key-sz_s button p, .st-key-sz_m button p, .st-key-sz_l button p { display: none !important; }
+            .st-key-sz_s button::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #ff5f56 !important; }
+            .st-key-sz_m button::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #ffbd2e !important; }
+            .st-key-sz_l button::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 50%; background-color: #27c93f !important; }
+            .st-key-sz_full button { border: none !important; background: transparent !important; box-shadow: none !important; color: #787b86 !important; font-size: 15px !important; height: 24px !important; min-height: 24px !important; }
+            .st-key-sz_full button:hover { color: #ffffff !important; }
+            </style>
+            """, unsafe_allow_html=True)
+
+            c_red, c_yel, c_grn, c_space, c_full = st.columns([0.08, 0.08, 0.08, 0.64, 0.12])
+            with c_red:
+                if st.button(" ", key="sz_s"):
+                    st.session_state["panel_open"] = False if st.session_state.get("panel_size") == "S" else True
+                    st.session_state["panel_size"] = "S"
+                    st.rerun()
+            with c_yel:
+                if st.button(" ", key="sz_m"):
+                    st.session_state["panel_open"] = True
+                    st.session_state["panel_size"] = "M"
+                    st.rerun()
+            with c_grn:
+                if st.button(" ", key="sz_l"):
+                    st.session_state["panel_open"] = True
+                    st.session_state["panel_size"] = "L"
+                    st.rerun()
+            with c_full:
+                st.button("⛶", key="sz_full")
+                components.html("""
+                <script>
+                const pDoc = window.parent.document;
+                function bindFs() {
+                    const btn = pDoc.querySelector('.st-key-sz_full button');
+                    if (btn && !btn.dataset.bound) {
+                        btn.dataset.bound = "true";
+                        btn.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            if (!pDoc.fullscreenElement) pDoc.documentElement.requestFullscreen().catch(()=>{});
+                            else if (pDoc.exitFullscreen) pDoc.exitFullscreen().catch(()=>{});
+                        }, true);
+                    }
+                }
+                bindFs();
+                setInterval(bindFs, 250);
+                </script>
+                """, height=0, width=0)
+
             with st.expander("⭐ รายการสินทรัพย์ & อันดับขาขึ้น-ลง", expanded=True):
                 render_watchlist_component(key_prefix="desk")
 
