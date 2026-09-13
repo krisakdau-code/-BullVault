@@ -23,3 +23,7 @@ def render_dock_menu():
             if st.button("🧹 ล้างแคชระบบ", use_container_width=True):
                 st.cache_data.clear()
                 st.rerun()
+                st.write("")
+    if st.button("🌾 เช็คราคาข้าว", use_container_width=True):
+        st.session_state["active_tab"] = "🌾 ราคาข้าว"
+        st.rerun() 

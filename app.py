@@ -16,6 +16,9 @@ from ui.sidebar import render_sidebar
 from chart_builders import build_charts
 from ui.asset_tabs import asset_tab_bar, fetch_mini_ticker_data
 from config import *
+from data.rice_ohlcv import generate_rice_ohlcv
+from ui.rice_tab import show_rice_dialog_modal
+from ui.rice_tab import render_rice_tab
 from drawing_chart import render_drawing_chart
 from requests.adapters import HTTPAdapter
 from streamlit_lightweight_charts_ntf import renderLightweightCharts
@@ -787,13 +790,20 @@ def dashboard():
     active_symbol = asset_tab_bar(SYMBOLS, state_key="current_symbol")
     symbol = active_symbol or symbol
 
+# บังคับสินค้าเกษตร/ข้าว ให้เป็น Timeframe 1D เสมอ
+    if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
+        tf = "1D"
+        
     r_market, r_exchange = resolve_route(symbol)
     label_display = route_label(r_market, r_exchange)
     state_key = f"{r_market}_{r_exchange}_{symbol}_{tf}_{bars}_{fill_gaps}"
 
     if ("df_data" not in st.session_state) or (st.session_state.get("active_key") != state_key):
         with st.spinner(f"กำลังโหลดประวัติ {symbol} ..."):
-            df = fetch_ohlcv(r_market, r_exchange, symbol, tf, bars, fill_gaps)
+            if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
+                df = generate_rice_ohlcv(symbol)
+            else:
+                df = fetch_ohlcv(r_market, r_exchange, symbol, tf, bars, fill_gaps)
             st.session_state["df_data"] = df
             st.session_state["active_key"] = state_key
     else:
@@ -934,4 +944,7 @@ def dashboard():
                     st.rerun()
                 render_tv_quote_card(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_compact)
 
-dashboard()
+if st.session_state.get("app_mode") == "rice":
+    render_rice_tab()
+else:
+    dashboard()

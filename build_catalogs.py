@@ -1,7 +1,7 @@
 import json
 import os
 import requests
-
+import subprocess
 os.makedirs("data", exist_ok=True)
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
@@ -400,3 +400,5 @@ with open(os.path.join("data", "mexc_crypto.json"), "w", encoding="utf-8") as f:
     json.dump(mexc_dict, f, ensure_ascii=False, indent=2)
 
 print("\n🎉 บันทึกแคตตาล็อกสินทรัพย์ทุกตลาดและ 10 กระดานคริปโตเสร็จสมบูรณ์!")
+print("\n🌾 กำลังดึงข้อมูลแคตตาล็อกราคาข้าว...")
+subprocess.run(["python", "scripts/build_rice_catalog.py"])

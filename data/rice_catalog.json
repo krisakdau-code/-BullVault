@@ -1,0 +1,72 @@
+{
+  "TH_PADDY": {
+    "HOM_MALI_105": {
+      "name": "ข้าวเปลือกหอมมะลิ 105 (นาปี)",
+      "short": "หอมมะลิ 105",
+      "season": "นาปี",
+      "photoperiod": "ไวแสง",
+      "moisture_levels": ["15", "25"],
+      "tier": 1
+    },
+    "PATHUM_1": {
+      "name": "ข้าวเปลือกหอมปทุมธานี 1",
+      "short": "ปทุม 1",
+      "season": "นาปี/นาปรัง",
+      "photoperiod": "ไม่ไวแสง",
+      "moisture_levels": ["15", "25"],
+      "tier": 2
+    },
+    "JAO_5": {
+      "name": "ข้าวเปลือกเจ้า 5%",
+      "short": "เจ้า 5%",
+      "moisture_levels": ["15", "25"],
+      "tier": 3
+    },
+    "JAO_15": {
+      "name": "ข้าวเปลือกเจ้า 15%",
+      "short": "เจ้า 15%",
+      "moisture_levels": ["15", "25"],
+      "tier": 3
+    },
+    "JAO_25": {
+      "name": "ข้าวเปลือกเจ้า 25%",
+      "short": "เจ้า 25%",
+      "moisture_levels": ["15", "25"],
+      "tier": 3
+    },
+    "NIEW_LONG": {
+      "name": "ข้าวเปลือกเหนียวเมล็ดยาว",
+      "short": "เหนียวเมล็ดยาว",
+      "moisture_levels": ["15", "25"],
+      "tier": 2
+    },
+    "NIEW_SHORT": {
+      "name": "ข้าวเปลือกเหนียวเมล็ดสั้น",
+      "short": "เหนียวเมล็ดสั้น",
+      "moisture_levels": ["15", "25"],
+      "tier": 3
+    },
+    "PATHUM": {
+      "name": "ข้าวเปลือกปทุมธานี",
+      "short": "ปทุมธานี",
+      "moisture_levels": ["15", "25"],
+      "tier": 3
+    },
+    "NAPRANG": {
+      "name": "ข้าวเปลือกนาปรัง",
+      "short": "นาปรัง",
+      "season": "นาปรัง",
+      "moisture_levels": ["15", "25"],
+      "tier": 4
+    }
+  },
+  "WORLD_FOB": {
+    "THAI_WR5": { "name": "Thai White Rice 5% broken", "unit": "USD/MT" },
+    "THAI_WR25": { "name": "Thai White Rice 25% broken", "unit": "USD/MT" },
+    "THAI_HOMMALI": { "name": "Thai Hom Mali 100%", "unit": "USD/MT" },
+    "THAI_GLUT": { "name": "Thai Glutinous Rice 10%", "unit": "USD/MT" },
+    "VN_WR5": { "name": "Vietnam White Rice 5%", "unit": "USD/MT" },
+    "IN_WR5": { "name": "India White Rice 5%", "unit": "USD/MT" },
+    "PK_WR5": { "name": "Pakistan White Rice 5%", "unit": "USD/MT" }
+  }
+}
