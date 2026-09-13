@@ -18,6 +18,7 @@ except ImportError:
     get_full_mexc_symbols = get_full_kucoin_symbols = get_full_china_stocks = None
     get_full_commodities = get_full_forex = get_full_sp500_symbols = get_full_vietnam_symbols = None
 
+
 def render_sidebar():
     show_top = True
     show_tool = True
@@ -85,6 +86,7 @@ def render_sidebar():
                     for t in st.session_state.open_tabs:
                         if t["symbol"] == selected_sym:
                             t["tf"] = "1D"
+                            st.session_state.active_tab_id = t.get("id")
                 st.rerun()
 
         # ==========================================
@@ -116,7 +118,12 @@ def render_sidebar():
 
             selected_sym = st.selectbox("เลือกหรือพิมพ์สัญลักษณ์", sym_list, key="sb_symbol_select")
 
-            if st.button("📈 เปิดกราฟสินทรัพย์นี้", use_container_width=True, key="sb_open_sym_btn"):
+            # เช็คว่ากดปุ่ม หรือสลับเลือกตัวใหม่ในเมนู ให้เปิดกราฟและสลับแท็บทันที
+            btn_clicked = st.button("📈 เปิดกราฟสินทรัพย์นี้", use_container_width=True, key="sb_open_sym_btn")
+            sym_changed = (selected_sym and selected_sym != st.session_state.get("current_symbol") and st.session_state.get("last_sb_choice") != selected_sym)
+
+            if btn_clicked or sym_changed:
+                st.session_state["last_sb_choice"] = selected_sym
                 st.session_state["current_symbol"] = selected_sym
                 st.session_state["app_mode"] = "chart"
                 if "open_tabs" not in st.session_state:
@@ -127,6 +134,10 @@ def render_sidebar():
                     new_id = uuid.uuid4().hex[:8]
                     st.session_state.open_tabs.append({"id": new_id, "symbol": selected_sym, "tf": st.session_state.get("selected_tf", "1h")})
                     st.session_state.active_tab_id = new_id
+                else:
+                    for t in st.session_state.open_tabs:
+                        if t.get("symbol") == selected_sym:
+                            st.session_state.active_tab_id = t.get("id")
                 st.rerun()
 
         st.divider()

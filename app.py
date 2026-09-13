@@ -14,7 +14,6 @@ import streamlit.components.v1 as components
 from ui.theme import apply_theme
 from ui.sidebar import render_sidebar
 from chart_builders import build_charts
-from ui.asset_tabs import asset_tab_bar, fetch_mini_ticker_data
 from config import *
 from data.rice_ohlcv import generate_rice_ohlcv
 from ui.rice_tab import show_rice_dialog_modal
@@ -490,6 +489,24 @@ def fetch_daily_history(market_type: str, exchange: str, symbol: str) -> pd.Data
 
 def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "", df: pd.DataFrame = None) -> dict:
     tk = {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0.0, "high": 0.0, "low": 0.0, "bid": 0.0, "ask": 0.0}
+    
+    # ดึงราคาจริงของกลุ่มสินค้าเกษตร/ราคาข้าว
+    if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
+        try:
+            r_df = generate_rice_ohlcv(symbol)
+            if r_df is not None and not r_df.empty:
+                last_p = float(r_df["close"].iloc[-1])
+                prev_p = float(r_df["close"].iloc[-2]) if len(r_df) >= 2 else last_p
+                chg = last_p - prev_p
+                pct = (chg / prev_p * 100.0) if prev_p != 0 else 0.0
+                return {
+                    "price": last_p, "change": chg, "pct": pct,
+                    "high": float(r_df["high"].max()), "low": float(r_df["low"].min()),
+                    "vol": float(r_df["volume"].iloc[-1]) if "volume" in r_df.columns else 0.0,
+                    "bid": last_p, "ask": last_p
+                }
+        except Exception: pass
+
     if ("THB" in symbol) or (exchange == "Bitkub"):
         try:
             r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=3.0)
@@ -526,6 +543,238 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
             })
     except Exception: pass
     return tk
+
+@st.cache_data(ttl=5, show_spinner=False)
+def fetch_cached_tab_quote(sym: str) -> dict:
+    try:
+        t = fetch_unified_ticker(symbol=sym)
+        if t and t.get("price", 0) > 0: return t
+    except Exception: pass
+    return {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0, "high": 0.0, "low": 0.0, "bid": 0.0, "ask": 0.0}
+
+def format_clean_tab_label(sym: str, q: dict) -> str:
+    if sym.startswith("RICE:"):
+        name = sym.replace("RICE:", "").replace("ข้าวเปลือก", "").replace("ข้าวสาร", "").strip()[:10]
+        ico = "🌾"
+    elif sym.startswith("FOB:"):
+        name = sym.replace("FOB:", "").strip()[:10]
+        ico = "🚢"
+    elif sym.endswith("_THB"):
+        name = f"{sym.replace('_THB', '')}/THB"
+        ico = "₿"
+    elif sym.endswith("USDT"):
+        name = f"{sym.replace('USDT', '')}/USDT"
+        ico = "₿"
+    elif sym.endswith(".BK"):
+        name = sym.replace(".BK", "")
+        ico = "🇹🇭"
+    elif sym == "GC=F":
+        name = "Gold"
+        ico = "🪙"
+    elif sym == "CL=F":
+        name = "Oil"
+        ico = "🛢️"
+    else:
+        name = sym[:10]
+        ico = "📈"
+
+    p = q.get("price", 0.0)
+    pct = q.get("pct", 0.0)
+    if p > 0:
+        p_str = f"{p:,.0f}" if p >= 1000 else (f"{p:,.2f}" if p >= 1 else f"{p:,.4f}")
+        return f"{ico} {name}  {p_str} ({pct:+.2f}%)"
+    return f"{ico} {name}  --"
+
+# ────────────────── TRADINGVIEW CYBER GLOW TAB COMPONENT ──────────────────
+def render_tradingview_clean_tabs():
+    st.markdown("""
+    <style>
+    /* ลดช่องว่างระหว่างคอลัมน์ของแท็บให้ชิดสนิทกัน */
+    div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-tv_tab_"]) {
+        gap: 0px !important;
+        align-items: center !important;
+        margin-bottom: 6px !important;
+    }
+
+    /* 1. ปุ่มแท็บหลัก (ชิดพอดีตัวหนังสือ + ขอบเรืองแสงเขียวนีออน) */
+    div[class*="st-key-tv_tab_"] button {
+        height: 30px !important;
+        min-height: 30px !important;
+        border-top-right-radius: 0px !important;
+        border-bottom-right-radius: 0px !important;
+        border-right: none !important;
+        padding: 0 10px !important;
+        font-size: 11.5px !important;
+        font-weight: 600 !important;
+        text-align: left !important;
+        justify-content: flex-start !important;
+        white-space: nowrap !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* 2. ปุ่มปิด X (เชื่อมไร้รอยต่อกับแท็บหลัก) */
+    div[class*="st-key-tv_close_"] button {
+        height: 30px !important;
+        min-height: 30px !important;
+        border-top-left-radius: 0px !important;
+        border-bottom-left-radius: 0px !important;
+        border-left: none !important;
+        padding: 0 8px 0 2px !important;
+        font-size: 11px !important;
+        color: #787b86 !important;
+        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    }
+
+    /* 3. สถานะแท็บที่เลือกใช้งาน (Active) - ขอบนีออนเขียวสว่าง + เงาเรืองแสง */
+    div[class*="st-key-tv_tab_"] button[kind="primary"] {
+        background: rgba(0, 255, 163, 0.08) !important;
+        border: 1px solid #00FFA3 !important;
+        border-right: none !important;
+        color: #ffffff !important;
+        box-shadow: -2px 0 8px rgba(0, 255, 163, 0.35), 0 -2px 8px rgba(0, 255, 163, 0.35), 0 2px 8px rgba(0, 255, 163, 0.35) !important;
+    }
+    div[class*="st-key-tv_close_"] button[kind="primary"] {
+        background: rgba(0, 255, 163, 0.08) !important;
+        border: 1px solid #00FFA3 !important;
+        border-left: none !important;
+        box-shadow: 2px 0 8px rgba(0, 255, 163, 0.35), 0 -2px 8px rgba(0, 255, 163, 0.35), 0 2px 8px rgba(0, 255, 163, 0.35) !important;
+    }
+
+    /* 4. สถานะแท็บรอง (Inactive) - ขอบเขียวนีออนโปร่งแสงจาง ๆ */
+    div[class*="st-key-tv_tab_"] button[kind="secondary"] {
+        background: #0E1117 !important;
+        border: 1px solid rgba(0, 255, 163, 0.25) !important;
+        border-right: none !important;
+        color: #8F9CAE !important;
+        box-shadow: 0 0 4px rgba(0, 255, 163, 0.08) !important;
+    }
+    div[class*="st-key-tv_close_"] button[kind="secondary"] {
+        background: #0E1117 !important;
+        border: 1px solid rgba(0, 255, 163, 0.25) !important;
+        border-left: none !important;
+        box-shadow: 0 0 4px rgba(0, 255, 163, 0.08) !important;
+    }
+
+    /* 5. เอฟเฟกต์นำเมาส์ไปชี้ (Hover) - สีเขียวเรืองแสงแบบโปร่งแสงทั้งอัน */
+    div[class*="st-key-tv_tab_"] button:hover {
+        background: rgba(0, 255, 163, 0.18) !important;
+        border-color: #00FFA3 !important;
+        color: #ffffff !important;
+        box-shadow: 0 0 14px rgba(0, 255, 163, 0.55), inset 0 0 8px rgba(0, 255, 163, 0.2) !important;
+    }
+    div[class*="st-key-tv_close_"] button:hover {
+        background: rgba(239, 83, 80, 0.25) !important;
+        border-color: #ef5350 !important;
+        color: #ff5f56 !important;
+        box-shadow: 0 0 12px rgba(239, 83, 80, 0.5) !important;
+    }
+
+    /* 6. ปุ่มเพิ่มแท็บใหม่ (+) */
+    div[class*="st-key-tv_add_btn"] button {
+        height: 30px !important;
+        min-height: 30px !important;
+        width: 30px !important;
+        background: #0E1117 !important;
+        border: 1px solid rgba(0, 255, 163, 0.25) !important;
+        border-radius: 4px !important;
+        color: #787b86 !important;
+        font-size: 14px !important;
+        padding: 0 !important;
+        margin-left: 6px !important;
+        transition: all 0.2s ease !important;
+    }
+    div[class*="st-key-tv_add_btn"] button:hover {
+        background: rgba(0, 255, 163, 0.18) !important;
+        border-color: #00FFA3 !important;
+        color: #00FFA3 !important;
+        box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    tabs = st.session_state.get("open_tabs", [])
+    if not tabs:
+        init_tabs()
+        tabs = st.session_state.get("open_tabs", [])
+
+    active_id = st.session_state.get("active_tab_id")
+
+    tab_items = []
+    total_content_w = 0.0
+
+    for t in tabs:
+        sym = t["symbol"]
+        if sym == "GC=F":
+            badge, name = "🟡", "GOLD"
+        elif sym == "CL=F":
+            badge, name = "🛢️", "OIL"
+        elif sym.startswith("RICE:"):
+            badge = "🌾"
+            name = sym.replace("RICE:", "").replace("ข้าวเปลือก", "").replace("ข้าวสาร", "").strip()[:8]
+        elif sym.startswith("FOB:"):
+            badge, name = "🚢", sym.replace("FOB:", "").strip()[:8]
+        elif sym.endswith("_THB"):
+            badge, name = "💠", sym.replace("_THB", "THB")
+        elif sym.endswith("USDT"):
+            badge, name = "🟡", sym
+        elif sym.endswith(".BK"):
+            badge, name = "🇹🇭", sym.replace(".BK", "")
+        else:
+            badge, name = "📈", sym[:8]
+
+        q = fetch_cached_tab_quote(sym)
+        p = q.get("price", 0.0)
+        pct = q.get("pct", 0.0)
+
+        if p > 0:
+            p_str = f"{p:,.3f}" if p < 100 else f"{p:,.2f}"
+            if p >= 10000:
+                p_str = f"{p:,.0f}"
+
+            if pct < 0:
+                label = f"{badge} {name}  :red[▼ {p_str} {pct:.2f}%]"
+            elif pct > 0:
+                label = f"{badge} {name}  :green[▲ {p_str} +{pct:.2f}%]"
+            else:
+                label = f"{badge} {name}  {p_str} 0.00%"
+        else:
+            label = f"{badge} {name}  --"
+
+        calc_w = max(1.1, len(f"{name} {p_str if p > 0 else '--'}") * 0.09)
+        tab_items.append({"id": t["id"], "symbol": sym, "label": label, "width": calc_w})
+        total_content_w += (calc_w + 0.22)
+
+    col_specs = []
+    for item in tab_items:
+        col_specs.extend([item["width"], 0.22])
+    col_specs.append(0.28)
+    col_specs.append(max(1.0, 18.0 - total_content_w))
+
+    cols = st.columns(col_specs)
+    col_idx = 0
+
+    for item in tab_items:
+        t_id = item["id"]
+        sym = item["symbol"]
+        is_active = (t_id == active_id)
+        b_type = "primary" if is_active else "secondary"
+
+        with cols[col_idx]:
+            if st.button(item["label"], key=f"tv_tab_{t_id}", type=b_type, use_container_width=True):
+                switch_tab(t_id)
+        col_idx += 1
+
+        with cols[col_idx]:
+            if st.button("✕", key=f"tv_close_{t_id}", type=b_type, help=f"ปิด {sym}", use_container_width=True):
+                close_tab(t_id)
+        col_idx += 1
+
+    with cols[col_idx]:
+        if st.button("＋", key="tv_add_btn", help="เพิ่มแท็บใหม่"):
+            add_tab("BTCUSDT")
+
+    active_tab = _find_tab(active_id)
+    return active_tab["symbol"] if active_tab else st.session_state.get("current_symbol", "BTC_THB")
 
 def fetch_item_quote(sym: str) -> dict:
     try:
@@ -774,26 +1023,26 @@ def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_displ
 
 # ──────────────────────────── DASHBOARD (MAIN) ────────────────────────────
 def dashboard():
-    # 1. แถบควบคุมบนสุด (Timeframe / Bars)
-    if app_config.get("show_top_bar", True):
-        tf, bars, fill_gaps, auto, every, reload_btn = render_top_toolbar()
-    else:
-        tf = st.session_state.get("selected_tf", "1h")
-        bars = st.session_state.get("bars_count", 2500)
-        fill_gaps = st.session_state.get("fill_gaps", False)
+    # กำหนดค่าเริ่มต้นเสมอ ป้องกัน UnboundLocalError เมื่อแถบควบคุมด้านบนถูกปิด
+    tf = st.session_state.get("selected_tf", "1h")
+    bars = int(st.session_state.get("bars_count", 2500))
+    fill_gaps = bool(st.session_state.get("fill_gaps", False))
 
-    symbol = st.session_state.get("current_symbol", "BTC_THB")
-    tabs_data = st.session_state.get("open_tabs", [])
-    SYMBOLS = [t.get("symbol") for t in tabs_data if t.get("symbol")] or [symbol]
-    if symbol not in SYMBOLS: SYMBOLS.insert(0, symbol)
+    # 1. เรนเดอร์แท็บ TradingView Pro (อยู่บนสุด)
+    symbol = render_tradingview_clean_tabs()
 
-    active_symbol = asset_tab_bar(SYMBOLS, state_key="current_symbol")
-    symbol = active_symbol or symbol
-
-# บังคับสินค้าเกษตร/ข้าว ให้เป็น Timeframe 1D เสมอ
+    # 2. บังคับ Timeframe 1D สำหรับสินค้าเกษตร/ข้าว
     if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
         tf = "1D"
-        
+
+    # 3. แถบควบคุม Timeframe / Bars (แสดงใต้แท็บ เมื่อเปิดสวิตช์)
+    if app_config.get("show_top_bar", True):
+        tb_tf, tb_bars, tb_fill, auto, every, reload_btn = render_top_toolbar()
+        bars = tb_bars
+        fill_gaps = tb_fill
+        if not (symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)"):
+            tf = tb_tf
+
     r_market, r_exchange = resolve_route(symbol)
     label_display = route_label(r_market, r_exchange)
     state_key = f"{r_market}_{r_exchange}_{symbol}_{tf}_{bars}_{fill_gaps}"
@@ -856,7 +1105,7 @@ def dashboard():
     chart_dyn_key = f"c_{symbol}_{tf}_{st.session_state.get('active_tab_id', '0')}"
     show_tb = app_config.get("show_draw_toolbar", True)
 
-    # 2. การจัดวางหน้าจอ (Desktop vs Mobile)
+    # 3. การจัดวางหน้าจอ (Chart vs Quote Panel)
     panel_ratios = {"S": [4.25, 0.75], "M": [3.85, 1.15], "L": [3.40, 1.60]}
     p_open = st.session_state.get("panel_open", True)
     p_size = st.session_state.get("panel_size", "M")
@@ -877,7 +1126,7 @@ def dashboard():
                 st.session_state["panel_open"] = True
                 st.rerun()
 
-    # 3. แผงควบคุมฝั่งขวา + ปุ่มกลม Mac 3 สี + ปุ่มขยายเต็มจอ
+    # 4. แผงควบคุมฝั่งขวา + ปุ่ม Mac 3 สี
     if p_open and col_quote:
         with col_quote:
             st.markdown("""
