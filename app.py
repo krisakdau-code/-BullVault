@@ -11,8 +11,9 @@ import pandas as pd
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
+from ui.theme import apply_theme
+from ui.sidebar import render_sidebar
 from chart_builders import build_charts
-from ui.dock_menu import render_dock_menu
 from ui.asset_tabs import asset_tab_bar, fetch_mini_ticker_data
 from config import *
 from drawing_chart import render_drawing_chart
@@ -76,155 +77,18 @@ st.set_page_config(
     page_icon="💎",
     layout="wide",
     initial_sidebar_state="expanded"
+
 )
+apply_theme()
 
-st.markdown("""
-<style>
-    .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {
-        background-color: #000000 !important;
-    }
-    
-    header[data-testid="stHeader"], .stAppHeader {
-        display: none !important;
-        height: 0px !important;
-        pointer-events: none !important;
-    }
-    
-    /* บังคับแสดงปุ่มลูกศรเปิด/ปิด Sidebar ฝั่งซ้าย */
-    [data-testid="stSidebarCollapseButton"] {
-        display: flex !important;
-        visibility: visible !important;
-        color: #FFFFFF !important;
-    }
-    
-    [data-testid="stToolbar"] {
-        right: 1.5rem !important;
-        top: 0.4rem !important;
-        z-index: 999 !important;
-        display: flex !important;
-        visibility: visible !important;
-    }
-    .stDeployButton, #MainMenu {
-        display: inline-block !important;
-        visibility: visible !important;
-    }
-    footer, [data-testid="stDecoration"] {
-        display: none !important;
-    }
-
-    .block-container,
-    [data-testid="stAppViewBlockContainer"],
-    [data-testid="stMainBlockContainer"],
-    [data-testid="block-container"] {
-        padding-top: 0.5rem !important;
-        padding-bottom: 0.5rem !important;
-        padding-left: 0px !important;
-        padding-right: 0px !important;
-        margin-left: 0px !important;
-        margin-right: 0px !important;
-        max-width: 100% !important;
-        width: 100% !important;
-    }
-
-    /* ปิดระยะห่าง gap อัตโนมัติระหว่างบล็อกแนวตั้งทั้งหมด */
-    div[data-testid="stVerticalBlock"],
-    div.st-emotion-cache-q25c81,
-    div.st-emotion-cache-1ndxyp5 {
-        gap: 0px !important;
-    }
-
-    /* ซ่อน Container ที่ว่างเปล่า และบีบระยะห่างส่วนเกิน */
-    div.stElementContainer:has(div.st-emotion-cache-1t7xbyr:empty),
-    div[data-testid="stMarkdownContainer"]:empty {
-        display: none !important;
-        height: 0px !important;
-        margin: 0px !important;
-        padding: 0px !important;
-    }
-
-    /* บังคับให้คอลัมน์แนบชิดกันสนิท ไร้ช่องว่าง */
-    div[data-testid="stHorizontalBlock"] { 
-        gap: 0px !important; 
-        align-items: flex-start !important; 
-    }
-    div[data-testid="column"] { padding: 0 0px !important; }
-
-    [data-testid="stSidebar"] {
-        background-color: #050505 !important;
-        border-right: 1px solid #1E1E1E !important;
-    }
-    [data-testid="stSidebarContent"] {
-        background-color: #050505 !important;
-        padding-left: 0.5rem !important; padding-right: 0.5rem !important;
-        padding-top: 0.2rem !important; max-height: 100vh !important;
-        overflow-y: auto !important; overflow-x: hidden !important;
-    }
-    [data-testid="stSidebarUserContent"] {
-        padding-top: 0rem !important;
-    }
-    [data-testid="stSidebar"] h3 {
-        margin-top: -10px !important;
-        margin-bottom: 8px !important;
-        font-size: 15px !important;
-    }
-
-    .stButton>button {
-        background: #101010 !important; color: #D1D4DC !important;
-        border: 1px solid #2A2A2A !important; border-radius: 4px !important;
-        padding: 2px 4px !important; font-size: 11px !important; font-weight: 500 !important;
-        min-height: 24px !important; height: 24px !important; line-height: 1 !important;
-    }
-    .stButton>button:hover { border-color: #2962FF !important; color: #FFFFFF !important; background: #1A1A1A !important; }
-
-    div[data-testid="stExpander"], .stExpander details {
-        border: 1px solid #1E1E1E !important; border-radius: 4px !important;
-        background: #0A0A0A !important; margin-bottom: 4px;
-    }
-    div[data-testid="stExpander"] summary { padding: 3px 8px !important; font-size: 11px !important; }
-    div[data-testid="stExpander"] summary p { font-size: 11px !important; font-weight: 600 !important; }
-    div[data-testid="stExpander"] div[data-testid="stExpanderDetails"] { padding: 4px 6px !important; background-color: #0A0A0A !important; }
-
-    input, select, textarea, .stTextInput input, .stSelectbox div[data-baseweb="select"] > div,
-    .stNumberInput input {
-        background-color: #0D0D0D !important; color: #D1D4DC !important; border: 1px solid #222222 !important;
-    }
-
-    .stTabs [data-baseweb="tab-list"] { gap: 2px; background-color: #000000 !important; padding: 2px; border-radius: 4px; border-bottom: 1px solid #1E1E1E !important; }
-    .stTabs [data-baseweb="tab"] { padding: 2px 6px !important; font-size: 11px !important; height: 24px !important; }
-
-    div[data-testid="stRadio"] > div {
-        display: flex; flex-direction: row; flex-wrap: wrap; gap: 4px;
-    }
-    div[data-testid="stRadio"] label {
-        background: #0A0A0A; border: 1px solid #222222; border-radius: 4px;
-        padding: 2px 6px; font-size: 10px; cursor: pointer; color: #9aa0a6;
-    }
-    div[data-testid="stRadio"] label:hover {
-        border-color: #2962FF; color: #fff;
-    }
-
-    .tv-wl-header {
-        display: grid; grid-template-columns: 0.4fr 0.6fr 1.6fr 1.3fr 1.1fr 1.1fr 0.4fr;
-        padding: 4px 2px; font-size: 10px; font-weight: 600; color: #787b86;
-        border-bottom: 1px solid #1E1E1E; margin-bottom: 4px;
-    }
-
-    .scrollable-market-card {
-        max-height: 72vh;
-        overflow-y: auto !important;
-        overflow-x: hidden !important;
-        padding-right: 3px;
-    }
-    .scrollable-market-card::-webkit-scrollbar { width: 4px; }
-    .scrollable-market-card::-webkit-scrollbar-thumb { background: #262626; border-radius: 2px; }
-</style>
-""", unsafe_allow_html=True)
+# ----------------------- PANEL STATE MANAGEMENT -----------------------
 
 # ────────────────────────── PANEL STATE MANAGEMENT ──────────────────────────
 if "panel_open" not in st.session_state:
     st.session_state["panel_open"] = True
 if "panel_size" not in st.session_state:
     st.session_state["panel_size"] = "M"
+    render_sidebar()
 
 GLOBAL_MARKET = "🌐 Global (Yahoo)"
 
@@ -1096,20 +960,8 @@ def render_neon_clock():
 
 # ──────────────────────────── SIDEBAR ────────────────────────────
 with st.sidebar:
-    render_neon_clock()
+    render_sidebar()
 
-    st.toggle(
-        "แสดงแถบควบคุมด้านบน (TF/แท่ง)",
-        value=st.session_state.get("show_toolbar", True),
-        key="show_toolbar"
-    )
-    st.toggle(
-        "แสดงแถบเครื่องมือวาดบนกราฟ",
-        value=st.session_state.get("show_drawing_tools", True),
-        key="show_drawing_tools"
-    )
-
-    render_dock_menu()
 
 # ──────────────────────────── LIVE TOP BAR FRAGMENT ────────────────────────────
 @st.fragment(run_every=2)
