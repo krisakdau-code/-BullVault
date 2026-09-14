@@ -1,4 +1,4 @@
-# drawing_chart.py — Multi-Pane Anchored Drawing Terminal (Vector Engine with Smart Eraser)
+# drawing_chart.py — Multi-Pane Anchored Drawing Terminal (Floating Header, Top-Left Legend & Price Lines Support)
 import json
 import streamlit.components.v1 as components
 
@@ -10,18 +10,20 @@ def render_drawing_chart(
 ):
     if not charts_config:
         return
-# คำนวณความสูงอัตโนมัติ: หากปิด Sub-pane ให้ขยายความสูงกราฟหลักขึ้นมาทดแทน
+
+    # คำนวณความสูง: ไม่มีแถบ Header 26px มาแย่งพื้นที่อีกต่อไป
     if len(charts_config) == 1:
         charts_config[0]["chart"]["height"] = 650
-        real_total_h = 680
+        real_total_h = 660
     elif len(charts_config) == 2:
         charts_config[0]["chart"]["height"] = 540
-        real_total_h = 540 + int(charts_config[1].get("chart", {}).get("height", 130)) + 36
+        real_total_h = 540 + int(charts_config[1].get("chart", {}).get("height", 140)) + 10
     else:
         real_total_h = 0
         for c in charts_config:
-            real_total_h += int(c.get("chart", {}).get("height", 130)) + 6
-        real_total_h += 30
+            real_total_h += int(c.get("chart", {}).get("height", 130))
+        _n_sub = max(0, len(charts_config) - 1)
+        real_total_h += (_n_sub * 6) + 20
 
     chart_json = json.dumps(charts_config)
     toolbar_display = "flex" if show_toolbar else "none"
@@ -48,7 +50,6 @@ def render_drawing_chart(
                 width: 100%;
                 display: flex;
                 flex-direction: column;
-                gap: 2px;
                 background: #000000;
             }}
             #main-pane-container {{
@@ -68,7 +69,100 @@ def render_drawing_chart(
                 z-index: 5;
                 pointer-events: none;
             }}
-            
+
+            /* ─── 1. ป้ายสถานะราคาและเหรียญมุมซ้ายบน (วงสีเขียว) ─── */
+            .chart-legend {{
+                position: absolute;
+                top: 8px;
+                left: 52px;
+                z-index: 12;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12px;
+                background: rgba(19, 23, 34, 0.75);
+                backdrop-filter: blur(6px);
+                border: 1px solid rgba(42, 46, 57, 0.8);
+                padding: 3px 10px;
+                border-radius: 6px;
+                pointer-events: none;
+                user-select: none;
+            }}
+            .legend-symbol {{ font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }}
+            .legend-badge {{ font-size: 10px; background: rgba(0, 255, 163, 0.15); color: #00FFA3; padding: 1px 5px; border-radius: 3px; font-weight: 700; }}
+            .legend-price {{ font-weight: 800; font-family: 'Roboto Mono', monospace; font-size: 13px; }}
+            .legend-change {{ font-weight: 700; font-size: 11px; }}
+            .legend-ohlc {{ color: #787b86; font-size: 11px; margin-left: 6px; font-family: 'Roboto Mono', monospace; }}
+
+            /* ─── 2. ปุ่มควบคุมลอยมุมขวาบนของแต่ละกราฟ (วงสีแดง) ─── */
+            .pane-box {{
+                display: flex;
+                flex-direction: column;
+                width: 100%;
+                overflow: hidden;
+                position: relative;
+            }}
+            .pane-header {{
+                position: absolute;
+                top: 6px;
+                right: 62px;
+                height: 24px;
+                background: rgba(19, 23, 34, 0.7);
+                backdrop-filter: blur(4px);
+                border: 1px solid rgba(42, 46, 57, 0.6);
+                border-radius: 5px;
+                display: flex;
+                align-items: center;
+                padding: 0 4px;
+                z-index: 20;
+                user-select: none;
+                opacity: 0.6;
+                transition: opacity 0.2s ease;
+            }}
+            .pane-header:hover {{
+                opacity: 1;
+                border-color: #00FFA3;
+                box-shadow: 0 0 8px rgba(0, 255, 163, 0.2);
+            }}
+            .pane-title {{ display: none; }}
+            .pane-actions {{ display: flex; gap: 3px; }}
+            .pane-btn {{
+                background: transparent;
+                border: none;
+                color: #787b86;
+                font-size: 12px;
+                line-height: 1;
+                cursor: pointer;
+                padding: 3px 5px;
+                border-radius: 3px;
+                transition: all 0.15s ease;
+            }}
+            .pane-btn:hover {{ background: rgba(0, 255, 163, 0.15); color: #00FFA3; }}
+            .pane-btn.off {{ color: #3a3f4b; }}
+            .pane-btn-x:hover {{ background: rgba(239, 83, 80, 0.2); color: #ef5350; }}
+
+            /* ─── 3. เส้นคั่นยืดหด (Splitter Bar) ─── */
+            .splitter-bar {{
+                height: 5px;
+                min-height: 5px;
+                flex: 0 0 5px;
+                background: #141722;
+                cursor: ns-resize;
+                position: relative;
+                z-index: 25;
+                transition: background 0.15s;
+            }}
+            .splitter-bar:hover, .splitter-bar.dragging {{
+                background: #00FFA3;
+                box-shadow: 0 0 10px rgba(0, 255, 163, 0.8);
+            }}
+            .pane-box .chart-view {{
+                flex: 1 1 auto;
+                min-height: 0;
+                width: 100%;
+                height: 100%;
+            }}
+
             /* แถบเครื่องมือ TradingView ชิดขอบซ้าย */
             .draw-toolbar {{
                 position: absolute;
@@ -86,104 +180,47 @@ def render_drawing_chart(
                 box-shadow: 0 4px 16px rgba(0,0,0,0.7);
                 user-select: none;
             }}
-   .drag-handle {{
-                width: 100%;
-                height: 14px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: grab;
-                color: #787b86;
-                font-size: 13px;
-                font-weight: bold;
-                letter-spacing: 2px;
-                user-select: none;
-                margin-bottom: 2px;
-                border-radius: 3px;
-                transition: background 0.15s ease;
+            .drag-handle {{
+                width: 100%; height: 14px; display: flex; align-items: center; justify-content: center;
+                cursor: grab; color: #787b86; font-size: 13px; font-weight: bold; letter-spacing: 2px;
+                user-select: none; margin-bottom: 2px; border-radius: 3px; transition: background 0.15s ease;
             }}
-            .drag-handle:hover {{
-                background: #2a2e39;
-                color: #2962ff;
-            }}
-            .drag-handle:active {{
-                cursor: grabbing;
-            }}
+            .drag-handle:hover {{ background: #2a2e39; color: #00FFA3; }}
+            .drag-handle:active {{ cursor: grabbing; }}
             .tool-btn {{
-                width: 32px;
-                height: 32px;
-                background: transparent;
-                border: 1px solid transparent;
-                border-radius: 4px;
-                color: #b2b5be;
-                font-size: 15px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                transition: all 0.15s ease;
+                width: 32px; height: 32px; background: transparent; border: 1px solid transparent;
+                border-radius: 4px; color: #b2b5be; font-size: 15px; display: flex; align-items: center;
+                justify-content: center; cursor: pointer; transition: all 0.15s ease;
             }}
-            .tool-btn:hover {{
-                background: #2a2e39;
-                color: #ffffff;
-            }}
+            .tool-btn:hover {{ background: #2a2e39; color: #ffffff; }}
             .tool-btn.active {{
-                background: #2962ff;
-                border-color: #2962ff;
-                color: #ffffff;
-                box-shadow: 0 0 8px rgba(41,98,255,0.5);
+                background: rgba(0, 255, 163, 0.15); border-color: #00FFA3; color: #00FFA3;
+                box-shadow: 0 0 8px rgba(0, 255, 163, 0.3);
             }}
             .tool-btn.eraser-active {{
-                background: #f23645 !important;
-                border-color: #f23645 !important;
-                color: #ffffff !important;
-                box-shadow: 0 0 8px rgba(242,54,69,0.5) !important;
+                background: #f23645 !important; border-color: #f23645 !important;
+                color: #ffffff !important; box-shadow: 0 0 8px rgba(242,54,69,0.5) !important;
             }}
             .tool-btn.danger-active {{
-                background: rgba(242, 54, 69, 0.3) !important;
-                color: #f23645 !important;
-                border-color: #f23645 !important;
-                box-shadow: 0 0 8px rgba(242, 54, 69, 0.5) !important;
+                background: rgba(242, 54, 69, 0.3) !important; color: #f23645 !important;
+                border-color: #f23645 !important; box-shadow: 0 0 8px rgba(242, 54, 69, 0.5) !important;
             }}
-            .tool-btn.danger-btn:hover {{
-                background: rgba(242, 54, 69, 0.25);
-                color: #f23645;
-            }}
-            .tool-sep {{
-                width: 22px;
-                height: 1px;
-                background: #2a2e39;
-                margin: 2px auto;
-            }}
-            .sub-pane {{
-                width: 100%;
-                background: #000000;
-            }}
+            .tool-btn.danger-btn:hover {{ background: rgba(242, 54, 69, 0.25); color: #f23645; }}
+            .tool-sep {{ width: 22px; height: 1px; background: #2a2e39; margin: 2px auto; }}
+            .sub-pane {{ width: 100%; background: #000000; }}
             #text-overlay-box {{
-                display: none;
-                position: absolute;
-                z-index: 30;
-                background: #1e222d;
-                border: 1px solid #2962ff;
-                border-radius: 4px;
-                padding: 4px;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+                display: none; position: absolute; z-index: 30; background: #1e222d;
+                border: 1px solid #00FFA3; border-radius: 4px; padding: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
             }}
             #text-overlay-box input {{
-                background: transparent;
-                border: none;
-                outline: none;
-                color: #ffffff;
-                font-size: 13px;
-                width: 140px;
-                font-family: inherit;
+                background: transparent; border: none; outline: none; color: #ffffff;
+                font-size: 13px; width: 140px; font-family: inherit;
             }}
         </style>
     </head>
     <body>
         <div id="container">
             <div id="main-pane-container">
-                <!-- แถบเครื่องมือแนวตั้งชิดขอบซ้าย -->
                 <div class="draw-toolbar" id="main-draw-toolbar">
                     <div class="drag-handle" id="tb-drag-handle" title="คลิกค้างเพื่อลากย้าย">⋮⋮</div>
                     <button class="tool-btn active" id="btn-cursor" title="↖ เคอร์เซอร์ / เลือกวัตถุเพื่อขยับหรือลบ (V)">↖</button>
@@ -200,6 +237,14 @@ def render_drawing_chart(
                     <button class="tool-btn danger-btn" id="btn-delete-selected" title="ลบวัตถุที่เลือก (Delete Key)">🗑️</button>
                     <button class="tool-btn" id="btn-undo" title="ย้อนกลับ (Undo)">↩</button>
                     <button class="tool-btn danger-btn" id="btn-clear" title="ล้างทั้งหมด">💥</button>
+                </div>
+
+                <div class="chart-legend" id="main-chart-legend">
+                    <span class="legend-symbol" id="leg-symbol">BTCUSDT</span>
+                    <span class="legend-badge">Binance</span>
+                    <span class="legend-price" id="leg-price">--</span>
+                    <span class="legend-change" id="leg-change">--</span>
+                    <span class="legend-ohlc" id="leg-ohlc"></span>
                 </div>
 
                 <div id="chart-main"></div>
@@ -261,10 +306,31 @@ def render_drawing_chart(
                     }}
                     if (series && s.data) series.setData(s.data);
                     if (series && s.markers) series.setMarkers(s.markers);
+
+                    // อัปเดตราคาป้าย Legend ตามแท่งล่าสุด
+                    if (series && s.type === "Candlestick" && s.data && s.data.length > 0) {{
+                        const lastBar = s.data[s.data.length - 1];
+                        const prevBar = s.data.length > 1 ? s.data[s.data.length - 2] : lastBar;
+                        const diff = lastBar.close - prevBar.close;
+                        const pct = (diff / prevBar.close) * 100;
+                        const isUp = diff >= 0;
+                        const color = isUp ? '#089981' : '#F23645';
+
+                        const pEl = document.getElementById('leg-price');
+                        const cEl = document.getElementById('leg-change');
+                        if (pEl) {{
+                            pEl.textContent = lastBar.close.toLocaleString('en-US', {{minimumFractionDigits: 2}});
+                            pEl.style.color = color;
+                        }}
+                        if (cEl) {{
+                            cEl.textContent = (isUp ? '+' : '') + pct.toFixed(2) + '%';
+                            cEl.style.color = color;
+                        }}
+                    }}
                 }});
             }}
 
-            // 2. สร้าง Sub-panes (RSI, MACD)
+            // 2. สร้าง Sub-panes (RSI, MACD) พร้อมรองรับเส้นโซน PriceLines
             const subPanesDiv = document.getElementById('sub-panes');
             subConfigs.forEach((subConf) => {{
                 const paneH = subConf.chart?.height || 120;
@@ -290,10 +356,34 @@ def render_drawing_chart(
                         if (s.type === "Line") series = subChart.addLineSeries(opts);
                         else if (s.type === "Histogram") series = subChart.addHistogramSeries(opts);
                         else if (s.type === "Candlestick") series = subChart.addCandlestickSeries(opts);
+                        
                         if (series && s.data) series.setData(s.data);
+
+                        // วาดเส้นระดับโซน (Upper/Middle/Lower Bands)
+                        if (series && s.priceLines && Array.isArray(s.priceLines)) {{
+                            s.priceLines.forEach(pl => {{
+                                try {{ series.createPriceLine(pl); }} catch(e) {{}}
+                            }});
+                        }}
                     }});
                 }}
             }});
+
+            // ── ระบบ Crosshair สำหรับ Legend มุมซ้ายบน ──
+            if (mainChart && mainSeries) {{
+                mainChart.subscribeCrosshairMove(param => {{
+                    const ohlcEl = document.getElementById('leg-ohlc');
+                    if (!ohlcEl) return;
+                    if (!param || !param.time || !param.seriesData.has(mainSeries)) {{
+                        ohlcEl.textContent = '';
+                        return;
+                    }}
+                    const d = param.seriesData.get(mainSeries);
+                    if (d.open !== undefined) {{
+                        ohlcEl.textContent = `O: ${{d.open.toFixed(2)}}  H: ${{d.high.toFixed(2)}}  L: ${{d.low.toFixed(2)}}  C: ${{d.close.toFixed(2)}}`;
+                    }}
+                }});
+            }}
 
             // --- ระบบลากย้ายแถบเครื่องมืออิสระ (Draggable Toolbar) ---
             const toolbar = document.getElementById('main-draw-toolbar');
@@ -314,13 +404,10 @@ def render_drawing_chart(
                 if (!isTbDragging) return;
                 let newX = e.clientX - tbOffsetX;
                 let newY = e.clientY - tbOffsetY;
-
-                // ล็อกขอบเขตไม่ให้ลากหลุดจอกราฟ
                 const maxX = mainPaneBox.clientWidth - toolbar.offsetWidth - 6;
                 const maxY = mainPaneBox.clientHeight - toolbar.offsetHeight - 6;
                 newX = Math.max(6, Math.min(newX, maxX));
                 newY = Math.max(6, Math.min(newY, maxY));
-
                 toolbar.style.left = newX + 'px';
                 toolbar.style.top = newY + 'px';
             }});
@@ -331,6 +418,7 @@ def render_drawing_chart(
                     dragHandle.style.cursor = 'grab';
                 }}
             }});
+
             // 3. ซิงค์แกนเวลาระหว่างกราฟ
             let isSyncing = false;
             allCharts.forEach((c, idx) => {{
@@ -429,7 +517,6 @@ def render_drawing_chart(
                 if (selectedIdx >= 0 && selectedIdx < drawings.length) {{
                     deleteSelected();
                 }} else {{
-                    // หากยังไม่ได้เลือกเส้น ให้เปิดโหมดยางลบเจาะจงทันที
                     setTool('eraser');
                 }}
             }});
@@ -489,7 +576,6 @@ def render_drawing_chart(
 
             function hitTest(x, y) {{
                 if (!mainSeries) return {{ idx: -1, handle: null }};
-                
                 if (selectedIdx !== -1 && drawings[selectedIdx]) {{
                     const d = drawings[selectedIdx];
                     const pts = getScreenCoords(d);
@@ -551,7 +637,6 @@ def render_drawing_chart(
                 return {{ idx: -1, handle: null }};
             }}
 
-            // ระบบ Smart Hover: ตรวจสอบเมาส์ชี้โดนวัตถุเพื่อเปิด-ปิดการสัมผัสแบบไดนามิก
             mainPaneBox.addEventListener('mousemove', (e) => {{
                 if (isDragging || isDrawing) return;
                 const rect = canvas.getBoundingClientRect();
@@ -577,7 +662,6 @@ def render_drawing_chart(
                 const mouseX = e.clientX - rect.left;
                 const mouseY = e.clientY - rect.top;
 
-                // 1. โหมดยางลบเจาะจง: จิ้มตัวไหน ลบตัวนั้นทันที
                 if (currentTool === 'eraser') {{
                     const hit = hitTest(mouseX, mouseY);
                     if (hit.idx !== -1) {{
@@ -589,7 +673,6 @@ def render_drawing_chart(
                     return;
                 }}
 
-                // 2. โหมดเคอร์เซอร์: คลิกเลือกวัตถุ
                 if (currentTool === 'cursor') {{
                     const hit = hitTest(mouseX, mouseY);
                     if (hit.idx !== -1) {{
@@ -736,7 +819,7 @@ def render_drawing_chart(
                             t2: t2 || 0,
                             p2: p2 !== null ? p2 : p1,
                             fixedY: startPx.y,
-                            color: '#2962ff'
+                            color: '#00FFA3'
                         }});
                         saveAndRedraw();
                     }}
@@ -747,7 +830,7 @@ def render_drawing_chart(
             function drawPreview() {{
                 if (!startPx || !currentPx) return;
                 ctx.save();
-                ctx.strokeStyle = '#2962ff';
+                ctx.strokeStyle = '#00FFA3';
                 ctx.lineWidth = 2;
                 ctx.setLineDash([4, 4]);
 
@@ -764,7 +847,7 @@ def render_drawing_chart(
                 }} else if (currentTool === 'box') {{
                     const w = currentPx.x - startPx.x;
                     const h = currentPx.y - startPx.y;
-                    ctx.fillStyle = 'rgba(41, 98, 255, 0.15)';
+                    ctx.fillStyle = 'rgba(0, 255, 163, 0.15)';
                     ctx.fillRect(startPx.x, startPx.y, w, h);
                     ctx.strokeRect(startPx.x, startPx.y, w, h);
                 }} else if (currentTool === 'circle') {{
@@ -800,7 +883,7 @@ def render_drawing_chart(
                 ctx.arc(x, y, 5, 0, Math.PI * 2);
                 ctx.fillStyle = '#ffffff';
                 ctx.fill();
-                ctx.strokeStyle = '#2962ff';
+                ctx.strokeStyle = '#00FFA3';
                 ctx.lineWidth = 2;
                 ctx.stroke();
                 ctx.restore();
@@ -815,7 +898,7 @@ def render_drawing_chart(
                 drawings.forEach((d, idx) => {{
                     const isSelected = (idx === selectedIdx);
                     ctx.save();
-                    ctx.strokeStyle = isSelected ? '#00e5ff' : (d.color || '#2962ff');
+                    ctx.strokeStyle = isSelected ? '#00e5ff' : (d.color || '#00FFA3');
                     ctx.lineWidth = isSelected ? 2.5 : 2;
 
                     const pts = getScreenCoords(d);
@@ -841,7 +924,7 @@ def render_drawing_chart(
                     }} else if (d.tool === 'box') {{
                         if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {{
                             const w = x2 - x1, h = y2 - y1;
-                            ctx.fillStyle = isSelected ? 'rgba(0, 229, 255, 0.18)' : 'rgba(41, 98, 255, 0.15)';
+                            ctx.fillStyle = isSelected ? 'rgba(0, 229, 255, 0.18)' : 'rgba(0, 255, 163, 0.15)';
                             ctx.fillRect(x1, y1, w, h);
                             ctx.strokeRect(x1, y1, w, h);
                             if (isSelected) {{ drawHandle(x1, y1); drawHandle(x2, y2); }}
@@ -911,15 +994,179 @@ def render_drawing_chart(
             mainChart.timeScale().subscribeVisibleTimeRangeChange(redrawAll);
             mainChart.timeScale().subscribeVisibleLogicalRangeChange(redrawAll);
 
+            /* ===== 5. ระบบ FLOATING HEADER & SPLITTER (ไม่กินความสูงกราฟ) ===== */
+            const paneRegistry = [];
+            let _spDrag = null;
+
+            function _spRedrawHooks() {{
+                ['resizeCanvas','redrawAll','drawAll','renderDrawings','redraw']
+                .forEach(fn => {{ if (typeof window[fn] === 'function') {{ try {{ window[fn](); }} catch(e) {{}} }} }});
+            }}
+
+            function paneResizeAll() {{
+                paneRegistry.forEach(p => {{
+                    if (!p.chart || !p.boxEl || !p.viewEl) return;
+                    if (p.boxEl.dataset.collapsed) return;
+                    const h = Math.max(30, p.boxEl.clientHeight);
+                    const w = p.boxEl.clientWidth || p.viewEl.clientWidth;
+                    p.viewEl.style.height = h + 'px';
+                    try {{ p.chart.applyOptions({{ width: w, height: h }}); }} catch(e) {{}}
+                }});
+                _spRedrawHooks();
+            }}
+
+            function initPaneDrag(e, upperId, lowerId) {{
+                e.preventDefault();
+                const up = document.getElementById(upperId);
+                const low = document.getElementById(lowerId);
+                if (!up || !low) return;
+                _spDrag = {{
+                    up: up, low: low, bar: e.currentTarget,
+                    y: e.clientY, uh: up.clientHeight, lh: low.clientHeight
+                }};
+                e.currentTarget.classList.add('dragging');
+                document.body.style.cursor = 'ns-resize';
+                document.body.style.userSelect = 'none';
+                window.addEventListener('mousemove', onPaneDrag);
+                window.addEventListener('mouseup', stopPaneDrag);
+            }}
+
+            function onPaneDrag(e) {{
+                if (!_spDrag) return;
+                const dy = e.clientY - _spDrag.y;
+                _spDrag.up.style.flex = 'none';
+                _spDrag.low.style.flex = 'none';
+                _spDrag.up.style.height = Math.max(80, _spDrag.uh + dy) + 'px';
+                _spDrag.low.style.height = Math.max(46, _spDrag.lh - dy) + 'px';
+                paneResizeAll();
+            }}
+
+            function stopPaneDrag() {{
+                if (_spDrag && _spDrag.bar) _spDrag.bar.classList.remove('dragging');
+                _spDrag = null;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                window.removeEventListener('mousemove', onPaneDrag);
+                window.removeEventListener('mouseup', stopPaneDrag);
+                paneResizeAll();
+            }}
+
+            function togglePaneVisibility(key) {{
+                const p = paneRegistry.find(r => r.key === key);
+                if (!p) return;
+                const hidden = p.viewEl.style.visibility === 'hidden';
+                p.viewEl.style.visibility = hidden ? 'visible' : 'hidden';
+                const b = p.headerEl && p.headerEl.querySelector('[data-act="eye"]');
+                if (b) {{
+                    b.textContent = hidden ? '👁' : '🚫';
+                    b.classList.toggle('off', !hidden);
+                }}
+            }}
+
+            function togglePaneCollapse(boxId) {{
+                const p = paneRegistry.find(r => r.boxEl && r.boxEl.id === boxId);
+                if (!p) return;
+                const box = p.boxEl;
+                if (!box.dataset.collapsed) {{
+                    box.dataset.prevH = box.clientHeight + 'px';
+                    box.dataset.collapsed = '1';
+                    p.viewEl.style.display = 'none';
+                    box.style.flex = 'none';
+                    box.style.height = '28px';
+                }} else {{
+                    delete box.dataset.collapsed;
+                    p.viewEl.style.display = '';
+                    box.style.height = box.dataset.prevH || '140px';
+                }}
+                paneResizeAll();
+            }}
+
+            function closePaneBox(boxId) {{
+                const p = paneRegistry.find(r => r.boxEl && r.boxEl.id === boxId);
+                if (!p) return;
+                p.boxEl.style.display = 'none';
+                if (p.splitterEl) p.splitterEl.style.display = 'none';
+                paneResizeAll();
+            }}
+
+            function _spBuildHeader(key, title, boxId, canClose) {{
+                const h = document.createElement('div');
+                h.className = 'pane-header';
+                h.innerHTML =
+                  '<div class="pane-actions">' +
+                    '<button class="pane-btn" data-act="eye" title="ซ่อน/แสดง">👁</button>' +
+                    '<button class="pane-btn" data-act="col" title="พับเก็บ">⌵</button>' +
+                    (canClose ? '<button class="pane-btn pane-btn-x" data-act="cls" title="ปิด">✕</button>' : '') +
+                  '</div>';
+                h.querySelector('[data-act="eye"]').onclick = () => togglePaneVisibility(key);
+                h.querySelector('[data-act="col"]').onclick = () => togglePaneCollapse(boxId);
+                const x = h.querySelector('[data-act="cls"]');
+                if (x) x.onclick = () => closePaneBox(boxId);
+                return h;
+            }}
+
+            function upgradePanes(titles) {{
+                titles = titles || [];
+                // 1. กราฟหลัก (ใส่ปุ่มลอยมุมขวาบนในกรอบ mainBox)
+                const mainBox = document.getElementById('main-pane-container');
+                const mainView = document.getElementById('chart-main');
+                if (mainBox && mainView && !mainBox.dataset.spUpgraded) {{
+                    mainBox.dataset.spUpgraded = '1';
+                    if (!mainBox.style.height) mainBox.style.height = mainView.clientHeight + 'px';
+                    const hdr = _spBuildHeader('main', titles[0] || 'MAIN CHART', 'main-pane-container', false);
+                    mainBox.appendChild(hdr);
+                    paneRegistry.push({{
+                        key: 'main', chart: (typeof allCharts !== 'undefined' ? allCharts[0] : null),
+                        viewEl: mainView, boxEl: mainBox, headerEl: hdr, splitterEl: null
+                    }});
+                }}
+
+                // 2. Sub-panes (RSI / MACD)
+                const subs = Array.from(document.querySelectorAll('#sub-panes > .sub-pane'));
+                subs.forEach((pane, i) => {{
+                    if (pane.dataset.spUpgraded) return;
+                    pane.dataset.spUpgraded = '1';
+                    const boxId = 'pane_box_' + i;
+                    const origH = parseInt(pane.style.height, 10) || pane.clientHeight || 120;
+
+                    const box = document.createElement('div');
+                    box.className = 'pane-box';
+                    box.id = boxId;
+                    box.style.height = origH + 'px';
+                    pane.parentNode.insertBefore(box, pane);
+
+                    const hdr = _spBuildHeader('sub' + i, titles[i + 1] || ('PANE ' + (i + 2)), boxId, true);
+                    box.appendChild(pane);
+                    box.appendChild(hdr);
+                    pane.classList.add('chart-view');
+
+                    const sp = document.createElement('div');
+                    sp.className = 'splitter-bar';
+                    const upperId = (i === 0) ? 'main-pane-container' : ('pane_box_' + (i - 1));
+                    sp.addEventListener('mousedown', e => initPaneDrag(e, upperId, boxId));
+                    box.parentNode.insertBefore(sp, box);
+
+                    paneRegistry.push({{
+                        key: 'sub' + i, chart: (typeof allCharts !== 'undefined' ? allCharts[i + 1] : null),
+                        viewEl: pane, boxEl: box, headerEl: hdr, splitterEl: sp
+                    }});
+                }});
+                paneResizeAll();
+            }}
+
             function updateAllWidths() {{
                 const newW = container.clientWidth || window.innerWidth;
                 allCharts.forEach(c => c.applyOptions({{ width: newW }}));
                 resizeCanvas();
             }}
 
+            upgradePanes(['MAIN CHART', 'RSI', 'MACD']);
             window.addEventListener('resize', updateAllWidths);
+            window.addEventListener('resize', () => {{ try {{ paneResizeAll(); }} catch(e) {{}} }});
             setTimeout(updateAllWidths, 100);
+            setTimeout(paneResizeAll, 150);
             setTimeout(updateAllWidths, 300);
+            setTimeout(paneResizeAll, 350);
         }})();
         </script>
     </body>

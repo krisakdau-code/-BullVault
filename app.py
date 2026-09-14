@@ -747,6 +747,63 @@ def render_tradingview_clean_tabs():
         color: #00FFA3 !important;
         box-shadow: 0 0 10px rgba(0, 255, 163, 0.4) !important;
     }
+    div[class*="st-key-chip_"] button {
+
+    border-radius: 6px !important;
+
+    font-size: 13px !important;
+
+    font-weight: 700 !important;
+
+    height: 38px !important;
+
+    padding: 0 6px !important;
+
+    transition: all .2s ease !important;
+
+}
+
+div[class*="st-key-chip_"] button[kind="primary"],
+
+div[class*="st-key-chip_"] button[data-testid="stBaseButton-primary"] {
+
+    background: rgba(0, 255, 163, 0.12) !important;
+
+    background-color: rgba(0, 255, 163, 0.12) !important;
+
+    border: 1px solid #00FFA3 !important;
+
+    color: #00FFA3 !important;
+
+    box-shadow: 0 0 8px rgba(0, 255, 163, 0.25) !important;
+
+}
+
+div[class*="st-key-chip_"] button[kind="secondary"],
+
+div[class*="st-key-chip_"] button[data-testid="stBaseButton-secondary"] {
+
+    background: #11141c !important;
+
+    background-color: #11141c !important;
+
+    border: 1px solid rgba(0, 255, 163, 0.2) !important;
+
+    color: #8f9cae !important;
+
+    box-shadow: none !important;
+
+}
+
+div[class*="st-key-chip_"] button:hover {
+
+    border-color: #00FFA3 !important;
+
+    color: #ffffff !important;
+
+    box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
+
+}
     </style>
     """, unsafe_allow_html=True)
 
@@ -852,32 +909,64 @@ else:
             render_market_modal_content(tk, an, symbol, label_name, seasonality_html, gauges_html)
 
 # ──────────────────────────── TOP TOOLBAR ────────────────────────────
+def _render_chip(col, state_key, on_label, off_label, key, default=True):
+    with col:
+        active = bool(st.session_state.get(state_key, default))
+        if st.button(on_label if active else off_label,
+                     key=key, use_container_width=True,
+                     type="primary" if active else "secondary"):
+            st.session_state[state_key] = not active
+            st.rerun()
+    return active
+
+
 def render_top_toolbar():
-    col_tf, col_slider, col_fill, col_auto, col_sec, col_load = st.columns([1.5, 5, 1.2, 1.2, 1.5, 1.8])
+    (col_tf, col_slider, col_fill, col_auto,
+     col_rsi, col_macd, col_sec, col_load) = st.columns(
+        [1.5, 5, 1.2, 1.2, 1.3, 1.4, 1.5, 1.8])
+
     with col_tf:
-        tf = st.selectbox("TF", TF_OPTIONS, index=TF_OPTIONS.index(st.session_state.get("selected_tf", "1h")) if st.session_state.get("selected_tf", "1h") in TF_OPTIONS else 0, key="toolbar_tf", label_visibility="collapsed")
+        tf = st.selectbox(
+            "TF", TF_OPTIONS,
+            index=TF_OPTIONS.index(st.session_state.get("selected_tf", "1h"))
+                  if st.session_state.get("selected_tf", "1h") in TF_OPTIONS else 0,
+            label_visibility="collapsed", key="toolbar_tf")
     with col_slider:
-        bars = st.slider("Bars", 300, 25000, int(st.session_state.get("bars_count", 2500)), 500, label_visibility="collapsed", key="toolbar_bars")
+        bars = st.slider("Bars", 300, 25000,
+                         int(st.session_state.get("bars_count", 2500)), 500,
+                         label_visibility="collapsed", key="toolbar_bars")
     with col_fill:
-        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="toolbar_fill")
+        fill_gaps = st.checkbox("Fill",
+                                value=st.session_state.get("fill_gaps", False),
+                                key="toolbar_fill")
     with col_auto:
-        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="toolbar_auto")
+        auto = st.checkbox("Auto",
+                           value=st.session_state.get("auto_refresh", False),
+                           key="toolbar_auto")
+
+    _render_chip(col_rsi,  "show_rsi_pane",  "📈 RSI",  "+ RSI",  "chip_rsi")
+    _render_chip(col_macd, "show_macd_pane", "📊 MACD", "+ MACD", "chip_macd")
+
     with col_sec:
-        every = st.number_input("Sec", min_value=2, max_value=60, value=int(st.session_state.get("refresh_sec", 5)), step=1, label_visibility="collapsed", key="toolbar_sec")
+        every = st.number_input("Sec", 2, 60,
+                                int(st.session_state.get("refresh_sec", 5)), 1,
+                                label_visibility="collapsed", key="toolbar_sec")
     with col_load:
-        reload_btn = st.button("🔄 โหลด", key="toolbar_reload_btn", use_container_width=True)
+        reload_btn = st.button("🔄 โหลด", use_container_width=True,
+                               key="toolbar_reload_btn")
 
     if tf != st.session_state.get("selected_tf"):
         st.session_state.selected_tf = tf
         cur = _find_tab(st.session_state.active_tab_id)
-        if cur: cur["tf"] = tf
+        if cur:
+            cur["tf"] = tf
         _clear_chart_state()
         st.rerun()
 
-    st.session_state.bars_count = bars
-    st.session_state.fill_gaps = fill_gaps
+    st.session_state.bars_count   = bars
+    st.session_state.fill_gaps    = fill_gaps
     st.session_state.auto_refresh = auto
-    st.session_state.refresh_sec = every
+    st.session_state.refresh_sec  = every
 
     if reload_btn:
         _clear_chart_state()
@@ -1189,16 +1278,17 @@ def dashboard():
                         s["options"]["wickDownColor"] = st.session_state.get("candle_wick_down", "#F23645")
                 filtered_charts.append(c0)
 
-            # 2. กรองบานหน้าต่างย่อย พร้อมอัปเดตสี RSI & MACD แบบ Real-time
+                      # 2. กรองบานหน้าต่างย่อย พร้อมอัปเดตสี RSI & MACD แบบ Real-time
             for sub in charts[1:]:
                 txt = str(sub.get("chart", {}).get("watermark", {}).get("text", "")).upper()
                 series_titles = " ".join([str(s.get("title", "")).upper() for s in sub.get("series", [])])
                 full_info = txt + " " + series_titles
 
-               # ส่วนของ RSI: อัปเดตสีและเส้นตามหน้าต่างตั้งค่าจริง
+                # ส่วนของ RSI
                 if "RSI" in full_info:
                     if not st.session_state.get("show_rsi_pane", True):
                         continue
+
                     active_rsi_series = []
                     for s in sub.get("series", []):
                         s.setdefault("options", {})
@@ -1208,20 +1298,19 @@ def dashboard():
                         if "RSI" in title and "MA" not in title:
                             if not st.session_state.get("rsi_show_line", True):
                                 continue
-                            s["options"]["color"] = st.session_state.get("rsi_line_color", "#7E57C2")
-                            active_rsi_series.append(s)
+                            s["options"]["color"] = st.session_state.get("rsi_line_color", "#B388FF")
 
                         # 2. เส้น RSI-based MA
                         elif "MA" in title:
                             if not st.session_state.get("rsi_show_ma", True):
                                 continue
-                            s["options"]["color"] = st.session_state.get("rsi_ma_color", "#FFEB3B")
-                            active_rsi_series.append(s)
-                        else:
-                            active_rsi_series.append(s)
+                            s["options"]["color"] = st.session_state.get("rsi_ma_color", "#FFB74D")
+
+                        active_rsi_series.append(s)
 
                     sub["series"] = active_rsi_series
                     filtered_charts.append(sub)
+
                 # ส่วนของ MACD
                 elif "MACD" in full_info:
                     if not st.session_state.get("show_macd_pane", True):
@@ -1235,6 +1324,7 @@ def dashboard():
                             else:
                                 s["options"]["color"] = st.session_state.get("macd_line_color", "#00FFA3")
                     filtered_charts.append(sub)
+
                 else:
                     filtered_charts.append(sub)
 
