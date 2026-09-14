@@ -179,7 +179,6 @@ def show_chart_settings_dialog():
             btn_type = "primary" if is_active else "secondary"
             if st.button(sec, key=f"nav_{sec}", type=btn_type, use_container_width=True):
                 st.session_state["settings_current_tab"] = sec
-                st.rerun()
 
         st.markdown('<div style="font-size:11px; color:#787b86; font-weight:700; margin:16px 0 6px 0;">อินดิเคเตอร์</div>', unsafe_allow_html=True)
         for sec in ["📈 RSI", "📊 MACD"]:
@@ -187,7 +186,6 @@ def show_chart_settings_dialog():
             btn_type = "primary" if is_active else "secondary"
             if st.button(sec, key=f"nav_{sec}", type=btn_type, use_container_width=True):
                 st.session_state["settings_current_tab"] = sec
-                st.rerun()
 
     with c_divider:
         st.markdown("""<div style="border-left: 1px solid #2a2e39; height: 500px;"></div>""", unsafe_allow_html=True)
