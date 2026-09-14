@@ -216,6 +216,55 @@ def render_drawing_chart(
                 background: transparent; border: none; outline: none; color: #ffffff;
                 font-size: 13px; width: 140px; font-family: inherit;
             }}
+            /* สไตล์ปุ่มซื้อ-ขายแบบ Floating TradingView */
+            .quick-trade-box {{
+                display: flex;
+                gap: 4px;
+                margin-left: 10px;
+                pointer-events: auto;
+            }}
+            .qt-btn {{
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                padding: 2px 8px;
+                border-radius: 4px;
+                border: 1px solid transparent;
+                cursor: pointer;
+                min-width: 65px;
+                transition: all 0.15s ease;
+            }}
+            .qt-btn .qt-side {{
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 0.5px;
+            }}
+            .qt-btn .qt-val {{
+                font-size: 11px;
+                font-weight: 700;
+                font-family: 'Roboto Mono', monospace;
+            }}
+            .qt-sell {{
+                background: rgba(242, 54, 69, 0.2);
+                border-color: rgba(242, 54, 69, 0.4);
+                color: #f23645;
+            }}
+            .qt-sell:hover {{
+                background: #f23645;
+                color: #ffffff;
+                box-shadow: 0 0 8px rgba(242, 54, 69, 0.4);
+            }}
+            .qt-buy {{
+                background: rgba(0, 255, 163, 0.18);
+                border-color: rgba(0, 255, 163, 0.4);
+                color: #00FFA3;
+            }}
+            .qt-buy:hover {{
+                background: #00FFA3;
+                color: #000000;
+                box-shadow: 0 0 8px rgba(0, 255, 163, 0.4);
+            }}
         </style>
     </head>
     <body>
@@ -239,12 +288,24 @@ def render_drawing_chart(
                     <button class="tool-btn danger-btn" id="btn-clear" title="ล้างทั้งหมด">💥</button>
                 </div>
 
-                <div class="chart-legend" id="main-chart-legend">
+               <div class="chart-legend" id="main-chart-legend">
                     <span class="legend-symbol" id="leg-symbol">BTCUSDT</span>
                     <span class="legend-badge">Binance</span>
                     <span class="legend-price" id="leg-price">--</span>
                     <span class="legend-change" id="leg-change">--</span>
                     <span class="legend-ohlc" id="leg-ohlc"></span>
+
+                    <!-- ปุ่ม ซื้อ-ขาย สไตล์ Quick Trading (วงสีส้ม) -->
+                    <div class="quick-trade-box">
+                        <button class="qt-btn qt-sell" id="btn-qt-sell" title="เปิดคำสั่งขาย (Sell)">
+                            <span class="qt-side">SELL</span>
+                            <span class="qt-val" id="qt-sell-val">--</span>
+                        </button>
+                        <button class="qt-btn qt-buy" id="btn-qt-buy" title="เปิดคำสั่งซื้อ (Buy)">
+                            <span class="qt-side">BUY</span>
+                            <span class="qt-val" id="qt-buy-val">--</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div id="chart-main"></div>
@@ -326,6 +387,12 @@ def render_drawing_chart(
                             cEl.textContent = (isUp ? '+' : '') + pct.toFixed(2) + '%';
                             cEl.style.color = color;
                         }}
+                        
+                        // ซิงก์ราคาเข้าปุ่ม SELL และ BUY
+                        const sVal = document.getElementById('qt-sell-val');
+                        const bVal = document.getElementById('qt-buy-val');
+                        if (sVal) sVal.textContent = lastBar.close.toLocaleString('en-US', {{minimumFractionDigits: 2}});
+                        if (bVal) bVal.textContent = (lastBar.close * 1.0001).toLocaleString('en-US', {{minimumFractionDigits: 2}});
                     }}
                 }});
             }}

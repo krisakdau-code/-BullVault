@@ -16,8 +16,7 @@ from ui.sidebar import render_sidebar
 from chart_builders import build_charts
 from config import *
 from data.rice_ohlcv import generate_rice_ohlcv
-from ui.rice_tab import show_rice_dialog_modal
-from ui.rice_tab import render_rice_tab
+from ui.rice_tab import show_rice_dialog_modal, render_rice_tab
 from ui.chart_settings_modal import show_chart_settings_dialog, init_settings_state
 from drawing_chart import render_drawing_chart
 from requests.adapters import HTTPAdapter
@@ -45,8 +44,8 @@ from symbols import (
     get_full_commodities,
     get_full_forex,
     get_full_gate_symbols,
-    get_full_kucoin_symbols,
     get_full_mexc_symbols,
+    get_full_kucoin_symbols,
     get_full_okx_symbols,
     get_full_sp500_symbols,
     get_full_vietnam_symbols,
@@ -509,7 +508,7 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                 }
         except Exception: pass
 
-    # 2. คริปโตไทย (Bitkub: _THB หรือ THB_)
+    # 2. คริปโตไทย (Bitkub)
     elif ("THB" in sym) or (exchange == "Bitkub"):
         try:
             r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=3.0)
@@ -531,7 +530,7 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                     }
         except Exception: pass
 
-    # 3. คริปโต Binance (คู่เหรียญ USDT เช่น BNBUSDT, BTCUSDT)
+    # 3. คริปโต Binance
     elif sym.endswith("USDT"):
         try:
             r = HTTP_SESSION.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={sym}", timeout=3.0)
@@ -549,7 +548,7 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                 }
         except Exception: pass
 
-    # 4. สินทรัพย์ต่างประเทศ / ทองคำ / Forex / หุ้น (Yahoo Finance)
+    # 4. สินทรัพย์ต่างประเทศ / Yahoo Finance
     else:
         try:
             r = HTTP_SESSION.get(f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={sym}", timeout=3.0)
@@ -569,7 +568,7 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                     }
         except Exception: pass
 
-    # 5. กรณีดึงออนไลน์ไม่ผ่าน ให้ใช้ข้อมูลจากแท่งเทียน (Fallback)
+    # 5. กรณีดึงออนไลน์ไม่ผ่าน ใช้แท่งเทียนแท่งสุดท้าย (Fallback)
     try:
         if df is not None and not df.empty and "close" in df.columns:
             last_p = float(df["close"].iloc[-1])
@@ -594,51 +593,18 @@ def fetch_cached_tab_quote(sym: str) -> dict:
     except Exception: pass
     return {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0, "high": 0.0, "low": 0.0, "bid": 0.0, "ask": 0.0}
 
-def format_clean_tab_label(sym: str, q: dict) -> str:
-    if sym.startswith("RICE:"):
-        name = sym.replace("RICE:", "").replace("ข้าวเปลือก", "").replace("ข้าวสาร", "").strip()[:10]
-        ico = "🌾"
-    elif sym.startswith("FOB:"):
-        name = sym.replace("FOB:", "").strip()[:10]
-        ico = "🚢"
-    elif sym.endswith("_THB"):
-        name = f"{sym.replace('_THB', '')}/THB"
-        ico = "₿"
-    elif sym.endswith("USDT"):
-        name = f"{sym.replace('USDT', '')}/USDT"
-        ico = "₿"
-    elif sym.endswith(".BK"):
-        name = sym.replace(".BK", "")
-        ico = "🇹🇭"
-    elif sym == "GC=F":
-        name = "Gold"
-        ico = "🪙"
-    elif sym == "CL=F":
-        name = "Oil"
-        ico = "🛢️"
-    else:
-        name = sym[:10]
-        ico = "📈"
-
-    p = q.get("price", 0.0)
-    pct = q.get("pct", 0.0)
-    if p > 0:
-        p_str = f"{p:,.0f}" if p >= 1000 else (f"{p:,.2f}" if p >= 1 else f"{p:,.4f}")
-        return f"{ico} {name}  {p_str} ({pct:+.2f}%)"
-    return f"{ico} {name}  --"
-
 # ────────────────── TRADINGVIEW PRO UNIFORM TABS (CYBER GLOW) ──────────────────
 def render_tradingview_clean_tabs():
     st.markdown("""
     <style>
-    /* 1. ล้างระยะห่างระหว่างแท็บกับปุ่มปิด X ให้ติดกันสนิท */
+    /* 1. ล้างระยะห่างระหว่างแท็บกับปุ่มปิด X */
     div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-tv_tab_"]) {
         gap: 0px !important;
         align-items: center !important;
         margin-bottom: 4px !important;
     }
 
-    /* 2. สไตล์ปุ่มแท็บหลัก (ขอบขวาตัดตรง) */
+    /* 2. สไตล์ปุ่มแท็บหลัก */
     div[class*="st-key-tv_tab_"] button,
     div[class*="st-key-tv_tab_"] button[data-testid*="BaseButton"] {
         height: 32px !important;
@@ -656,7 +622,7 @@ def render_tradingview_clean_tabs():
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    /* 3. สไตล์ปุ่มปิด X (ขอบซ้ายตัดตรง เชื่อมกับแท็บหลัก) */
+    /* 3. สไตล์ปุ่มปิด X */
     div[class*="st-key-tv_close_"] button,
     div[class*="st-key-tv_close_"] button[data-testid*="BaseButton"] {
         height: 32px !important;
@@ -670,7 +636,7 @@ def render_tradingview_clean_tabs():
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    /* 4. สถานะแท็บ Active (กำลังดู) - พื้นหลังดำเทา #1c202d + ขอบเรืองแสงเขียวนีออน */
+    /* 4. สถานะแท็บ Active */
     div[class*="st-key-tv_tab_"] button[kind="primary"],
     div[class*="st-key-tv_tab_"] button[data-testid="stBaseButton-primary"] {
         background: #1c202d !important;
@@ -690,7 +656,7 @@ def render_tradingview_clean_tabs():
         box-shadow: 2px 0 8px rgba(0, 255, 163, 0.3), 0 -2px 8px rgba(0, 255, 163, 0.3), 0 2px 8px rgba(0, 255, 163, 0.3) !important;
     }
 
-    /* 5. สถานะแท็บ Inactive (แท็บรอง) - พื้นหลังมืดสนิท #11141c + ขอบเขียวโปร่งแสง */
+    /* 5. สถานะแท็บ Inactive */
     div[class*="st-key-tv_tab_"] button[kind="secondary"],
     div[class*="st-key-tv_tab_"] button[data-testid="stBaseButton-secondary"] {
         background: #11141c !important;
@@ -708,7 +674,7 @@ def render_tradingview_clean_tabs():
         color: #787b86 !important;
     }
 
-    /* 6. เอฟเฟกต์เมาส์ชี้ (Hover) - สีเขียวเรืองแสงโปร่งแสงทั้งก้อน */
+    /* 6. Hover แท็บ */
     div[class*="st-key-tv_tab_"] button:hover {
         background: rgba(0, 255, 163, 0.16) !important;
         background-color: rgba(0, 255, 163, 0.16) !important;
@@ -724,7 +690,7 @@ def render_tradingview_clean_tabs():
         box-shadow: 0 0 10px rgba(239, 83, 80, 0.4) !important;
     }
 
-    /* 7. ปุ่มเพิ่มแท็บใหม่ (+) */
+    /* 7. ปุ่มเพิ่มแท็บ (+) */
     div[class*="st-key-tv_add_btn"] button,
     div[class*="st-key-tv_add_btn"] button[data-testid*="BaseButton"] {
         height: 32px !important;
@@ -747,63 +713,35 @@ def render_tradingview_clean_tabs():
         color: #00FFA3 !important;
         box-shadow: 0 0 10px rgba(0, 255, 163, 0.4) !important;
     }
+
+    /* สไตล์ปุ่มชิปอินดิเคเตอร์ */
     div[class*="st-key-chip_"] button {
-
-    border-radius: 6px !important;
-
-    font-size: 13px !important;
-
-    font-weight: 700 !important;
-
-    height: 38px !important;
-
-    padding: 0 6px !important;
-
-    transition: all .2s ease !important;
-
-}
-
-div[class*="st-key-chip_"] button[kind="primary"],
-
-div[class*="st-key-chip_"] button[data-testid="stBaseButton-primary"] {
-
-    background: rgba(0, 255, 163, 0.12) !important;
-
-    background-color: rgba(0, 255, 163, 0.12) !important;
-
-    border: 1px solid #00FFA3 !important;
-
-    color: #00FFA3 !important;
-
-    box-shadow: 0 0 8px rgba(0, 255, 163, 0.25) !important;
-
-}
-
-div[class*="st-key-chip_"] button[kind="secondary"],
-
-div[class*="st-key-chip_"] button[data-testid="stBaseButton-secondary"] {
-
-    background: #11141c !important;
-
-    background-color: #11141c !important;
-
-    border: 1px solid rgba(0, 255, 163, 0.2) !important;
-
-    color: #8f9cae !important;
-
-    box-shadow: none !important;
-
-}
-
-div[class*="st-key-chip_"] button:hover {
-
-    border-color: #00FFA3 !important;
-
-    color: #ffffff !important;
-
-    box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
-
-}
+        border-radius: 6px !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        height: 38px !important;
+        padding: 0 6px !important;
+        transition: all .2s ease !important;
+    }
+    div[class*="st-key-chip_"] button[kind="primary"],
+    div[class*="st-key-chip_"] button[data-testid="stBaseButton-primary"] {
+        background: rgba(0, 255, 163, 0.15) !important;
+        border: 1px solid #00FFA3 !important;
+        color: #00FFA3 !important;
+        box-shadow: 0 0 8px rgba(0, 255, 163, 0.3) !important;
+    }
+    div[class*="st-key-chip_"] button[kind="secondary"],
+    div[class*="st-key-chip_"] button[data-testid="stBaseButton-secondary"] {
+        background: #11141c !important;
+        border: 1px solid rgba(0, 255, 163, 0.2) !important;
+        color: #8f9cae !important;
+        box-shadow: none !important;
+    }
+    div[class*="st-key-chip_"] button:hover {
+        border-color: #00FFA3 !important;
+        color: #ffffff !important;
+        box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -909,57 +847,114 @@ else:
             render_market_modal_content(tk, an, symbol, label_name, seasonality_html, gauges_html)
 
 # ──────────────────────────── TOP TOOLBAR ────────────────────────────
-def _render_chip(col, state_key, on_label, off_label, key, default=True):
+def _toggle_state(key):
+    st.session_state[key] = not st.session_state.get(key, True)
+
+def _render_chip(col, state_key, on_label, off_label, key_btn, default=True):
     with col:
         active = bool(st.session_state.get(state_key, default))
-        if st.button(on_label if active else off_label,
-                     key=key, use_container_width=True,
-                     type="primary" if active else "secondary"):
-            st.session_state[state_key] = not active
-            st.rerun()
+        st.button(
+            on_label if active else off_label,
+            key=key_btn,
+            use_container_width=True,
+            type="primary" if active else "secondary",
+            on_click=_toggle_state,
+            args=(state_key,)
+        )
     return active
 
-
 def render_top_toolbar():
-    (col_tf, col_slider, col_fill, col_auto,
-     col_rsi, col_macd, col_sec, col_load) = st.columns(
-        [1.5, 5, 1.2, 1.2, 1.3, 1.4, 1.5, 1.8])
+    # กำหนดสถานะตั้งต้นสำหรับการปักหมุด
+    st.session_state.setdefault("show_rsi_pane", True)
+    st.session_state.setdefault("pin_rsi", True)
+    st.session_state.setdefault("show_macd_pane", True)
+    st.session_state.setdefault("pin_macd", True)
+    st.session_state.setdefault("show_ema", True)
+    st.session_state.setdefault("pin_ema", False)
+
+    # 1. จัดสรรสัดส่วนคอลัมน์ใหม่ (ชาร์ต/อินดิเคเตอร์ ซ้าย | ระบบ/โหลด ขวา) ลบช่องว่างตรงกลาง
+    (col_tf, col_slider, col_ind_menu, col_chips, col_space,
+     col_fill, col_auto, col_sec, col_load) = st.columns(
+        [1.2, 3.8, 1.8, 2.8, 0.4, 0.8, 0.8, 1.0, 1.2]
+    )
 
     with col_tf:
         tf = st.selectbox(
             "TF", TF_OPTIONS,
             index=TF_OPTIONS.index(st.session_state.get("selected_tf", "1h"))
                   if st.session_state.get("selected_tf", "1h") in TF_OPTIONS else 0,
-            label_visibility="collapsed", key="toolbar_tf")
-    with col_slider:
-        bars = st.slider("Bars", 300, 25000,
-                         int(st.session_state.get("bars_count", 2500)), 500,
-                         label_visibility="collapsed", key="toolbar_bars")
-    with col_fill:
-        fill_gaps = st.checkbox("Fill",
-                                value=st.session_state.get("fill_gaps", False),
-                                key="toolbar_fill")
-    with col_auto:
-        auto = st.checkbox("Auto",
-                           value=st.session_state.get("auto_refresh", False),
-                           key="toolbar_auto")
+            label_visibility="collapsed", key="toolbar_tf"
+        )
 
-    _render_chip(col_rsi,  "show_rsi_pane",  "📈 RSI",  "+ RSI",  "chip_rsi")
-    _render_chip(col_macd, "show_macd_pane", "📊 MACD", "+ MACD", "chip_macd")
+    with col_slider:
+        bars = st.slider(
+            "Bars", 300, 25000,
+            int(st.session_state.get("bars_count", 2500)), 500,
+            label_visibility="collapsed", key="toolbar_bars"
+        )
+
+    # 2. เมนูดรอปดาวน์รวมอินดิเคเตอร์ (st.popover) พร้อมระบบติ๊ก ⭐ ปักหมุด
+    with col_ind_menu:
+        with st.popover("📊 Indicators ▾", use_container_width=True):
+            st.markdown("<b style='font-size:13px; color:#00FFA3;'>📊 อินดิเคเตอร์ & ปักหมุดด่วน</b>", unsafe_allow_html=True)
+            st.caption("เปิด/ปิดการทำงาน และกด ⭐ เพื่อดึงปุ่มชิปไปไว้ที่แถบด่วน")
+
+            # ตัวเลือก RSI
+            c_rsi1, c_rsi2 = st.columns([3.5, 1.2])
+            with c_rsi1:
+                st.toggle("RSI (14)", key="show_rsi_pane")
+            with c_rsi2:
+                st.checkbox("⭐", key="pin_rsi", help="ปักหมุดบนแถบด่วน")
+
+            # ตัวเลือก MACD
+            c_macd1, c_macd2 = st.columns([3.5, 1.2])
+            with c_macd1:
+                st.toggle("MACD (12, 26, 9)", key="show_macd_pane")
+            with c_macd2:
+                st.checkbox("⭐", key="pin_macd", help="ปักหมุดบนแถบด่วน")
+
+            # ตัวเลือก EMA
+            c_ema1, c_ema2 = st.columns([3.5, 1.2])
+            with c_ema1:
+                st.toggle("EMA (7, 15, 45)", key="show_ema")
+            with c_ema2:
+                st.checkbox("⭐", key="pin_ema", help="ปักหมุดบนแถบด่วน")
+
+    # 3. เรนเดอร์ปุ่มชิปเฉพาะตัวที่ถูกติ๊กถูก ⭐
+    with col_chips:
+        pinned = []
+        if st.session_state.get("pin_rsi", True):
+            pinned.append(("show_rsi_pane", "📈 RSI", "+ RSI", "chip_rsi"))
+        if st.session_state.get("pin_macd", True):
+            pinned.append(("show_macd_pane", "📊 MACD", "+ MACD", "chip_macd"))
+        if st.session_state.get("pin_ema", False):
+            pinned.append(("show_ema", "📈 EMA", "+ EMA", "chip_ema"))
+
+        if pinned:
+            sub_cols = st.columns(len(pinned))
+            for i, (state_key, on_lbl, off_lbl, slug) in enumerate(pinned):
+                _render_chip(sub_cols[i], state_key, on_lbl, off_lbl, slug)
+
+    with col_space:
+        st.write("")
+
+    with col_fill:
+        fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="toolbar_fill")
+
+    with col_auto:
+        auto = st.checkbox("Auto", value=st.session_state.get("auto_refresh", False), key="toolbar_auto")
 
     with col_sec:
-        every = st.number_input("Sec", 2, 60,
-                                int(st.session_state.get("refresh_sec", 5)), 1,
+        every = st.number_input("Sec", 2, 60, int(st.session_state.get("refresh_sec", 5)), 1,
                                 label_visibility="collapsed", key="toolbar_sec")
+
     with col_load:
-        reload_btn = st.button("🔄 โหลด", use_container_width=True,
-                               key="toolbar_reload_btn")
+        reload_btn = st.button("🔄 โหลด", use_container_width=True, key="toolbar_reload_btn")
 
     if tf != st.session_state.get("selected_tf"):
         st.session_state.selected_tf = tf
         cur = _find_tab(st.session_state.active_tab_id)
-        if cur:
-            cur["tf"] = tf
+        if cur: cur["tf"] = tf
         _clear_chart_state()
         st.rerun()
 
@@ -1131,35 +1126,37 @@ def render_watchlist_component(key_prefix: str = "desk"):
 # ──────────────────────────── LOAD SIDEBAR ────────────────────────────
 app_config = render_sidebar()
 
-# ──────────────────────────── LIVE TOP BAR ────────────────────────────
-@st.fragment(run_every=2)
-def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_display: str, display_title: str, gz_badge: str, base_price: float, last_vol: float):
-    live_tk = fetch_unified_ticker(r_market, r_exchange, symbol)
-    cur_price = float(live_tk.get("price", base_price))
-    cur_chg = float(live_tk.get("pct", 0.0))
-    st.session_state[f"live_price_{symbol}"] = cur_price
-    st.session_state[f"live_pct_{symbol}"] = cur_chg
+# ─── Dynamic Indicator Settings in Sidebar (แสดงเฉพาะตัวที่เปิดใช้งาน) ───
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("<b style='color:#00FFA3; font-size:13px;'>⚙️ การตั้งค่าอินดิเคเตอร์ที่เปิดใช้งาน</b>", unsafe_allow_html=True)
+    has_any_ind = False
 
-    chg_txt_color = "#26a69a" if cur_chg >= 0 else "#ef5350"
-    price_fmt = f"{cur_price:,.4f}" if cur_price < 10 else f"{cur_price:,.2f}"
+    # 1. การตั้งค่าเส้น EMA (แสดงเมื่อ show_ema ถูกเปิด)
+    if st.session_state.get("show_ema", True):
+        has_any_ind = True
+        with st.expander("📈 เส้นค่าเฉลี่ย EMA", expanded=True):
+            st.session_state["fast_ema"] = st.number_input("Fast EMA", min_value=1, max_value=500, value=int(st.session_state.get("fast_ema", 7)), key="sb_fast_ema")
+            st.session_state["slow_ema"] = st.number_input("Slow EMA", min_value=1, max_value=500, value=int(st.session_state.get("slow_ema", 13)), key="sb_slow_ema")
+            st.session_state["trend_ema"] = st.number_input("Trend EMA", min_value=1, max_value=500, value=int(st.session_state.get("trend_ema", 45)), key="sb_trend_ema")
 
-    ch_left, ch_mid, ch_right = st.columns([6, 3, 3])
-    with ch_left:
-        st.markdown(
-            f'<div style="display:flex; align-items:center; gap:16px; height:38px;">'
-            f'<div style="display:flex; align-items:center; gap:8px;">'
-            f'<span style="color:#26a69a; font-size:14px;">●</span>'
-            f'<span style="color:#FFFFFF; font-weight:700; font-size:16px;">{price_fmt}</span>'
-            f'<span style="color:{chg_txt_color}; font-weight:700; font-size:14px;">({cur_chg:+.2f}%)</span>'
-            f'<span style="color:#787b86; font-size:11px; margin-left:4px;">Vol {last_vol:,.2f}</span>'
-            f'<span style="color:#00bcd4; font-weight:600; font-size:12px;">{display_title}</span>'
-            f'<span style="background:#1A1A1A; padding:1px 5px; border-radius:3px; font-size:10px; color:#9aa0a6;">{label_display}</span>'
-            f'{gz_badge}'
-            f'</div></div>',
-            unsafe_allow_html=True
-        )
-    with ch_right:
-        st.markdown('<div style="padding-top:8px; font-size:10px; color:#787b86; text-align:right; padding-right:12px;">● LIVE</div>', unsafe_allow_html=True)
+    # 2. การตั้งค่า RSI (แสดงเมื่อ show_rsi_pane ถูกเปิด)
+    if st.session_state.get("show_rsi_pane", True):
+        has_any_ind = True
+        with st.expander("📈 พารามิเตอร์ RSI", expanded=False):
+            st.session_state["rsi_line_color"] = st.color_picker("สีเส้น RSI", st.session_state.get("rsi_line_color", "#00FFA3"), key="sb_rsi_col")
+            st.session_state["rsi_upper_band"] = st.number_input("Upper Band", value=float(st.session_state.get("rsi_upper_band", 70.0)), key="sb_rsi_ub")
+            st.session_state["rsi_lower_band"] = st.number_input("Lower Band", value=float(st.session_state.get("rsi_lower_band", 30.0)), key="sb_rsi_lb")
+
+    # 3. การตั้งค่า MACD (แสดงเมื่อ show_macd_pane ถูกเปิด)
+    if st.session_state.get("show_macd_pane", True):
+        has_any_ind = True
+        with st.expander("📊 พารามิเตอร์ MACD", expanded=False):
+            st.session_state["macd_line_color"] = st.color_picker("สีเส้น MACD", st.session_state.get("macd_line_color", "#00FFA3"), key="sb_macd_col")
+            st.session_state["macd_signal_color"] = st.color_picker("สีเส้น Signal", st.session_state.get("macd_signal_color", "#FFEB3B"), key="sb_sig_col")
+
+    if not has_any_ind:
+        st.caption("💡 ไม่มีอินดิเคเตอร์เปิดใช้งาน คลิก '📊 Indicators ▾' ที่แถบด้านบนเพื่อเปิดใช้งาน")
 
 # ──────────────────────────── DASHBOARD (MAIN) ────────────────────────────
 def dashboard():
@@ -1167,19 +1164,19 @@ def dashboard():
     if st.session_state.get("trigger_settings_modal"):
         st.session_state["trigger_settings_modal"] = False
         show_chart_settings_dialog()
-    # กำหนดค่าเริ่มต้นเสมอ ป้องกัน UnboundLocalError เมื่อแถบควบคุมด้านบนถูกปิด
+
     tf = st.session_state.get("selected_tf", "1h")
     bars = int(st.session_state.get("bars_count", 2500))
     fill_gaps = bool(st.session_state.get("fill_gaps", False))
 
-    # 1. เรนเดอร์แท็บ TradingView Pro (อยู่บนสุด)
+    # 1. แท็บสินทรัพย์ TradingView Pro
     symbol = render_tradingview_clean_tabs()
 
-    # 2. บังคับ Timeframe 1D สำหรับสินค้าเกษตร/ข้าว
+    # 2. บังคับ Timeframe สำหรับสินค้าเกษตร/ข้าว
     if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
         tf = "1D"
 
-    # 3. แถบควบคุม Timeframe / Bars (แสดงใต้แท็บ เมื่อเปิดสวิตช์)
+    # 3. แถบควบคุม Timeframe / Bars
     if app_config.get("show_top_bar", True):
         tb_tf, tb_bars, tb_fill, auto, every, reload_btn = render_top_toolbar()
         bars = tb_bars
@@ -1211,9 +1208,14 @@ def dashboard():
         trend=st.session_state["trend_ema"], warn_pct=st.session_state["warn_pct"], danger_pct=st.session_state["danger_pct"]
     )
 
+    # คำนวณราคา Single Source of Truth จากแท่งเทียนแท่งล่าสุด
+    last_close = float(df["close"].iloc[-1])
+    prev_close = float(df["close"].iloc[-2]) if len(df) >= 2 else last_close
+    chg_val = last_close - prev_close
+    live_pct = (chg_val / prev_close * 100.0) if prev_close != 0 else 0.0
+
     fib = auto_fib_retracement(df, lookback=st.session_state["fib_lookback"], window=st.session_state["fib_window"]) if auto_fib_retracement else None
     ext = trend_based_fib_extension(df, lookback=st.session_state["fib_lookback"], window=st.session_state["fib_window"]) if auto_fib_retracement else None
-    last_close = float(df["close"].iloc[-1])
     fib_zone = current_fib_zone(last_close, fib) if (auto_fib_retracement and fib) else None
     fib_tp = fib_tp_target(last_close, ext, min_tp_pct=st.session_state["min_tp"], preferred_level=st.session_state["fib_tp_level"]) if (auto_fib_retracement and ext) else None
 
@@ -1224,7 +1226,15 @@ def dashboard():
     seasonality_html = fetch_seasonality_svg(df_daily)
     gauges_html_compact = render_3_gauges_html(tech_data, compact=True)
     gauges_html_modal = render_3_gauges_html(tech_data, compact=False)
+    
+    # ดึง Ticker และซิงก์ราคาให้ตรงกันทุกจุด
     tk_data = fetch_unified_ticker(r_market, r_exchange, symbol, df)
+    tk_data["price"] = last_close
+    tk_data["change"] = chg_val
+    tk_data["pct"] = live_pct
+    stats["price"] = last_close
+    stats["change"] = chg_val
+    stats["pct"] = live_pct
 
     if st.session_state.get("trigger_fib_modal", False):
         st.session_state["trigger_fib_modal"] = False
@@ -1237,8 +1247,7 @@ def dashboard():
     display_title = CHINA_STOCK_NAMES.get(symbol, COMMODITY_NAMES.get(symbol, FOREX_NAMES.get(symbol, symbol)))
     vol_val = float(df.iloc[-1].get("volume", 0.0))
 
-    if app_config.get("show_top_bar", True):
-        render_live_top_bar(r_market, r_exchange, symbol, label_display, display_title, "", stats["price"], vol_val)
+    # ตัดแถบ render_live_top_bar เดิมออกเพื่อให้กราฟขยับขึ้นชิดขอบบนทันที
 
     cur_main_h = int(st.session_state.get("main_h", 520))
     cur_rsi_h = int(st.session_state.get("rsi_h", 120))
@@ -1249,7 +1258,7 @@ def dashboard():
     chart_dyn_key = f"c_{symbol}_{tf}_{st.session_state.get('active_tab_id', '0')}"
     show_tb = app_config.get("show_draw_toolbar", True)
 
-    # 3. การจัดวางหน้าจอ (Chart vs Quote Panel)
+    # 4. การจัดวางหน้าจอ (Chart vs Quote Panel)
     panel_ratios = {"S": [4.25, 0.75], "M": [3.85, 1.15], "L": [3.40, 1.60]}
     p_open = st.session_state.get("panel_open", True)
     p_size = st.session_state.get("panel_size", "M")
@@ -1264,10 +1273,15 @@ def dashboard():
     with col_chart:
         filtered_charts = []
         if charts:
-            # 1. กราฟแท่งเทียนหลัก (Main Chart)
+            # 1. กราฟแท่งเทียนหลัก (พร้อมกรองเส้น EMA เมื่อถูกปิด)
             if st.session_state.get("show_main_chart", True):
                 c0 = charts[0]
+                active_main_series = []
                 for s in c0.get("series", []):
+                    title = str(s.get("title", "")).upper()
+                    if "EMA" in title and not st.session_state.get("show_ema", True):
+                        continue
+
                     if s.get("type") == "Candlestick":
                         s.setdefault("options", {})
                         s["options"]["upColor"] = st.session_state.get("candle_up", "#089981")
@@ -1276,9 +1290,11 @@ def dashboard():
                         s["options"]["borderDownColor"] = st.session_state.get("candle_border_down", "#F23645")
                         s["options"]["wickUpColor"] = st.session_state.get("candle_wick_up", "#089981")
                         s["options"]["wickDownColor"] = st.session_state.get("candle_wick_down", "#F23645")
+                    active_main_series.append(s)
+                c0["series"] = active_main_series
                 filtered_charts.append(c0)
 
-                      # 2. กรองบานหน้าต่างย่อย พร้อมอัปเดตสี RSI & MACD แบบ Real-time
+            # 2. หน้าต่างย่อย RSI & MACD
             for sub in charts[1:]:
                 txt = str(sub.get("chart", {}).get("watermark", {}).get("text", "")).upper()
                 series_titles = " ".join([str(s.get("title", "")).upper() for s in sub.get("series", [])])
@@ -1294,19 +1310,23 @@ def dashboard():
                         s.setdefault("options", {})
                         title = str(s.get("title", "")).upper()
 
-                        # 1. เส้นหลัก RSI
                         if "RSI" in title and "MA" not in title:
                             if not st.session_state.get("rsi_show_line", True):
                                 continue
-                            s["options"]["color"] = st.session_state.get("rsi_line_color", "#B388FF")
-
-                        # 2. เส้น RSI-based MA
+                            s["options"]["color"] = st.session_state.get("rsi_line_color", "#00FFA3")
+                            s["priceLines"] = [
+                                {"price": float(st.session_state.get("rsi_upper_band", 70)), "color": st.session_state.get("rsi_upper_color", "#787B86"), "lineWidth": 1, "lineStyle": 2, "axisLabelVisible": True, "title": "UB"},
+                                {"price": float(st.session_state.get("rsi_middle_band", 50)), "color": st.session_state.get("rsi_middle_color", "#434651"), "lineWidth": 1, "lineStyle": 2, "axisLabelVisible": False, "title": "MB"},
+                                {"price": float(st.session_state.get("rsi_lower_band", 30)), "color": st.session_state.get("rsi_lower_color", "#787B86"), "lineWidth": 1, "lineStyle": 2, "axisLabelVisible": True, "title": "LB"},
+                            ]
+                            active_rsi_series.append(s)
                         elif "MA" in title:
                             if not st.session_state.get("rsi_show_ma", True):
                                 continue
-                            s["options"]["color"] = st.session_state.get("rsi_ma_color", "#FFB74D")
-
-                        active_rsi_series.append(s)
+                            s["options"]["color"] = st.session_state.get("rsi_ma_color", "#FFEB3B")
+                            active_rsi_series.append(s)
+                        else:
+                            active_rsi_series.append(s)
 
                     sub["series"] = active_rsi_series
                     filtered_charts.append(sub)
@@ -1328,7 +1348,6 @@ def dashboard():
                 else:
                     filtered_charts.append(sub)
 
-        # ผูก key เข้ากับตัวนับ chart_force_refresh เพื่อไม่ให้กราฟค้างหรือสะดุด
         refresh_tick = st.session_state.get("chart_force_refresh", 0)
         render_drawing_chart(
             filtered_charts, 
@@ -1343,7 +1362,7 @@ def dashboard():
                 st.session_state["panel_open"] = True
                 st.rerun()
 
-    # 4. แผงควบคุมฝั่งขวา + ปุ่ม Mac 3 สี
+    # 5. แผงควบคุมฝั่งขวา
     if p_open and col_quote:
         with col_quote:
             st.markdown("""
@@ -1401,14 +1420,19 @@ def dashboard():
                 </script>
                 """, height=0, width=0)
 
-            with st.expander("⭐ รายการสินทรัพย์ & อันดับขาขึ้น-ลง", expanded=True):
-                render_watchlist_component(key_prefix="desk")
+           # ระบบ 2 แท็บของแผงควบคุมฝั่งขวา (Cockpit & Movers)
+            tab_tech, tab_movers = st.tabs(["📊 เทคนิค 24h", "⭐ ตลาด & พอร์ต"])
 
-            with st.expander("📊 ข้อมูลตลาด 24h & เทคนิค", expanded=True):
-                if st.button("🔍 ขยายดูตลาด 24h (Pop-up)", key="btn_popup_market_desk", use_container_width=True):
+            with tab_tech:
+                if st.button("🔍 ขยายดูบทวิเคราะห์ตลาด 24h (Pop-up)", key="btn_popup_market_desk", use_container_width=True):
                     st.session_state["trigger_market_modal"] = True
                     st.rerun()
+                # เรนเดอร์หน้าปัดเลขไมล์ (Technical Gauges), ช่วงราคา High/Low, และ Seasonality
                 render_tv_quote_card(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_compact)
+
+            with tab_movers:
+                # เรนเดอร์อันดับขาขึ้น-ลงแรง และกลุ่มดาวสีโปรด 5 สี
+                render_watchlist_component(key_prefix="desk")
 
 if st.session_state.get("app_mode") == "rice":
     render_rice_tab()

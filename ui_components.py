@@ -233,25 +233,8 @@ def fetch_seasonality_svg(df: pd.DataFrame) -> str:
 
 def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, seasonality_html: str = "", gauges_html: str = "") -> str:
     if not tk: return "<div style='color:#787b86; padding:10px;'>กำลังเชื่อมต่อข้อมูลราคา...</div>"
-    c_color = UP if tk.get("change", 0) >= 0 else DOWN
-    sign = "+" if tk.get("change", 0) >= 0 else ""
     
     p_val = float(tk.get("price", 0))
-    p_str = f"{p_val:,.4f}" if p_val < 10 else f"{p_val:,.2f}"
-    
-    c_val = float(tk.get("change", 0))
-    c_str = f"{c_val:,.4f}" if abs(c_val) < 1 else f"{c_val:,.2f}"
-    
-    bid_val = float(tk.get("bid", p_val))
-    bid_str = f"{bid_val:,.4f}" if bid_val < 10 else f"{bid_val:,.2f}"
-    
-    ask_val = float(tk.get("ask", p_val))
-    ask_str = f"{ask_val:,.4f}" if ask_val < 10 else f"{ask_val:,.2f}"
-    bid_vol_raw = tk.get('bid_vol', 0)
-    ask_vol_raw = tk.get('ask_vol', 0)
-    bid_vol_str = f"{bid_vol_raw:,.0f}" if bid_vol_raw > 0 else "-"
-    ask_vol_str = f"{ask_vol_raw:,.0f}" if ask_vol_raw > 0 else "-"
-
     day_low = tk.get("low", 0)
     if day_low <= 0:
         day_low = p_val * 0.98
@@ -290,84 +273,55 @@ def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, 
     else:
         grid_perf = """<div style="font-size:10px; color:#787b86; padding:6px 0;">ไม่มีข้อมูลย้อนหลังเพียงพอ</div>"""
 
-    desc_display = CHINA_STOCK_NAMES.get(symbol, COMMODITY_NAMES.get(symbol, FOREX_NAMES.get(symbol, "")))
-    sub_title_html = f"<div style='font-size:10px; color:#888; margin-bottom:2px;'>{desc_display}</div>" if desc_display else ""
-    currency_label = "THB" if ("_THB" in symbol or ".BK" in symbol) else "USD"
-
     return f"""<div class="scrollable-market-card">
-<div style="background-color:#0A0A0A; border-radius:6px; padding:12px 10px; color:#D1D4DC; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; border:1px solid #1E1E1E;">
+<div style="background-color:#0A0A0A; border-radius:6px; padding:10px; color:#D1D4DC; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; border:1px solid #1E1E1E;">
 
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-    <div style="display:flex; align-items:center; gap:6px;">
-        <span style="font-size:15px; font-weight:800; color:#fff;">{symbol}</span>
-    </div>
-    <span style="background:#1A1A1A; color:#9aa0a6; padding:1px 6px; border-radius:3px; font-size:9px; font-weight:600;">{label_name}</span>
-</div>
-{sub_title_html}
-<div style="font-size:10px; color:#787b86; margin-bottom:8px;">ตำแหน่ง • คริปโต</div>
-
-<div style="display:flex; align-items:baseline; gap:6px; margin-bottom:2px;">
-    <span style="font-size:24px; font-weight:800; color:#fff; letter-spacing:-0.5px;">{p_str}</span>
-    <span style="font-size:10px; color:#787b86; font-weight:bold;">{currency_label}</span>
-    <span style="font-size:12px; font-weight:700; color:{c_color}; font-family:monospace;">{sign}{c_str}</span>
-    <span style="font-size:12px; font-weight:700; color:{c_color}; font-family:monospace;">{sign}{tk.get('pct', 0):.2f}%</span>
-</div>
-<div style="font-size:10px; color:#26a69a; margin-bottom:12px; font-weight:600;">● ตลาดเปิด</div>
-
-<div style="display:flex; gap:6px; margin-bottom:14px;">
-    <div style="background:rgba(41,98,255,0.15); border:1px solid rgba(41,98,255,0.4); border-radius:12px; padding:2px 10px; font-size:10px; color:#2962ff; font-family:monospace;">
-        {bid_str} × {bid_vol_str}
-    </div>
-    <div style="background:rgba(239,83,80,0.15); border:1px solid rgba(239,83,80,0.4); border-radius:12px; padding:2px 10px; font-size:10px; color:#ef5350; font-family:monospace;">
-        {ask_str} × {ask_vol_str}
-    </div>
-</div>
-
-<div style="margin-bottom:14px;">
+<!-- 1. ช่วงราคา 24 ชม. & 52 สัปดาห์ -->
+<div style="margin-bottom:12px;">
     <div style="display:flex; justify-content:space-between; font-size:11px; font-family:monospace; color:#D1D4DC; margin-bottom:4px;">
         <span>{fmt_price(day_low)}</span>
-        <span style="color:#787b86; font-size:10px; font-family:sans-serif;">ระหว่างวัน</span>
+        <span style="color:#787b86; font-size:10px; font-family:sans-serif;">ช่วงราคา 24 ชม.</span>
         <span>{fmt_price(day_high)}</span>
     </div>
     <div style="position:relative; width:100%; height:4px; background:#1E1E1E; border-radius:2px;">
         <div style="position:absolute; left:0; width:{ratio_day}%; height:100%; background:#26a69a; border-radius:2px;"></div>
-        <div style="position:absolute; left:{ratio_day}%; top:5px; transform:translateX(-50%); font-size:8px; color:#D1D4DC; line-height:1;">▲</div>
+        <div style="position:absolute; left:{ratio_day}%; top:5px; transform:translateX(-50%); font-size:8px; color:#00FFA3; line-height:1;">▲</div>
     </div>
 </div>
 
-<div style="margin-bottom:18px;">
+<div style="margin-bottom:16px;">
     <div style="display:flex; justify-content:space-between; font-size:11px; font-family:monospace; color:#D1D4DC; margin-bottom:4px;">
         <span>{fmt_price(low_52w)}</span>
-        <span style="color:#787b86; font-size:10px; font-family:sans-serif;">ระยะในรอบ 52 สัปดาห์</span>
+        <span style="color:#787b86; font-size:10px; font-family:sans-serif;">ช่วงราคา 52 สัปดาห์</span>
         <span>{fmt_price(high_52w)}</span>
     </div>
     <div style="position:relative; width:100%; height:4px; background:#1E1E1E; border-radius:2px;">
-        <div style="position:absolute; left:0; width:{ratio_52w}%; height:100%; background:#26a69a; border-radius:2px;"></div>
-        <div style="position:absolute; left:{ratio_52w}%; top:5px; transform:translateX(-50%); font-size:8px; color:#D1D4DC; line-height:1;">▲</div>
+        <div style="position:absolute; left:0; width:{ratio_52w}%; height:100%; background:#ffbd2e; border-radius:2px;"></div>
+        <div style="position:absolute; left:{ratio_52w}%; top:5px; transform:translateX(-50%); font-size:8px; color:#ffbd2e; line-height:1;">▲</div>
     </div>
 </div>
 
-<div style="font-size:12px; font-weight:700; color:#fff; margin-bottom:6px;">สถิติสำคัญ</div>
-<div style="display:flex; justify-content:space-between; font-size:11px; padding:3px 0;">
-    <span style="color:#787b86;">ปริมาณการซื้อขาย</span>
+<!-- 2. ปริมาณการซื้อขาย -->
+<div style="display:flex; justify-content:space-between; font-size:11px; padding:2px 0;">
+    <span style="color:#787b86;">ปริมาณการซื้อขาย 24h</span>
     <span style="color:#fff; font-family:monospace; font-weight:600;">{vol_24h_str}</span>
 </div>
-<div style="display:flex; justify-content:space-between; font-size:11px; padding:3px 0; margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; font-size:11px; padding:2px 0; margin-bottom:12px;">
     <span style="color:#787b86;">ปริมาณเฉลี่ย (30 วัน)</span>
     <span style="color:#fff; font-family:monospace; font-weight:600;">{vol_30d_str}</span>
 </div>
 
-<div style="font-size:12px; font-weight:700; color:#fff; margin-bottom:6px;">ประสิทธิภาพ</div>
+<!-- 3. Performance Matrix 6 ช่อง -->
+<div style="font-size:11px; font-weight:700; color:#00FFA3; margin-bottom:6px;">ผลการดำเนินงาน (Performance Matrix)</div>
 {grid_perf}
 
-<div style="font-size:12px; font-weight:700; color:#fff; margin-bottom:4px;">ฤดูกาล</div>
-{seasonality_html}
-<div style="text-align:center; margin-top:6px; margin-bottom:16px;">
-    <span style="background:#161616; color:#9aa0a6; padding:3px 12px; border-radius:12px; font-size:10px; font-weight:600; border:1px solid #262626;">ฤดูกาลเพิ่มเติม</span>
-</div>
-
-<div style="font-size:12px; font-weight:700; color:#fff; margin-bottom:6px; border-top:1px solid #1E1E1E; padding-top:10px;">ทางเทคนิค</div>
+<!-- 4. หน้าปัดเลขไมล์สัญญาณเทคนิค (Technical Gauges) -->
+<div style="font-size:11px; font-weight:700; color:#00FFA3; margin-bottom:4px; border-top:1px solid #1E1E1E; padding-top:8px;">หน้าปัดสัญญาณเทคนิค (Technical Gauges)</div>
 {gauges_html}
+
+<!-- 5. กราฟสถิติฤดูกาล (Seasonality) -->
+<div style="font-size:11px; font-weight:700; color:#00FFA3; margin-top:10px; margin-bottom:4px;">สถิติฤดูกาลผลตอบแทน (Seasonality)</div>
+{seasonality_html}
 
 </div></div>"""
 
