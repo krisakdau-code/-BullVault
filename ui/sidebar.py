@@ -23,6 +23,36 @@ def render_sidebar():
     show_top = True
     show_tool = True
 
+    # ฟังก์ชันช่วยเปลี่ยนเหรียญทับแท็บปัจจุบัน (Active Tab) เสมอ โดยไม่สร้างแท็บใหม่
+    def update_active_tab_symbol(sym, default_tf=None):
+        st.session_state["current_symbol"] = sym
+        st.session_state["app_mode"] = "chart"
+        tf_val = default_tf if default_tf else st.session_state.get("selected_tf", "1h")
+        if default_tf:
+            st.session_state["selected_tf"] = default_tf
+
+        if "open_tabs" not in st.session_state or not st.session_state.open_tabs:
+            import uuid
+            new_id = uuid.uuid4().hex[:8]
+            st.session_state.open_tabs = [{"id": new_id, "symbol": sym, "tf": tf_val}]
+            st.session_state.active_tab_id = new_id
+        else:
+            active_id = st.session_state.get("active_tab_id")
+            updated = False
+            for t in st.session_state.open_tabs:
+                if t.get("id") == active_id:
+                    t["symbol"] = sym
+                    if default_tf:
+                        t["tf"] = default_tf
+                    updated = True
+                    break
+            if not updated:
+                st.session_state.open_tabs[0]["symbol"] = sym
+                if default_tf:
+                    st.session_state.open_tabs[0]["tf"] = default_tf
+                st.session_state.active_tab_id = st.session_state.open_tabs[0]["id"]
+        st.rerun()
+
     with st.sidebar:
         st.markdown("""
         <div style="background: #0B0E14; border: 1px solid #FF7A00; border-radius: 8px; padding: 6px; margin-bottom: 8px;">
@@ -71,23 +101,7 @@ def render_sidebar():
             selected_sym = st.selectbox("เลือกชนิดข้าว / ตลาดส่งออก", sym_list)
 
             if st.button("📈 ดูกราฟแท่งเทียนสายพันธุ์นี้", use_container_width=True, key="btn_open_rice_chart"):
-                st.session_state["current_symbol"] = selected_sym
-                st.session_state["selected_tf"] = "1D"
-                st.session_state["app_mode"] = "chart"
-                if "open_tabs" not in st.session_state:
-                    st.session_state.open_tabs = []
-                existing_ids = [t["symbol"] for t in st.session_state.open_tabs]
-                if selected_sym not in existing_ids:
-                    import uuid
-                    new_id = uuid.uuid4().hex[:8]
-                    st.session_state.open_tabs.append({"id": new_id, "symbol": selected_sym, "tf": "1D"})
-                    st.session_state.active_tab_id = new_id
-                else:
-                    for t in st.session_state.open_tabs:
-                        if t["symbol"] == selected_sym:
-                            t["tf"] = "1D"
-                            st.session_state.active_tab_id = t.get("id")
-                st.rerun()
+                update_active_tab_symbol(selected_sym, default_tf="1D")
 
         # ==========================================
         # 2. สินทรัพย์คริปโต / หุ้น / โภคภัณฑ์ / Forex
@@ -118,27 +132,12 @@ def render_sidebar():
 
             selected_sym = st.selectbox("เลือกหรือพิมพ์สัญลักษณ์", sym_list, key="sb_symbol_select")
 
-            # เช็คว่ากดปุ่ม หรือสลับเลือกตัวใหม่ในเมนู ให้เปิดกราฟและสลับแท็บทันที
             btn_clicked = st.button("📈 เปิดกราฟสินทรัพย์นี้", use_container_width=True, key="sb_open_sym_btn")
             sym_changed = (selected_sym and selected_sym != st.session_state.get("current_symbol") and st.session_state.get("last_sb_choice") != selected_sym)
 
             if btn_clicked or sym_changed:
                 st.session_state["last_sb_choice"] = selected_sym
-                st.session_state["current_symbol"] = selected_sym
-                st.session_state["app_mode"] = "chart"
-                if "open_tabs" not in st.session_state:
-                    st.session_state.open_tabs = []
-                existing_ids = [t["symbol"] for t in st.session_state.open_tabs]
-                if selected_sym not in existing_ids:
-                    import uuid
-                    new_id = uuid.uuid4().hex[:8]
-                    st.session_state.open_tabs.append({"id": new_id, "symbol": selected_sym, "tf": st.session_state.get("selected_tf", "1h")})
-                    st.session_state.active_tab_id = new_id
-                else:
-                    for t in st.session_state.open_tabs:
-                        if t.get("symbol") == selected_sym:
-                            st.session_state.active_tab_id = t.get("id")
-                st.rerun()
+                update_active_tab_symbol(selected_sym)
 
         st.divider()
         st.markdown("### ⚙ ตั้งค่าอินดิเคเตอร์")

@@ -489,11 +489,12 @@ def fetch_daily_history(market_type: str, exchange: str, symbol: str) -> pd.Data
 
 def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "", df: pd.DataFrame = None) -> dict:
     tk = {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0.0, "high": 0.0, "low": 0.0, "bid": 0.0, "ask": 0.0}
-    
-    # ดึงราคาจริงของกลุ่มสินค้าเกษตร/ราคาข้าว
-    if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
+    sym = (symbol or "").upper()
+
+    # 1. สินค้าเกษตร / ราคาข้าว
+    if sym.startswith("RICE:") or sym.startswith("FOB:") or sym == "ZR=F (CBOT Rough Rice)":
         try:
-            r_df = generate_rice_ohlcv(symbol)
+            r_df = generate_rice_ohlcv(sym)
             if r_df is not None and not r_df.empty:
                 last_p = float(r_df["close"].iloc[-1])
                 prev_p = float(r_df["close"].iloc[-2]) if len(r_df) >= 2 else last_p
@@ -507,12 +508,13 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                 }
         except Exception: pass
 
-    if ("THB" in symbol) or (exchange == "Bitkub"):
+    # 2. คริปโตไทย (Bitkub: _THB หรือ THB_)
+    elif ("THB" in sym) or (exchange == "Bitkub"):
         try:
             r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=3.0)
             if r.status_code == 200:
                 data = r.json()
-                k = symbol if symbol.startswith("THB_") else f"THB_{symbol.replace('_THB', '')}"
+                k = sym if sym.startswith("THB_") else f"THB_{sym.replace('_THB', '')}"
                 if k in data:
                     item = data[k]
                     last_p = float(item.get("last", 0.0))
@@ -528,20 +530,59 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                     }
         except Exception: pass
 
+    # 3. คริปโต Binance (คู่เหรียญ USDT เช่น BNBUSDT, BTCUSDT)
+    elif sym.endswith("USDT"):
+        try:
+            r = HTTP_SESSION.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={sym}", timeout=3.0)
+            if r.status_code == 200:
+                data = r.json()
+                last_p = float(data.get("lastPrice", 0.0))
+                pct = float(data.get("priceChangePercent", 0.0))
+                chg = float(data.get("priceChange", 0.0))
+                return {
+                    "price": last_p, "change": chg, "pct": pct,
+                    "high": float(data.get("highPrice", last_p)),
+                    "low": float(data.get("lowPrice", last_p)),
+                    "vol": float(data.get("volume", 0.0)),
+                    "bid": last_p, "ask": last_p
+                }
+        except Exception: pass
+
+    # 4. สินทรัพย์ต่างประเทศ / ทองคำ / Forex / หุ้น (Yahoo Finance)
+    else:
+        try:
+            r = HTTP_SESSION.get(f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={sym}", timeout=3.0)
+            if r.status_code == 200:
+                q_list = r.json().get("quoteResponse", {}).get("result", [])
+                if q_list:
+                    item = q_list[0]
+                    last_p = float(item.get("regularMarketPrice", 0.0))
+                    pct = float(item.get("regularMarketChangePercent", 0.0))
+                    chg = float(item.get("regularMarketChange", 0.0))
+                    return {
+                        "price": last_p, "change": chg, "pct": pct,
+                        "high": float(item.get("regularMarketDayHigh", last_p)),
+                        "low": float(item.get("regularMarketDayLow", last_p)),
+                        "vol": float(item.get("regularMarketVolume", 0.0)),
+                        "bid": last_p, "ask": last_p
+                    }
+        except Exception: pass
+
+    # 5. กรณีดึงออนไลน์ไม่ผ่าน ให้ใช้ข้อมูลจากแท่งเทียน (Fallback)
     try:
         if df is not None and not df.empty and "close" in df.columns:
             last_p = float(df["close"].iloc[-1])
             prev_p = float(df["close"].iloc[-2]) if len(df) >= 2 else last_p
             chg = last_p - prev_p
             pct = (chg / prev_p * 100.0) if prev_p != 0 else 0.0
-            h = float(df["high"].max()) if "high" in df.columns else last_p
-            l = float(df["low"].min()) if "low" in df.columns else last_p
-            v = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0.0
             tk.update({
                 "price": last_p, "change": chg, "pct": pct,
-                "high": h, "low": l, "vol": v, "bid": last_p, "ask": last_p
+                "high": float(df["high"].max()), "low": float(df["low"].min()),
+                "vol": float(df["volume"].iloc[-1]) if "volume" in df.columns else 0.0,
+                "bid": last_p, "ask": last_p
             })
     except Exception: pass
+
     return tk
 
 @st.cache_data(ttl=5, show_spinner=False)
@@ -585,109 +626,109 @@ def format_clean_tab_label(sym: str, q: dict) -> str:
         return f"{ico} {name}  {p_str} ({pct:+.2f}%)"
     return f"{ico} {name}  --"
 
-# ────────────────── TRADINGVIEW CYBER GLOW TAB COMPONENT ──────────────────
+# ────────────────── TRADINGVIEW PRO UNIFORM TABS (CYBER GLOW) ──────────────────
 def render_tradingview_clean_tabs():
     st.markdown("""
     <style>
-    /* ลดช่องว่างระหว่างคอลัมน์ของแท็บให้ชิดสนิทกัน */
+    /* ล้างช่องว่างระหว่างคอลัมน์ของแท็บให้แนบชิดกัน */
     div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-tv_tab_"]) {
         gap: 0px !important;
         align-items: center !important;
-        margin-bottom: 6px !important;
+        margin-bottom: 4px !important;
     }
 
-    /* 1. ปุ่มแท็บหลัก (ชิดพอดีตัวหนังสือ + ขอบเรืองแสงเขียวนีออน) */
+    /* 1. ปุ่มแท็บหลัก */
     div[class*="st-key-tv_tab_"] button {
-        height: 30px !important;
-        min-height: 30px !important;
+        height: 32px !important;
+        min-height: 32px !important;
         border-top-right-radius: 0px !important;
         border-bottom-right-radius: 0px !important;
         border-right: none !important;
-        padding: 0 10px !important;
+        padding: 0 6px 0 10px !important;
         font-size: 11.5px !important;
         font-weight: 600 !important;
         text-align: left !important;
         justify-content: flex-start !important;
         white-space: nowrap !important;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        overflow: visible !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    /* 2. ปุ่มปิด X (เชื่อมไร้รอยต่อกับแท็บหลัก) */
+    /* 2. ปุ่มปิด X */
     div[class*="st-key-tv_close_"] button {
-        height: 30px !important;
-        min-height: 30px !important;
+        height: 32px !important;
+        min-height: 32px !important;
         border-top-left-radius: 0px !important;
         border-bottom-left-radius: 0px !important;
         border-left: none !important;
         padding: 0 8px 0 2px !important;
         font-size: 11px !important;
         color: #787b86 !important;
-        transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    /* 3. สถานะแท็บที่เลือกใช้งาน (Active) - ขอบนีออนเขียวสว่าง + เงาเรืองแสง */
+    /* 3. สไตล์แท็บ Active (กำลังดู) - ขอบเขียวนีออนเรืองแสง */
     div[class*="st-key-tv_tab_"] button[kind="primary"] {
-        background: rgba(0, 255, 163, 0.08) !important;
+        background: #1c202d !important;
         border: 1px solid #00FFA3 !important;
         border-right: none !important;
         color: #ffffff !important;
-        box-shadow: -2px 0 8px rgba(0, 255, 163, 0.35), 0 -2px 8px rgba(0, 255, 163, 0.35), 0 2px 8px rgba(0, 255, 163, 0.35) !important;
+        box-shadow: -2px 0 8px rgba(0, 255, 163, 0.3), 0 -2px 8px rgba(0, 255, 163, 0.3), 0 2px 8px rgba(0, 255, 163, 0.3) !important;
     }
     div[class*="st-key-tv_close_"] button[kind="primary"] {
-        background: rgba(0, 255, 163, 0.08) !important;
+        background: #1c202d !important;
         border: 1px solid #00FFA3 !important;
         border-left: none !important;
-        box-shadow: 2px 0 8px rgba(0, 255, 163, 0.35), 0 -2px 8px rgba(0, 255, 163, 0.35), 0 2px 8px rgba(0, 255, 163, 0.35) !important;
+        color: #8f9cae !important;
+        box-shadow: 2px 0 8px rgba(0, 255, 163, 0.3), 0 -2px 8px rgba(0, 255, 163, 0.3), 0 2px 8px rgba(0, 255, 163, 0.3) !important;
     }
 
-    /* 4. สถานะแท็บรอง (Inactive) - ขอบเขียวนีออนโปร่งแสงจาง ๆ */
+    /* 4. สไตล์แท็บ Inactive (แท็บรอง) - ขอบเขียวโปร่งแสงบางเบา */
     div[class*="st-key-tv_tab_"] button[kind="secondary"] {
-        background: #0E1117 !important;
-        border: 1px solid rgba(0, 255, 163, 0.25) !important;
+        background: #11141c !important;
+        border: 1px solid rgba(0, 255, 163, 0.2) !important;
         border-right: none !important;
-        color: #8F9CAE !important;
-        box-shadow: 0 0 4px rgba(0, 255, 163, 0.08) !important;
+        color: #8f9cae !important;
     }
     div[class*="st-key-tv_close_"] button[kind="secondary"] {
-        background: #0E1117 !important;
-        border: 1px solid rgba(0, 255, 163, 0.25) !important;
+        background: #11141c !important;
+        border: 1px solid rgba(0, 255, 163, 0.2) !important;
         border-left: none !important;
-        box-shadow: 0 0 4px rgba(0, 255, 163, 0.08) !important;
     }
 
-    /* 5. เอฟเฟกต์นำเมาส์ไปชี้ (Hover) - สีเขียวเรืองแสงแบบโปร่งแสงทั้งอัน */
+    /* 5. เอฟเฟกต์นำเมาส์ชี้ (Hover) - สีเขียวเรืองแสงโปร่งแสงทั้งก้อน */
     div[class*="st-key-tv_tab_"] button:hover {
-        background: rgba(0, 255, 163, 0.18) !important;
+        background: rgba(0, 255, 163, 0.16) !important;
         border-color: #00FFA3 !important;
         color: #ffffff !important;
-        box-shadow: 0 0 14px rgba(0, 255, 163, 0.55), inset 0 0 8px rgba(0, 255, 163, 0.2) !important;
+        box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
     }
     div[class*="st-key-tv_close_"] button:hover {
-        background: rgba(239, 83, 80, 0.25) !important;
+        background: rgba(239, 83, 80, 0.2) !important;
         border-color: #ef5350 !important;
-        color: #ff5f56 !important;
-        box-shadow: 0 0 12px rgba(239, 83, 80, 0.5) !important;
+        color: #ef5350 !important;
+        box-shadow: 0 0 10px rgba(239, 83, 80, 0.4) !important;
     }
 
     /* 6. ปุ่มเพิ่มแท็บใหม่ (+) */
     div[class*="st-key-tv_add_btn"] button {
-        height: 30px !important;
-        min-height: 30px !important;
-        width: 30px !important;
-        background: #0E1117 !important;
+        height: 32px !important;
+        min-height: 32px !important;
+        width: 32px !important;
+        background: #11141c !important;
         border: 1px solid rgba(0, 255, 163, 0.25) !important;
         border-radius: 4px !important;
         color: #787b86 !important;
-        font-size: 14px !important;
+        font-size: 15px !important;
         padding: 0 !important;
         margin-left: 6px !important;
         transition: all 0.2s ease !important;
     }
     div[class*="st-key-tv_add_btn"] button:hover {
-        background: rgba(0, 255, 163, 0.18) !important;
+        background: rgba(0, 255, 163, 0.16) !important;
         border-color: #00FFA3 !important;
         color: #00FFA3 !important;
-        box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
+        box-shadow: 0 0 10px rgba(0, 255, 163, 0.4) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -699,11 +740,25 @@ def render_tradingview_clean_tabs():
 
     active_id = st.session_state.get("active_tab_id")
 
-    tab_items = []
-    total_content_w = 0.0
+    # กำหนดขนาดมาตรฐานเท่ากันทุกแท็บ เพื่อรองรับตัวเลขหลักล้านไม่ให้ขาด
+    TAB_WIDTH = 2.4
+    CLOSE_WIDTH = 0.38
+    ADD_WIDTH = 0.32
+
+    col_specs = []
+    for _ in tabs:
+        col_specs.extend([TAB_WIDTH, CLOSE_WIDTH])
+    col_specs.append(ADD_WIDTH)
+    col_specs.append(max(0.5, 18.0 - (len(tabs) * (TAB_WIDTH + CLOSE_WIDTH) + ADD_WIDTH)))
+
+    cols = st.columns(col_specs)
+    col_idx = 0
 
     for t in tabs:
+        t_id = t["id"]
         sym = t["symbol"]
+        is_active = (t_id == active_id)
+
         if sym == "GC=F":
             badge, name = "🟡", "GOLD"
         elif sym == "CL=F":
@@ -727,40 +782,20 @@ def render_tradingview_clean_tabs():
         pct = q.get("pct", 0.0)
 
         if p > 0:
-            p_str = f"{p:,.3f}" if p < 100 else f"{p:,.2f}"
-            if p >= 10000:
-                p_str = f"{p:,.0f}"
-
+            p_str = f"{p:.4f}" if p < 1 else (f"{p:,.2f}" if p < 10000 else f"{p:,.0f}")
             if pct < 0:
-                label = f"{badge} {name}  :red[▼ {p_str} {pct:.2f}%]"
+                label = f"{badge} **{name}**  :red[▼ {p_str} {pct:.2f}%]"
             elif pct > 0:
-                label = f"{badge} {name}  :green[▲ {p_str} +{pct:.2f}%]"
+                label = f"{badge} **{name}**  :green[▲ {p_str} +{pct:.2f}%]"
             else:
-                label = f"{badge} {name}  {p_str} 0.00%"
+                label = f"{badge} **{name}**  {p_str} 0.00%"
         else:
-            label = f"{badge} {name}  --"
+            label = f"{badge} **{name}**  --"
 
-        calc_w = max(1.1, len(f"{name} {p_str if p > 0 else '--'}") * 0.09)
-        tab_items.append({"id": t["id"], "symbol": sym, "label": label, "width": calc_w})
-        total_content_w += (calc_w + 0.22)
-
-    col_specs = []
-    for item in tab_items:
-        col_specs.extend([item["width"], 0.22])
-    col_specs.append(0.28)
-    col_specs.append(max(1.0, 18.0 - total_content_w))
-
-    cols = st.columns(col_specs)
-    col_idx = 0
-
-    for item in tab_items:
-        t_id = item["id"]
-        sym = item["symbol"]
-        is_active = (t_id == active_id)
         b_type = "primary" if is_active else "secondary"
 
         with cols[col_idx]:
-            if st.button(item["label"], key=f"tv_tab_{t_id}", type=b_type, use_container_width=True):
+            if st.button(label, key=f"tv_tab_{t_id}", type=b_type, use_container_width=True):
                 switch_tab(t_id)
         col_idx += 1
 
