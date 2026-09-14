@@ -10,11 +10,18 @@ def render_drawing_chart(
 ):
     if not charts_config:
         return
-
-    real_total_h = 0
-    for c in charts_config:
-        real_total_h += int(c.get("chart", {}).get("height", 130)) + 6
-    real_total_h += 30
+# คำนวณความสูงอัตโนมัติ: หากปิด Sub-pane ให้ขยายความสูงกราฟหลักขึ้นมาทดแทน
+    if len(charts_config) == 1:
+        charts_config[0]["chart"]["height"] = 650
+        real_total_h = 680
+    elif len(charts_config) == 2:
+        charts_config[0]["chart"]["height"] = 540
+        real_total_h = 540 + int(charts_config[1].get("chart", {}).get("height", 130)) + 36
+    else:
+        real_total_h = 0
+        for c in charts_config:
+            real_total_h += int(c.get("chart", {}).get("height", 130)) + 6
+        real_total_h += 30
 
     chart_json = json.dumps(charts_config)
     toolbar_display = "flex" if show_toolbar else "none"

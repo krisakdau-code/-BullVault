@@ -18,6 +18,7 @@ from config import *
 from data.rice_ohlcv import generate_rice_ohlcv
 from ui.rice_tab import show_rice_dialog_modal
 from ui.rice_tab import render_rice_tab
+from ui.chart_settings_modal import show_chart_settings_dialog, init_settings_state
 from drawing_chart import render_drawing_chart
 from requests.adapters import HTTPAdapter
 from streamlit_lightweight_charts_ntf import renderLightweightCharts
@@ -630,21 +631,22 @@ def format_clean_tab_label(sym: str, q: dict) -> str:
 def render_tradingview_clean_tabs():
     st.markdown("""
     <style>
-    /* ล้างช่องว่างระหว่างคอลัมน์ของแท็บให้แนบชิดกัน */
+    /* 1. ล้างระยะห่างระหว่างแท็บกับปุ่มปิด X ให้ติดกันสนิท */
     div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-tv_tab_"]) {
         gap: 0px !important;
         align-items: center !important;
         margin-bottom: 4px !important;
     }
 
-    /* 1. ปุ่มแท็บหลัก */
-    div[class*="st-key-tv_tab_"] button {
+    /* 2. สไตล์ปุ่มแท็บหลัก (ขอบขวาตัดตรง) */
+    div[class*="st-key-tv_tab_"] button,
+    div[class*="st-key-tv_tab_"] button[data-testid*="BaseButton"] {
         height: 32px !important;
         min-height: 32px !important;
         border-top-right-radius: 0px !important;
         border-bottom-right-radius: 0px !important;
         border-right: none !important;
-        padding: 0 6px 0 10px !important;
+        padding: 0 8px 0 10px !important;
         font-size: 11.5px !important;
         font-weight: 600 !important;
         text-align: left !important;
@@ -654,8 +656,9 @@ def render_tradingview_clean_tabs():
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    /* 2. ปุ่มปิด X */
-    div[class*="st-key-tv_close_"] button {
+    /* 3. สไตล์ปุ่มปิด X (ขอบซ้ายตัดตรง เชื่อมกับแท็บหลัก) */
+    div[class*="st-key-tv_close_"] button,
+    div[class*="st-key-tv_close_"] button[data-testid*="BaseButton"] {
         height: 32px !important;
         min-height: 32px !important;
         border-top-left-radius: 0px !important;
@@ -667,55 +670,68 @@ def render_tradingview_clean_tabs():
         transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
 
-    /* 3. สไตล์แท็บ Active (กำลังดู) - ขอบเขียวนีออนเรืองแสง */
-    div[class*="st-key-tv_tab_"] button[kind="primary"] {
+    /* 4. สถานะแท็บ Active (กำลังดู) - พื้นหลังดำเทา #1c202d + ขอบเรืองแสงเขียวนีออน */
+    div[class*="st-key-tv_tab_"] button[kind="primary"],
+    div[class*="st-key-tv_tab_"] button[data-testid="stBaseButton-primary"] {
         background: #1c202d !important;
+        background-color: #1c202d !important;
         border: 1px solid #00FFA3 !important;
         border-right: none !important;
         color: #ffffff !important;
         box-shadow: -2px 0 8px rgba(0, 255, 163, 0.3), 0 -2px 8px rgba(0, 255, 163, 0.3), 0 2px 8px rgba(0, 255, 163, 0.3) !important;
     }
-    div[class*="st-key-tv_close_"] button[kind="primary"] {
+    div[class*="st-key-tv_close_"] button[kind="primary"],
+    div[class*="st-key-tv_close_"] button[data-testid="stBaseButton-primary"] {
         background: #1c202d !important;
+        background-color: #1c202d !important;
         border: 1px solid #00FFA3 !important;
         border-left: none !important;
         color: #8f9cae !important;
         box-shadow: 2px 0 8px rgba(0, 255, 163, 0.3), 0 -2px 8px rgba(0, 255, 163, 0.3), 0 2px 8px rgba(0, 255, 163, 0.3) !important;
     }
 
-    /* 4. สไตล์แท็บ Inactive (แท็บรอง) - ขอบเขียวโปร่งแสงบางเบา */
-    div[class*="st-key-tv_tab_"] button[kind="secondary"] {
+    /* 5. สถานะแท็บ Inactive (แท็บรอง) - พื้นหลังมืดสนิท #11141c + ขอบเขียวโปร่งแสง */
+    div[class*="st-key-tv_tab_"] button[kind="secondary"],
+    div[class*="st-key-tv_tab_"] button[data-testid="stBaseButton-secondary"] {
         background: #11141c !important;
+        background-color: #11141c !important;
         border: 1px solid rgba(0, 255, 163, 0.2) !important;
         border-right: none !important;
         color: #8f9cae !important;
     }
-    div[class*="st-key-tv_close_"] button[kind="secondary"] {
+    div[class*="st-key-tv_close_"] button[kind="secondary"],
+    div[class*="st-key-tv_close_"] button[data-testid="stBaseButton-secondary"] {
         background: #11141c !important;
+        background-color: #11141c !important;
         border: 1px solid rgba(0, 255, 163, 0.2) !important;
         border-left: none !important;
+        color: #787b86 !important;
     }
 
-    /* 5. เอฟเฟกต์นำเมาส์ชี้ (Hover) - สีเขียวเรืองแสงโปร่งแสงทั้งก้อน */
+    /* 6. เอฟเฟกต์เมาส์ชี้ (Hover) - สีเขียวเรืองแสงโปร่งแสงทั้งก้อน */
     div[class*="st-key-tv_tab_"] button:hover {
         background: rgba(0, 255, 163, 0.16) !important;
+        background-color: rgba(0, 255, 163, 0.16) !important;
         border-color: #00FFA3 !important;
         color: #ffffff !important;
         box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
     }
     div[class*="st-key-tv_close_"] button:hover {
         background: rgba(239, 83, 80, 0.2) !important;
+        background-color: rgba(239, 83, 80, 0.2) !important;
         border-color: #ef5350 !important;
         color: #ef5350 !important;
         box-shadow: 0 0 10px rgba(239, 83, 80, 0.4) !important;
     }
 
-    /* 6. ปุ่มเพิ่มแท็บใหม่ (+) */
-    div[class*="st-key-tv_add_btn"] button {
+    /* 7. ปุ่มเพิ่มแท็บใหม่ (+) */
+    div[class*="st-key-tv_add_btn"] button,
+    div[class*="st-key-tv_add_btn"] button[data-testid*="BaseButton"] {
         height: 32px !important;
         min-height: 32px !important;
         width: 32px !important;
         background: #11141c !important;
+        background-color: #11141c !important;
         border: 1px solid rgba(0, 255, 163, 0.25) !important;
         border-radius: 4px !important;
         color: #787b86 !important;
@@ -726,6 +742,7 @@ def render_tradingview_clean_tabs():
     }
     div[class*="st-key-tv_add_btn"] button:hover {
         background: rgba(0, 255, 163, 0.16) !important;
+        background-color: rgba(0, 255, 163, 0.16) !important;
         border-color: #00FFA3 !important;
         color: #00FFA3 !important;
         box-shadow: 0 0 10px rgba(0, 255, 163, 0.4) !important;
@@ -740,7 +757,6 @@ def render_tradingview_clean_tabs():
 
     active_id = st.session_state.get("active_tab_id")
 
-    # กำหนดขนาดมาตรฐานเท่ากันทุกแท็บ เพื่อรองรับตัวเลขหลักล้านไม่ให้ขาด
     TAB_WIDTH = 2.4
     CLOSE_WIDTH = 0.38
     ADD_WIDTH = 0.32
@@ -784,13 +800,13 @@ def render_tradingview_clean_tabs():
         if p > 0:
             p_str = f"{p:.4f}" if p < 1 else (f"{p:,.2f}" if p < 10000 else f"{p:,.0f}")
             if pct < 0:
-                label = f"{badge} **{name}**  :red[▼ {p_str} {pct:.2f}%]"
+                label = f"{badge} {name}  :red[▼ {p_str} {pct:.2f}%]"
             elif pct > 0:
-                label = f"{badge} **{name}**  :green[▲ {p_str} +{pct:.2f}%]"
+                label = f"{badge} {name}  :green[▲ {p_str} +{pct:.2f}%]"
             else:
-                label = f"{badge} **{name}**  {p_str} 0.00%"
+                label = f"{badge} {name}  {p_str} 0.00%"
         else:
-            label = f"{badge} **{name}**  --"
+            label = f"{badge} {name}  --"
 
         b_type = "primary" if is_active else "secondary"
 
@@ -1058,6 +1074,10 @@ def render_live_top_bar(r_market: str, r_exchange: str, symbol: str, label_displ
 
 # ──────────────────────────── DASHBOARD (MAIN) ────────────────────────────
 def dashboard():
+    init_settings_state()
+    if st.session_state.get("trigger_settings_modal"):
+        st.session_state["trigger_settings_modal"] = False
+        show_chart_settings_dialog()
     # กำหนดค่าเริ่มต้นเสมอ ป้องกัน UnboundLocalError เมื่อแถบควบคุมด้านบนถูกปิด
     tf = st.session_state.get("selected_tf", "1h")
     bars = int(st.session_state.get("bars_count", 2500))
@@ -1153,7 +1173,79 @@ def dashboard():
         col_quote = None
 
     with col_chart:
-        render_drawing_chart(charts, height=cur_main_h, key=chart_dyn_key, show_toolbar=show_tb)
+        filtered_charts = []
+        if charts:
+            # 1. กราฟแท่งเทียนหลัก (Main Chart)
+            if st.session_state.get("show_main_chart", True):
+                c0 = charts[0]
+                for s in c0.get("series", []):
+                    if s.get("type") == "Candlestick":
+                        s.setdefault("options", {})
+                        s["options"]["upColor"] = st.session_state.get("candle_up", "#089981")
+                        s["options"]["downColor"] = st.session_state.get("candle_down", "#F23645")
+                        s["options"]["borderUpColor"] = st.session_state.get("candle_border_up", "#089981")
+                        s["options"]["borderDownColor"] = st.session_state.get("candle_border_down", "#F23645")
+                        s["options"]["wickUpColor"] = st.session_state.get("candle_wick_up", "#089981")
+                        s["options"]["wickDownColor"] = st.session_state.get("candle_wick_down", "#F23645")
+                filtered_charts.append(c0)
+
+            # 2. กรองบานหน้าต่างย่อย พร้อมอัปเดตสี RSI & MACD แบบ Real-time
+            for sub in charts[1:]:
+                txt = str(sub.get("chart", {}).get("watermark", {}).get("text", "")).upper()
+                series_titles = " ".join([str(s.get("title", "")).upper() for s in sub.get("series", [])])
+                full_info = txt + " " + series_titles
+
+               # ส่วนของ RSI: อัปเดตสีและเส้นตามหน้าต่างตั้งค่าจริง
+                if "RSI" in full_info:
+                    if not st.session_state.get("show_rsi_pane", True):
+                        continue
+                    active_rsi_series = []
+                    for s in sub.get("series", []):
+                        s.setdefault("options", {})
+                        title = str(s.get("title", "")).upper()
+
+                        # 1. เส้นหลัก RSI
+                        if "RSI" in title and "MA" not in title:
+                            if not st.session_state.get("rsi_show_line", True):
+                                continue
+                            s["options"]["color"] = st.session_state.get("rsi_line_color", "#7E57C2")
+                            active_rsi_series.append(s)
+
+                        # 2. เส้น RSI-based MA
+                        elif "MA" in title:
+                            if not st.session_state.get("rsi_show_ma", True):
+                                continue
+                            s["options"]["color"] = st.session_state.get("rsi_ma_color", "#FFEB3B")
+                            active_rsi_series.append(s)
+                        else:
+                            active_rsi_series.append(s)
+
+                    sub["series"] = active_rsi_series
+                    filtered_charts.append(sub)
+                # ส่วนของ MACD
+                elif "MACD" in full_info:
+                    if not st.session_state.get("show_macd_pane", True):
+                        continue
+                    for s in sub.get("series", []):
+                        s.setdefault("options", {})
+                        if s.get("type") == "Line":
+                            title = str(s.get("title", "")).upper()
+                            if "SIGNAL" in title:
+                                s["options"]["color"] = st.session_state.get("macd_signal_color", "#FFEB3B")
+                            else:
+                                s["options"]["color"] = st.session_state.get("macd_line_color", "#00FFA3")
+                    filtered_charts.append(sub)
+                else:
+                    filtered_charts.append(sub)
+
+        # ผูก key เข้ากับตัวนับ chart_force_refresh เพื่อไม่ให้กราฟค้างหรือสะดุด
+        refresh_tick = st.session_state.get("chart_force_refresh", 0)
+        render_drawing_chart(
+            filtered_charts, 
+            height=cur_main_h, 
+            key=f"{chart_dyn_key}_v{refresh_tick}", 
+            show_toolbar=show_tb
+        )
 
     if col_toggle is not None:
         with col_toggle:

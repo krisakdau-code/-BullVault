@@ -23,7 +23,7 @@ def render_sidebar():
     show_top = True
     show_tool = True
 
-    # ฟังก์ชันช่วยเปลี่ยนเหรียญทับแท็บปัจจุบัน (Active Tab) เสมอ โดยไม่สร้างแท็บใหม่
+    # ฟังก์ชันสลับเหรียญ: แทนที่ลงในแท็บปัจจุบันเสมอ (ไม่สร้างแท็บใหม่)
     def update_active_tab_symbol(sym, default_tf=None):
         st.session_state["current_symbol"] = sym
         st.session_state["app_mode"] = "chart"
@@ -54,19 +54,24 @@ def render_sidebar():
         st.rerun()
 
     with st.sidebar:
+        # เว้นระยะบนสุด 36px เพื่อหลบไอคอนแฮมเบอร์เกอร์ ☰ และสคริปต์นาฬิกาอัตโนมัติ
         st.markdown("""
-        <div style="background: #0B0E14; border: 1px solid #FF7A00; border-radius: 8px; padding: 6px; margin-bottom: 8px;">
-            <div style="font-size: 8px; color: #8F9CAE;">📍 BKK (UTC+7)</div>
-            <div id="sb-clock" style="font-family: monospace; font-size: 1.2rem; font-weight: 800; color: #FF7A1A; text-align: center;">--:--:--</div>
+        <div style="margin-top: 36px; background: #0B0E14; border: 1px solid #FF7A00; border-radius: 8px; padding: 6px; margin-bottom: 12px;">
+            <div style="font-size: 9px; color: #8F9CAE; font-weight: 600;">📍 BKK (UTC+7)</div>
+            <div id="sb-clock" style="font-family: monospace; font-size: 1.25rem; font-weight: 800; color: #FF7A1A; text-align: center;">--:--:--</div>
         </div>
         <script>
-        function updateClock() {
-            const el = document.getElementById('sb-clock');
-            if (el) el.textContent = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
-        }
-        if (window.clockInterval) clearInterval(window.clockInterval);
-        window.clockInterval = setInterval(updateClock, 1000);
-        updateClock();
+        (function() {
+            function updateClock() {
+                const el = document.getElementById('sb-clock');
+                if (el) {
+                    el.textContent = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
+                }
+            }
+            updateClock();
+            if (window.sbClockInterval) clearInterval(window.sbClockInterval);
+            window.sbClockInterval = setInterval(updateClock, 1000);
+        })();
         </script>
         """, unsafe_allow_html=True)
 
@@ -98,7 +103,7 @@ def render_sidebar():
         # ==========================================
         if "สินค้าเกษตร" in main_category:
             sym_list = get_rice_symbols_list()
-            selected_sym = st.selectbox("เลือกชนิดข้าว / ตลาดส่งออก", sym_list)
+            selected_sym = st.selectbox("เลือกชนิดข้าว / ตลาดส่งออก", sym_list, key="sb_rice_choice")
 
             if st.button("📈 ดูกราฟแท่งเทียนสายพันธุ์นี้", use_container_width=True, key="btn_open_rice_chart"):
                 update_active_tab_symbol(selected_sym, default_tf="1D")
@@ -133,7 +138,14 @@ def render_sidebar():
             selected_sym = st.selectbox("เลือกหรือพิมพ์สัญลักษณ์", sym_list, key="sb_symbol_select")
 
             btn_clicked = st.button("📈 เปิดกราฟสินทรัพย์นี้", use_container_width=True, key="sb_open_sym_btn")
-            sym_changed = (selected_sym and selected_sym != st.session_state.get("current_symbol") and st.session_state.get("last_sb_choice") != selected_sym)
+
+            # เช็คเฉพาะเมื่อผู้ใช้อยู่ในโหมดกราฟ และมีการเปลี่ยนค่าเหรียญจริง
+            sym_changed = (
+                selected_sym
+                and selected_sym != st.session_state.get("current_symbol")
+                and st.session_state.get("last_sb_choice") != selected_sym
+                and st.session_state.get("app_mode", "chart") == "chart"
+            )
 
             if btn_clicked or sym_changed:
                 st.session_state["last_sb_choice"] = selected_sym
@@ -150,6 +162,16 @@ def render_sidebar():
         show_tool = st.toggle("แสดงแถบเครื่องมือวาดกราฟ", key="show_draw_toolbar", value=True)
 
         st.divider()
+        # พื้นที่ Dock Menu
+        st.markdown("""
+        <style>
+        /* จัดระยะเว้นระหว่างหัวข้อแผงควบคุมกับปุ่ม Dock ไม่ให้ทับกัน */
+        div[data-testid="stSidebar"] div:has(> #dock-anchor) {
+            margin-top: 6px;
+        }
+        </style>
+        <span id="dock-anchor"></span>
+        """, unsafe_allow_html=True)
         render_dock_menu()
 
     return {"show_top_bar": show_top, "show_draw_toolbar": show_tool}
