@@ -55,7 +55,7 @@ def set_active_symbol(sym_code):
 
 def render_sidebar():
     # -------------------------------------------------------------
-    # 1. จัดการ State และกลุ่มสีโปรด (Favorite Color Groups)
+    # 1. State Management & Color Favorites
     # -------------------------------------------------------------
     if "favorite_colors" not in st.session_state:
         st.session_state["favorite_colors"] = {
@@ -74,7 +74,7 @@ def render_sidebar():
     cur_sym = st.session_state.get("current_symbol", "BTCUSDT")
 
     # -------------------------------------------------------------
-    # 2. คลังข้อมูลสินทรัพย์จริงทุกกระดาน
+    # 2. Database Catalogs (ดึงจาก data/*.json)
     # -------------------------------------------------------------
     all_markets = {
         "Crypto": {
@@ -105,7 +105,6 @@ def render_sidebar():
         }
     }
 
-    # ตรวจสอบความถูกต้องของหมวดหมู่และกระดานที่เปิดอยู่
     cur_cat = st.session_state["active_cat"]
     if cur_cat not in all_markets:
         cur_cat = "Crypto"
@@ -120,27 +119,27 @@ def render_sidebar():
     exch_badge = all_markets[cur_cat][cur_exch]["badge"]
 
     # -------------------------------------------------------------
-    # 3. ตกแต่ง Native Streamlit ด้วย Cyber Theme CSS
+    # 3. CSS Overlay ปรับแต่งรูปทรง Cyber Dashboard
     # -------------------------------------------------------------
     with st.sidebar:
         st.markdown("""
         <style>
         div[data-testid="stSidebarContent"] {
             background-color: #06080E !important;
-            padding: 10px 12px 15px 12px !important;
+            padding: 8px 10px 15px 10px !important;
         }
-        /* Tab Header */
+        /* Tab Headers */
         div[data-testid="stSidebar"] div[data-baseweb="tab-list"] {
             gap: 6px !important;
             background: #0B0E14 !important;
             padding: 4px !important;
             border-radius: 8px !important;
             border: 1px solid #1A202C !important;
-            margin-bottom: 12px !important;
+            margin-bottom: 8px !important;
         }
         div[data-testid="stSidebar"] button[data-baseweb="tab"] {
             border-radius: 6px !important;
-            padding: 6px 12px !important;
+            padding: 6px 10px !important;
             font-size: 11.5px !important;
             font-weight: 700 !important;
             color: #8F9CAE !important;
@@ -159,7 +158,7 @@ def render_sidebar():
             color: #00FFA3 !important;
             box-shadow: 0 0 10px rgba(0, 255, 163, 0.35) !important;
         }
-        /* Buttons styling */
+        /* Buttons Generic Styling */
         div[data-testid="stSidebar"] div.stButton > button {
             background: #0B0E14 !important;
             border: 1px solid #1F2633 !important;
@@ -176,19 +175,25 @@ def render_sidebar():
             color: #FFFFFF !important;
             background: #111724 !important;
         }
-        /* Active Category Cyber Buttons */
+        /* Category 2x2 Active */
         div[data-testid="stSidebar"] div.cat-active > div.stButton > button {
-            background: rgba(255, 122, 0, 0.15) !important;
+            background: rgba(255, 122, 0, 0.18) !important;
             border: 1.5px solid #FF7A00 !important;
             color: #FF9400 !important;
             box-shadow: 0 0 8px rgba(255, 122, 0, 0.3) !important;
         }
-        /* Active Exchange Pill */
+        /* Exchange Vertical Pill Active */
         div[data-testid="stSidebar"] div.exch-active > div.stButton > button {
             background: rgba(0, 255, 163, 0.15) !important;
             border: 1.5px solid #00FFA3 !important;
             color: #00FFA3 !important;
             box-shadow: 0 0 8px rgba(0, 255, 163, 0.3) !important;
+            text-align: left !important;
+            padding-left: 10px !important;
+        }
+        div[data-testid="stSidebar"] div.exch-inactive > div.stButton > button {
+            text-align: left !important;
+            padding-left: 10px !important;
         }
         /* Selectbox styling */
         div[data-testid="stSidebar"] div[data-baseweb="select"] {
@@ -199,37 +204,61 @@ def render_sidebar():
         }
         div[data-testid="stSidebar"] div[data-baseweb="select"] * {
             color: #FFFFFF !important;
-            font-size: 12px !important;
+            font-size: 11.5px !important;
             font-weight: 700 !important;
         }
-        /* Watchlist active card glow */
+        /* Watchlist Card Active */
         div[data-testid="stSidebar"] div.card-active > div.stButton > button {
             background: #111724 !important;
             border: 1.5px solid #00FFA3 !important;
             color: #FFFFFF !important;
             box-shadow: 0 0 10px rgba(0, 255, 163, 0.35) !important;
         }
-        /* Cyber Labels */
+        /* Clean Popover without arrow */
+        div[data-testid="stSidebar"] div[data-testid="stPopover"] button svg {
+            display: none !important;
+        }
+        div[data-testid="stSidebar"] div[data-testid="stPopover"] button {
+            background: transparent !important;
+            border: 1px solid #1F2633 !important;
+            border-radius: 6px !important;
+            padding: 4px 2px !important;
+            min-width: 28px !important;
+        }
+        div[data-testid="stSidebar"] div[data-testid="stPopover"] button:hover {
+            border-color: #00FFA3 !important;
+            background: #111724 !important;
+        }
+        /* Custom Scrollbar for Containers */
+        div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"]::-webkit-scrollbar,
+        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
+            width: 4px !important;
+        }
+        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar-thumb {
+            background: #00FFA3 !important;
+            border-radius: 2px !important;
+        }
+        /* Header Labels */
         .cyber-header-orange {
-            color: #FF9400; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; margin: 10px 0 5px 0;
+            color: #FF9400; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; margin: 8px 0 4px 0;
             display: flex; justify-content: space-between; align-items: center;
         }
         .cyber-header-green {
-            color: #00FFA3; font-size: 11px; font-weight: 800; letter-spacing: 0.5px; margin: 12px 0 6px 0;
+            color: #00FFA3; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; margin: 10px 0 5px 0;
             display: flex; justify-content: space-between; align-items: center;
         }
         .cyber-badge-orange {
             background: rgba(255, 122, 0, 0.15); border: 1px solid #FF7A00; color: #FF9400;
-            font-size: 8.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+            font-size: 8px; font-weight: 800; padding: 2px 5px; border-radius: 4px;
         }
         .cyber-badge-green {
             background: rgba(0, 255, 163, 0.15); border: 1px solid #00FFA3; color: #00FFA3;
-            font-size: 8.5px; font-weight: 800; padding: 2px 6px; border-radius: 4px;
+            font-size: 8px; font-weight: 800; padding: 2px 5px; border-radius: 4px;
         }
         .clock-container {
-            margin-top: 14px; background: #0B0E14; border: 1px solid #1A202C; border-radius: 6px;
-            padding: 6px 10px; display: flex; justify-content: space-between; align-items: center;
-            font-family: monospace; font-size: 10.5px; color: #8F9CAE;
+            margin-top: 10px; background: #0B0E14; border: 1px solid #1A202C; border-radius: 6px;
+            padding: 5px 8px; display: flex; justify-content: space-between; align-items: center;
+            font-family: monospace; font-size: 10px; color: #8F9CAE;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -237,7 +266,7 @@ def render_sidebar():
         tab_market, tab_tools = st.tabs(["🔍 ตลาด & ค้นหา", "🟢 เครื่องมือ & อินดี้ (3)"])
 
         # =============================================================
-        # แท็บ 1: ระบบเลือก 3 ชั้น (Native) + Watchlist + กลุ่มสีโปรด
+        # แท็บ 1: ระบบ 3 ชั้น (ชั้น 2 เลื่อนแนวตั้ง) + Watchlist Two-Way Sync
         # =============================================================
         with tab_market:
             # ----------------- ชั้นที่ 1: Category Grid 2x2 -----------------
@@ -282,32 +311,32 @@ def render_sidebar():
                     st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # ----------------- ชั้นที่ 2: Exchange Cascading Pills -----------------
-            st.markdown('<div class="cyber-header-orange" style="font-size:10px; color:#8F9CAE;">EXCHANGE SELECTOR</div>', unsafe_allow_html=True)
+            # ----------------- ชั้นที่ 2: Exchange Selector (แถวเลื่อนแนวตั้ง) -----------------
+            st.markdown('<div class="cyber-header-orange" style="font-size:9.5px; color:#8F9CAE;"><span>EXCHANGE SELECTOR (เลื่อนแนวตั้ง)</span></div>', unsafe_allow_html=True)
+            
             exchs = list(all_markets[cur_cat].keys())
-            exch_cols = st.columns(len(exchs))
-            for i, ex in enumerate(exchs):
-                with exch_cols[i]:
+            with st.container(height=110):
+                for i, ex in enumerate(exchs):
                     is_active = (ex == cur_exch)
-                    st.markdown(f'<div class="{"exch-active" if is_active else ""}">', unsafe_allow_html=True)
-                    # แสดงชื่อสั้นบนปุ่ม
-                    short_name = ex.replace("Index", "").replace("Spot", "").strip()
-                    if st.button(short_name, key=f"exch_btn_{i}", use_container_width=True):
+                    st.markdown(f'<div class="{"exch-active" if is_active else "exch-inactive"}">', unsafe_allow_html=True)
+                    btn_txt = f"🟢 {ex}" if is_active else f"▫️ {ex}"
+                    if st.button(btn_txt, key=f"v_exch_btn_{i}_{ex}", use_container_width=True):
                         st.session_state["active_exch"] = ex
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
 
-            # ----------------- ชั้นที่ 3: ช่องค้นหาสินทรัพย์ + ป้าย Badge -----------------
+            # ----------------- ชั้นที่ 3: ช่องค้นหาสินทรัพย์ + Badge -----------------
             st.markdown(f'<div class="cyber-header-orange"><span>🔍 สินทรัพย์</span><span class="cyber-badge-orange">{exch_badge}</span></div>', unsafe_allow_html=True)
 
             search_opts = list(available_symbols)
             if cur_sym not in search_opts:
                 search_opts.insert(0, cur_sym)
 
+            idx_cur = search_opts.index(cur_sym) if cur_sym in search_opts else 0
             chosen = st.selectbox(
                 label="เลือกสินทรัพย์",
                 options=search_opts,
-                index=search_opts.index(cur_sym),
+                index=idx_cur,
                 key="native_symbol_selector",
                 label_visibility="collapsed"
             )
@@ -315,15 +344,14 @@ def render_sidebar():
                 set_active_symbol(chosen)
                 st.rerun()
 
-            # ----------------- ส่วนที่ 2: Selected Watchlist + Two-Way Sync -----------------
+            # ----------------- Selected Watchlist & Active Switcher (Two-Way Sync) -----------------
             st.markdown("""
             <div class="cyber-header-green">
-                <span>📌 รายการติดตาม (WATCHLIST & SYNC)</span>
+                <span>📌 รายการติดตาม (SELECTED)</span>
                 <span class="cyber-badge-green">AUTO-SYNC</span>
             </div>
             """, unsafe_allow_html=True)
 
-            # รวบรวมสินทรัพย์ใน Watchlist
             watchlist = []
             if "open_tabs" in st.session_state and st.session_state.open_tabs:
                 for t in st.session_state.open_tabs:
@@ -335,68 +363,62 @@ def render_sidebar():
                 if s not in watchlist:
                     watchlist.append(s)
 
-            # เรนเดอร์การ์ดสินทรัพย์ (Native Buttons + Color Picker)
             quotes = st.session_state.get("quotes_dict", {})
             color_emojis = {"red": "🔴", "orange": "🟠", "yellow": "🟡", "green": "🟢", "blue": "🔵", "purple": "🟣"}
 
-            for idx, sym in enumerate(watchlist):
-                is_active = (sym == cur_sym)
-                q = quotes.get(sym, {})
-                price = q.get("price", 0.0)
-                chg = q.get("change", 0.0)
+            with st.container(height=260):
+                for idx, sym in enumerate(watchlist):
+                    is_active = (sym == cur_sym)
+                    q = quotes.get(sym, {})
+                    price = q.get("price", 0.0)
+                    chg = q.get("change", 0.0)
 
-                # ข้อมูลจำลองหากยังไม่มี Feed
-                if price == 0.0:
-                    mock_p = {"BTCUSDT": 79036.15, "ETHUSDT": 2645.80, "SOLUSDT": 184.25, "BNBUSDT": 588.50, "GC=F": 2684.50, "NVDA": 142.30, "DELTA.BK": 82.50, "ข้าวหอม 100%": 545.00}
-                    mock_c = {"BTCUSDT": 2.27, "ETHUSDT": 3.14, "SOLUSDT": 5.42, "BNBUSDT": -0.85, "GC=F": 0.45, "NVDA": -1.12, "DELTA.BK": 1.25, "ข้าวหอม 100%": 0.00}
-                    price = mock_p.get(sym, 100.0)
-                    chg = mock_c.get(sym, 0.0)
+                    if price == 0.0:
+                        mock_p = {"BTCUSDT": 79036.15, "ETHUSDT": 2645.80, "SOLUSDT": 184.25, "BNBUSDT": 588.50, "GC=F": 2684.50, "NVDA": 142.30, "DELTA.BK": 82.50, "ข้าวหอม 100%": 545.00}
+                        mock_c = {"BTCUSDT": 2.27, "ETHUSDT": 3.14, "SOLUSDT": 5.42, "BNBUSDT": -0.85, "GC=F": 0.45, "NVDA": -1.12, "DELTA.BK": 1.25, "ข้าวหอม 100%": 0.00}
+                        price = mock_p.get(sym, 100.0)
+                        chg = mock_c.get(sym, 0.0)
 
-                sign = "+" if chg >= 0 else ""
-                chg_str = f"{sign}{chg:.2f}%"
+                    sign = "+" if chg >= 0 else ""
+                    chg_str = f"{sign}{chg:.2f}%"
 
-                # ค้นหาว่าเหรียญนี้อยู่กลุ่มสีไหน
-                assigned_color = None
-                for c_name, sym_list in st.session_state["favorite_colors"].items():
-                    if sym in sym_list:
-                        assigned_color = c_name
-                        break
-                color_dot = color_emojis.get(assigned_color, "⚪")
+                    assigned_color = None
+                    for c_name, sym_list in st.session_state["favorite_colors"].items():
+                        if sym in sym_list:
+                            assigned_color = c_name
+                            break
+                    color_dot = color_emojis.get(assigned_color, "⚪")
 
-                c_card, c_tag = st.columns([8.2, 1.8])
-                with c_card:
-                    st.markdown(f'<div class="{"card-active" if is_active else ""}">', unsafe_allow_html=True)
-                    btn_label = f"{sym:<11} | {price:,.2f} ({chg_str})"
-                    if st.button(btn_label, key=f"wl_sym_{idx}_{sym}", use_container_width=True):
-                        set_active_symbol(sym)
-                        st.rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
+                    c_card, c_tag = st.columns([8.2, 1.8])
+                    with c_card:
+                        st.markdown(f'<div class="{"card-active" if is_active else ""}">', unsafe_allow_html=True)
+                        btn_label = f"{sym:<10}  |  {price:,.2f}  ({chg_str})"
+                        if st.button(btn_label, key=f"wl_sym_{idx}_{sym}", use_container_width=True):
+                            set_active_symbol(sym)
+                            st.rerun()
+                        st.markdown('</div>', unsafe_allow_html=True)
 
-                with c_tag:
-                    # ป๊อปอัพจัดการกลุ่มสีโปรดและการถอดสี
-                    with st.popover(color_dot):
-                        st.markdown(f"**🏷️ กลุ่มสี: {sym}**")
-                        cols_picker = st.columns(3)
-                        for c_i, (c_k, c_emo) in enumerate(color_emojis.items()):
-                            with cols_picker[c_i % 3]:
-                                if st.button(c_emo, key=f"set_col_{sym}_{c_k}"):
-                                    # ลบออกจากกลุ่มสีเดิมทั้งหมดก่อน
+                    with c_tag:
+                        with st.popover(color_dot):
+                            st.markdown(f"**🏷️ กลุ่มสี: {sym}**")
+                            cols_picker = st.columns(3)
+                            for c_i, (c_k, c_emo) in enumerate(color_emojis.items()):
+                                with cols_picker[c_i % 3]:
+                                    if st.button(c_emo, key=f"set_col_{sym}_{c_k}"):
+                                        for group in st.session_state["favorite_colors"].values():
+                                            if sym in group:
+                                                group.remove(sym)
+                                        st.session_state["favorite_colors"][c_k].append(sym)
+                                        st.rerun()
+                            if assigned_color:
+                                st.divider()
+                                if st.button("🗑️ เอาออกจากกลุ่มสี", key=f"del_col_{sym}", use_container_width=True):
                                     for group in st.session_state["favorite_colors"].values():
                                         if sym in group:
                                             group.remove(sym)
-                                    # เพิ่มเข้ากลุ่มสีใหม่
-                                    st.session_state["favorite_colors"][c_k].append(sym)
                                     st.rerun()
-                        if assigned_color:
-                            st.divider()
-                            if st.button("🗑️ ถอดออกจากกลุ่มสี", key=f"del_col_{sym}", use_container_width=True):
-                                for group in st.session_state["favorite_colors"].values():
-                                    if sym in group:
-                                        group.remove(sym)
-                                st.rerun()
 
-            # ----------------- สวิตช์ควบคุมส่วนล่าง (Native Toggles) -----------------
-            st.divider()
+            # ----------------- สวิตช์ล่าง (Toggles) -----------------
             t_col1, t_col2 = st.columns(2)
             with t_col1:
                 cur_draw = st.session_state.get("show_draw_toolbar", True)
@@ -412,7 +434,6 @@ def render_sidebar():
                     st.session_state["show_top_bar"] = new_top
                     st.rerun()
 
-            # นาฬิกา BKK UTC+7
             now_bkk = datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M:%S")
             st.markdown(f"""
             <div class="clock-container">
@@ -450,7 +471,7 @@ def render_sidebar():
                     st.rerun()
 
             st.markdown("""
-            <div class="cyber-header-green" style="margin-top:14px;">
+            <div class="cyber-header-green" style="margin-top:12px;">
                 <span>⚙️ อินดิเคเตอร์ที่เปิดใช้งาน</span>
             </div>
             """, unsafe_allow_html=True)
@@ -464,7 +485,7 @@ def render_sidebar():
 
             now_bkk2 = datetime.now(timezone(timedelta(hours=7))).strftime("%H:%M:%S")
             st.markdown(f"""
-            <div class="clock-container" style="margin-top:20px;">
+            <div class="clock-container" style="margin-top:16px;">
                 <span>🕒 BKK (UTC+7) {now_bkk2}</span>
                 <span class="cyber-badge-green">LIVE</span>
             </div>
