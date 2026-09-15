@@ -12,7 +12,7 @@ import requests
 import streamlit as st
 import streamlit.components.v1 as components
 from ui.theme import apply_theme
-from ui.sidebar import render_sidebar
+from ui.sidebar_refactored import render_sidebar
 from chart_builders import build_charts
 from config import *
 from data.rice_ohlcv import generate_rice_ohlcv
@@ -82,6 +82,59 @@ st.set_page_config(
 )
 apply_theme()
 
+# ────────────────────────── Event Listener for PostMessage ──────────────────────────
+# This component listens for messages from the sidebar's watchlist HTML component.
+selected_symbol_data = components.html("""
+<script>
+window.addEventListener("message", (event) => {
+    // Ensure the message is from our specific component
+    if (event.data && event.data.source === 'watchlist_component') {
+        // Send the data back to the Streamlit Python backend
+        Streamlit.setComponentValue(event.data);
+    }
+}, false);
+</script>
+""", height=0)
+
+# If a symbol is selected from the watchlist, process it.
+if selected_symbol_data and isinstance(selected_symbol_data, dict):
+    selected_symbol = selected_symbol_data.get('symbol')
+    if selected_symbol and st.session_state.get('current_symbol') != selected_symbol:
+        
+        # This is a simplified version of update_active_tab_symbol from sidebar.py
+        # It directly updates the session state to trigger a rerun with the new symbol.
+        st.session_state["current_symbol"] = selected_symbol
+        st.session_state["app_mode"] = "chart"
+        
+        active_id = st.session_state.get("active_tab_id")
+        updated = False
+        if active_id and "open_tabs" in st.session_state:
+            for t in st.session_state.open_tabs:
+                if t.get("id") == active_id:
+                    t["symbol"] = selected_symbol
+                    updated = True
+                    break
+        if not updated:
+            # Fallback or create new tab if necessary
+            import uuid
+            new_id = uuid.uuid4().hex[:8]
+            st.session_state.open_tabs = [{"id": new_id, "symbol": selected_symbol, "tf": st.session_state.get("selected_tf", "1h")}]
+            st.session_state.active_tab_id = new_id
+
+        st.rerun()
+
+
+
+# Handle postMessage from iframe
+components.html("""
+<script>
+window.addEventListener('message', function(event) {
+    if (event.data && event.data.type === 'select_symbol') {
+        window.parent.postMessage(event.data, '*');
+    }
+});
+</script>
+""", height=0)
 # ────────────────────────── PANEL STATE MANAGEMENT ──────────────────────────
 if "panel_open" not in st.session_state:
     st.session_state["panel_open"] = True
