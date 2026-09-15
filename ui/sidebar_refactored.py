@@ -55,7 +55,7 @@ def set_active_symbol(sym_code):
 
 def render_sidebar():
     # -------------------------------------------------------------
-    # 1. State Management & Color Favorites
+    # 1. State Management & Favorite Colors
     # -------------------------------------------------------------
     if "favorite_colors" not in st.session_state:
         st.session_state["favorite_colors"] = {
@@ -74,7 +74,7 @@ def render_sidebar():
     cur_sym = st.session_state.get("current_symbol", "BTCUSDT")
 
     # -------------------------------------------------------------
-    # 2. Database Catalogs (ดึงจาก data/*.json)
+    # 2. Database Catalogs (โหลดจาก data/*.json)
     # -------------------------------------------------------------
     all_markets = {
         "Crypto": {
@@ -119,146 +119,256 @@ def render_sidebar():
     exch_badge = all_markets[cur_cat][cur_exch]["badge"]
 
     # -------------------------------------------------------------
-    # 3. CSS Overlay ปรับแต่งรูปทรง Cyber Dashboard
+    # 3. CSS Overlay ปรับแต่งและแก้ปัญหาการทับกัน + กำจัดสีฟ้า
     # -------------------------------------------------------------
     with st.sidebar:
         st.markdown("""
         <style>
+        /* 1. ปิดปุ่มพับ Sidebar (<<) */
+        button[data-testid="stSidebarCollapseButton"],
+        div[data-testid="stSidebarCollapseButton"],
+        button[aria-label="Close sidebar"],
+        [data-testid="stSidebarCollapseButton"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
+
+        /* 2. พื้นหลังแถบข้าง */
         div[data-testid="stSidebarContent"] {
             background-color: #06080E !important;
-            padding: 8px 10px 15px 10px !important;
+            padding: 8px 10px 16px 10px !important;
         }
-        /* Tab Headers */
+
+        /* 3. ลบเส้นสีฟ้าใต้แท็บ (Remove Default Blue Highlight) */
+        div[data-testid="stSidebar"] div[data-baseweb="tab-highlight"] {
+            display: none !important;
+            background-color: transparent !important;
+        }
+        div[data-testid="stSidebar"] div[data-baseweb="tab-border"] {
+            display: none !important;
+            background-color: transparent !important;
+        }
+
+        /* 4. สไตล์หัวแท็บคู่บน */
         div[data-testid="stSidebar"] div[data-baseweb="tab-list"] {
             gap: 6px !important;
             background: #0B0E14 !important;
-            padding: 4px !important;
+            padding: 3px !important;
             border-radius: 8px !important;
             border: 1px solid #1A202C !important;
             margin-bottom: 8px !important;
         }
         div[data-testid="stSidebar"] button[data-baseweb="tab"] {
             border-radius: 6px !important;
-            padding: 6px 10px !important;
-            font-size: 11.5px !important;
+            padding: 5px 8px !important;
+            font-size: 11px !important;
             font-weight: 700 !important;
             color: #8F9CAE !important;
             background: transparent !important;
             border: 1px solid transparent !important;
+            outline: none !important;
         }
+        /* แท็บ 1: เมื่อ Active เปลี่ยนเป็นสีส้ม Cyber */
         div[data-testid="stSidebar"] button[data-baseweb="tab"]:nth-child(1)[aria-selected="true"] {
-            background: rgba(255, 122, 0, 0.15) !important;
-            border: 1px solid #FF7A00 !important;
+            background: rgba(255, 122, 0, 0.16) !important;
+            border: 1.2px solid #FF7A00 !important;
             color: #FF9433 !important;
             box-shadow: 0 0 10px rgba(255, 122, 0, 0.35) !important;
         }
+        /* แท็บ 2: เมื่อ Active เปลี่ยนเป็นสีเขียวนีออน Cyber */
         div[data-testid="stSidebar"] button[data-baseweb="tab"]:nth-child(2)[aria-selected="true"] {
-            background: rgba(0, 255, 163, 0.12) !important;
-            border: 1px solid #00FFA3 !important;
+            background: rgba(0, 255, 163, 0.14) !important;
+            border: 1.2px solid #00FFA3 !important;
             color: #00FFA3 !important;
             box-shadow: 0 0 10px rgba(0, 255, 163, 0.35) !important;
         }
-        /* Buttons Generic Styling */
+
+        /* 5. แก้ไขปัญหาตัวหนังสือซ้อนทับ (Header Layout Fix) */
+        .cyber-header-orange {
+            color: #FF9400 !important;
+            font-size: 10.5px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.5px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            min-height: 26px !important;
+            line-height: 1.6 !important;
+            margin-top: 14px !important;
+            margin-bottom: 8px !important;
+            clear: both !important;
+        }
+        .cyber-header-green {
+            color: #00FFA3 !important;
+            font-size: 10.5px !important;
+            font-weight: 800 !important;
+            letter-spacing: 0.5px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            width: 100% !important;
+            min-height: 26px !important;
+            line-height: 1.6 !important;
+            margin-top: 14px !important;
+            margin-bottom: 8px !important;
+            clear: both !important;
+        }
+        .cyber-badge-orange {
+            background: rgba(255, 122, 0, 0.15) !important;
+            border: 1px solid #FF7A00 !important;
+            color: #FF9400 !important;
+            font-size: 8px !important;
+            font-weight: 800 !important;
+            padding: 1px 5px !important;
+            border-radius: 4px !important;
+            line-height: normal !important;
+            min-width: 0 !important;
+            flex-shrink: 0 !important;
+        }
+        .cyber-badge-green {
+            background: rgba(0, 255, 163, 0.15) !important;
+            border: 1px solid #00FFA3 !important;
+            color: #00FFA3 !important;
+            font-size: 8px !important;
+            font-weight: 800 !important;
+            padding: 1px 5px !important;
+            border-radius: 4px !important;
+            line-height: normal !important;
+            min-width: 0 !important;
+            flex-shrink: 0 !important;
+        }
+
+        /* 6. บังคับระยะเว้นด้านบนของ Widget เพื่อไม่ให้ลอยทับหัวข้อ */
+        div[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] {
+            margin-top: 6px !important;
+            margin-bottom: 6px !important;
+            position: relative !important;
+            clear: both !important;
+        }
+        div[data-testid="stSidebar"] div.stSelectbox,
+        div[data-testid="stSidebar"] div[data-baseweb="select"] {
+            margin-top: 6px !important;
+            position: relative !important;
+            clear: both !important;
+        }
+        div[data-testid="stSidebar"] div[data-testid="stExpander"] {
+            margin-top: 8px !important;
+            position: relative !important;
+            clear: both !important;
+        }
+
+        /* 7. ปุ่มและการ์ด */
         div[data-testid="stSidebar"] div.stButton > button {
             background: #0B0E14 !important;
             border: 1px solid #1F2633 !important;
             color: #8F9CAE !important;
-            border-radius: 6px !important;
-            font-size: 11px !important;
+            border-radius: 5px !important;
+            font-size: 10px !important;
             font-weight: 700 !important;
-            padding: 4px 6px !important;
+            padding: 3px 5px !important;
             height: auto !important;
-            transition: all 0.15s ease !important;
+            white-space: nowrap !important;
+            text-overflow: ellipsis !important;
+            overflow: hidden !important;
         }
         div[data-testid="stSidebar"] div.stButton > button:hover {
             border-color: #00FFA3 !important;
             color: #FFFFFF !important;
             background: #111724 !important;
         }
-        /* Category 2x2 Active */
+
+        /* ปุ่มหมวด 2x2 เมื่อ Active */
         div[data-testid="stSidebar"] div.cat-active > div.stButton > button {
             background: rgba(255, 122, 0, 0.18) !important;
-            border: 1.5px solid #FF7A00 !important;
+            border: 1.2px solid #FF7A00 !important;
             color: #FF9400 !important;
             box-shadow: 0 0 8px rgba(255, 122, 0, 0.3) !important;
         }
-        /* Exchange Vertical Pill Active */
+
+        /* กระดานแนวตั้งเมื่อ Active */
         div[data-testid="stSidebar"] div.exch-active > div.stButton > button {
             background: rgba(0, 255, 163, 0.15) !important;
-            border: 1.5px solid #00FFA3 !important;
+            border: 1.2px solid #00FFA3 !important;
             color: #00FFA3 !important;
-            box-shadow: 0 0 8px rgba(0, 255, 163, 0.3) !important;
+            box-shadow: 0 0 8px rgba(0, 255, 163, 0.25) !important;
             text-align: left !important;
-            padding-left: 10px !important;
+            padding-left: 8px !important;
         }
         div[data-testid="stSidebar"] div.exch-inactive > div.stButton > button {
             text-align: left !important;
-            padding-left: 10px !important;
+            padding-left: 8px !important;
         }
-        /* Selectbox styling */
+
+        /* Selectbox สไตล์ Cyber */
         div[data-testid="stSidebar"] div[data-baseweb="select"] {
             background-color: #0B0E14 !important;
-            border: 1.5px solid #FF7A00 !important;
-            border-radius: 6px !important;
-            box-shadow: 0 0 8px rgba(255, 122, 0, 0.2) !important;
+            border: 1.2px solid #FF7A00 !important;
+            border-radius: 5px !important;
+            box-shadow: 0 0 6px rgba(255, 122, 0, 0.2) !important;
         }
         div[data-testid="stSidebar"] div[data-baseweb="select"] * {
             color: #FFFFFF !important;
-            font-size: 11.5px !important;
+            font-size: 11px !important;
             font-weight: 700 !important;
         }
-        /* Watchlist Card Active */
+
+        /* การ์ด Watchlist เมื่อ Active */
         div[data-testid="stSidebar"] div.card-active > div.stButton > button {
             background: #111724 !important;
-            border: 1.5px solid #00FFA3 !important;
+            border: 1.2px solid #00FFA3 !important;
             color: #FFFFFF !important;
-            box-shadow: 0 0 10px rgba(0, 255, 163, 0.35) !important;
+            box-shadow: 0 0 8px rgba(0, 255, 163, 0.35) !important;
         }
-        /* Clean Popover without arrow */
+
+        /* ปุ่มแท็กสี Popover */
         div[data-testid="stSidebar"] div[data-testid="stPopover"] button svg {
             display: none !important;
         }
         div[data-testid="stSidebar"] div[data-testid="stPopover"] button {
             background: transparent !important;
             border: 1px solid #1F2633 !important;
-            border-radius: 6px !important;
-            padding: 4px 2px !important;
-            min-width: 28px !important;
+            border-radius: 5px !important;
+            padding: 2px 0px !important;
+            min-width: 24px !important;
+            width: 24px !important;
+            height: 28px !important;
+            justify-content: center !important;
         }
         div[data-testid="stSidebar"] div[data-testid="stPopover"] button:hover {
             border-color: #00FFA3 !important;
             background: #111724 !important;
         }
-        /* Custom Scrollbar for Containers */
-        div[data-testid="stVerticalBlock"] > div[data-testid="stVerticalBlockBorderWrapper"]::-webkit-scrollbar,
-        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar {
+
+        /* 8. สวิตช์ Toggle: เปลี่ยนจากสีฟ้าเป็นสีเขียวนีออน Cyber (Neon Green) */
+        div[data-testid="stSidebar"] div[role="switch"][aria-checked="true"],
+        div[data-testid="stSidebar"] [data-baseweb="checkbox"] div[role="switch"][aria-checked="true"] {
+            background-color: #00FFA3 !important;
+            border-color: #00FFA3 !important;
+            box-shadow: 0 0 10px rgba(0, 255, 163, 0.45) !important;
+        }
+        div[data-testid="stSidebar"] div[role="switch"][aria-checked="true"] div,
+        div[data-testid="stSidebar"] [data-baseweb="checkbox"] div[role="switch"][aria-checked="true"] div {
+            background-color: #06080E !important;
+        }
+        div[data-testid="stSidebar"] div[role="switch"][aria-checked="false"] {
+            background-color: #1A202C !important;
+            border: 1px solid #2D3748 !important;
+        }
+
+        /* Scrollbar สีนีออน */
+        div[data-testid="stSidebar"] ::-webkit-scrollbar {
             width: 4px !important;
         }
-        div[data-testid="stSidebar"] div[data-testid="stVerticalBlock"]::-webkit-scrollbar-thumb {
+        div[data-testid="stSidebar"] ::-webkit-scrollbar-thumb {
             background: #00FFA3 !important;
             border-radius: 2px !important;
         }
-        /* Header Labels */
-        .cyber-header-orange {
-            color: #FF9400; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; margin: 8px 0 4px 0;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .cyber-header-green {
-            color: #00FFA3; font-size: 10.5px; font-weight: 800; letter-spacing: 0.5px; margin: 10px 0 5px 0;
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .cyber-badge-orange {
-            background: rgba(255, 122, 0, 0.15); border: 1px solid #FF7A00; color: #FF9400;
-            font-size: 8px; font-weight: 800; padding: 2px 5px; border-radius: 4px;
-        }
-        .cyber-badge-green {
-            background: rgba(0, 255, 163, 0.15); border: 1px solid #00FFA3; color: #00FFA3;
-            font-size: 8px; font-weight: 800; padding: 2px 5px; border-radius: 4px;
-        }
+
         .clock-container {
             margin-top: 10px; background: #0B0E14; border: 1px solid #1A202C; border-radius: 6px;
             padding: 5px 8px; display: flex; justify-content: space-between; align-items: center;
-            font-family: monospace; font-size: 10px; color: #8F9CAE;
+            font-family: monospace; font-size: 9.5px; color: #8F9CAE;
         }
         </style>
         """, unsafe_allow_html=True)
@@ -266,13 +376,13 @@ def render_sidebar():
         tab_market, tab_tools = st.tabs(["🔍 ตลาด & ค้นหา", "🟢 เครื่องมือ & อินดี้ (3)"])
 
         # =============================================================
-        # แท็บ 1: ระบบ 3 ชั้น (ชั้น 2 เลื่อนแนวตั้ง) + Watchlist Two-Way Sync
+        # แท็บ 1: ระบบ 3 ชั้น + Watchlist (จัดระเบียบไม่ให้ซ้อนทับ)
         # =============================================================
         with tab_market:
-            # ----------------- ชั้นที่ 1: Category Grid 2x2 -----------------
+            # 1. Category Grid 2x2
             st.markdown('<div class="cyber-header-orange"><span>⚡ ค้นหาด่วน (CATEGORIES 2x2)</span></div>', unsafe_allow_html=True)
-
             cat_keys = ["Crypto", "หุ้นไทย (SET)", "หุ้นนอก / Forex", "สินค้าเกษตร/โภคภัณฑ์"]
+
             r1c1, r1c2 = st.columns(2)
             with r1c1:
                 is_active = (cur_cat == cat_keys[0])
@@ -286,7 +396,7 @@ def render_sidebar():
             with r1c2:
                 is_active = (cur_cat == cat_keys[1])
                 st.markdown(f'<div class="{"cat-active" if is_active else ""}">', unsafe_allow_html=True)
-                if st.button("🇹🇭 หุ้นไทย (SET)", key="cat_btn_1", use_container_width=True):
+                if st.button("🇹🇭 หุ้นไทย", key="cat_btn_1", use_container_width=True):
                     st.session_state["active_cat"] = cat_keys[1]
                     st.session_state["active_exch"] = "SET Index"
                     st.rerun()
@@ -296,7 +406,7 @@ def render_sidebar():
             with r2c1:
                 is_active = (cur_cat == cat_keys[2])
                 st.markdown(f'<div class="{"cat-active" if is_active else ""}">', unsafe_allow_html=True)
-                if st.button("🌐 หุ้นนอก/Forex", key="cat_btn_2", use_container_width=True):
+                if st.button("🌐 หุ้นนอก/FX", key="cat_btn_2", use_container_width=True):
                     st.session_state["active_cat"] = cat_keys[2]
                     st.session_state["active_exch"] = "สหรัฐฯ (US)"
                     st.rerun()
@@ -305,17 +415,16 @@ def render_sidebar():
             with r2c2:
                 is_active = (cur_cat == cat_keys[3])
                 st.markdown(f'<div class="{"cat-active" if is_active else ""}">', unsafe_allow_html=True)
-                if st.button("🌾 เกษตร/โภคภัณฑ์", key="cat_btn_3", use_container_width=True):
+                if st.button("🌾 เกษตร/ทอง", key="cat_btn_3", use_container_width=True):
                     st.session_state["active_cat"] = cat_keys[3]
                     st.session_state["active_exch"] = "สมาคมโรงสีข้าว"
                     st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # ----------------- ชั้นที่ 2: Exchange Selector (แถวเลื่อนแนวตั้ง) -----------------
-            st.markdown('<div class="cyber-header-orange" style="font-size:9.5px; color:#8F9CAE;"><span>EXCHANGE SELECTOR (เลื่อนแนวตั้ง)</span></div>', unsafe_allow_html=True)
-            
+            # 2. Exchange Selector (แถวเลื่อนแนวตั้ง)
+            st.markdown('<div class="cyber-header-orange" style="font-size:9.5px; color:#8F9CAE;"><span>EXCHANGE SELECTOR</span></div>', unsafe_allow_html=True)
             exchs = list(all_markets[cur_cat].keys())
-            with st.container(height=110):
+            with st.container(height=100):
                 for i, ex in enumerate(exchs):
                     is_active = (ex == cur_exch)
                     st.markdown(f'<div class="{"exch-active" if is_active else "exch-inactive"}">', unsafe_allow_html=True)
@@ -325,9 +434,8 @@ def render_sidebar():
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
 
-            # ----------------- ชั้นที่ 3: ช่องค้นหาสินทรัพย์ + Badge -----------------
+            # 3. Dropdown ค้นหาสินทรัพย์
             st.markdown(f'<div class="cyber-header-orange"><span>🔍 สินทรัพย์</span><span class="cyber-badge-orange">{exch_badge}</span></div>', unsafe_allow_html=True)
-
             search_opts = list(available_symbols)
             if cur_sym not in search_opts:
                 search_opts.insert(0, cur_sym)
@@ -344,7 +452,7 @@ def render_sidebar():
                 set_active_symbol(chosen)
                 st.rerun()
 
-            # ----------------- Selected Watchlist & Active Switcher (Two-Way Sync) -----------------
+            # 4. Selected Watchlist
             st.markdown("""
             <div class="cyber-header-green">
                 <span>📌 รายการติดตาม (SELECTED)</span>
@@ -366,7 +474,7 @@ def render_sidebar():
             quotes = st.session_state.get("quotes_dict", {})
             color_emojis = {"red": "🔴", "orange": "🟠", "yellow": "🟡", "green": "🟢", "blue": "🔵", "purple": "🟣"}
 
-            with st.container(height=260):
+            with st.container(height=250):
                 for idx, sym in enumerate(watchlist):
                     is_active = (sym == cur_sym)
                     q = quotes.get(sym, {})
@@ -389,10 +497,10 @@ def render_sidebar():
                             break
                     color_dot = color_emojis.get(assigned_color, "⚪")
 
-                    c_card, c_tag = st.columns([8.2, 1.8])
+                    c_card, c_tag = st.columns([8.6, 1.4])
                     with c_card:
                         st.markdown(f'<div class="{"card-active" if is_active else ""}">', unsafe_allow_html=True)
-                        btn_label = f"{sym:<10}  |  {price:,.2f}  ({chg_str})"
+                        btn_label = f"{sym}  {price:,.2f}  {chg_str}"
                         if st.button(btn_label, key=f"wl_sym_{idx}_{sym}", use_container_width=True):
                             set_active_symbol(sym)
                             st.rerun()
@@ -418,7 +526,8 @@ def render_sidebar():
                                             group.remove(sym)
                                     st.rerun()
 
-            # ----------------- สวิตช์ล่าง (Toggles) -----------------
+            # 5. สวิตช์ล่าง (Toggles สีนีออนเขียว)
+            st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
             t_col1, t_col2 = st.columns(2)
             with t_col1:
                 cur_draw = st.session_state.get("show_draw_toolbar", True)
@@ -443,38 +552,36 @@ def render_sidebar():
             """, unsafe_allow_html=True)
 
         # =============================================================
-        # แท็บ 2: เครื่องมือ & อินดี้ (3)
+        # แท็บ 2: เครื่องมือ & อินดี้ (3) - สะอาดตา ไม่ซ้อนทับ
         # =============================================================
         with tab_tools:
-            st.markdown("""
-            <div class="cyber-header-green">
-                <span>⚡ เครื่องมือระบบ (ICON LAUNCHERS)</span>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown('<div class="cyber-header-green"><span>⚡ เครื่องมือระบบ (QUICK TOOLS)</span></div>', unsafe_allow_html=True)
 
             i1, i2, i3, i4 = st.columns(4)
             with i1:
-                if st.button("📐", help="Fibonacci Suite & Golden Zone", use_container_width=True):
+                if st.button("📐", key="tb_fib", use_container_width=True):
                     st.session_state["trigger_fib_modal"] = True
                     st.rerun()
             with i2:
-                if st.button("📊", help="วิเคราะห์ตลาด 24h", use_container_width=True):
+                if st.button("📊", key="tb_mkt", use_container_width=True):
                     st.session_state["trigger_market_modal"] = True
                     st.rerun()
             with i3:
-                if st.button("🌾", help="กราฟราคาข้าวไทย", use_container_width=True):
+                if st.button("🌾", key="tb_rice", use_container_width=True):
                     st.session_state["app_mode"] = "rice"
                     st.rerun()
             with i4:
-                if st.button("🟣", help="ปรับแต่งสไตล์กราฟและธีม", use_container_width=True):
+                if st.button("🟣", key="tb_thm", use_container_width=True):
                     st.session_state["trigger_settings_modal"] = True
                     st.rerun()
 
             st.markdown("""
-            <div class="cyber-header-green" style="margin-top:12px;">
-                <span>⚙️ อินดิเคเตอร์ที่เปิดใช้งาน</span>
+            <div style="background:#0B0E14; border:1px solid #1F2633; border-radius:5px; padding:4px 6px; margin:6px 0 12px 0; font-size:9px; color:#8F9CAE; display:flex; justify-content:space-around;">
+                <span>📐 ฟิโบ</span><span>|</span><span>📊 ตลาด 24h</span><span>|</span><span>🌾 ราคาข้าว</span><span>|</span><span>🟣 ธีม/กราฟ</span>
             </div>
             """, unsafe_allow_html=True)
+
+            st.markdown('<div class="cyber-header-green"><span>⚙️ อินดิเคเตอร์ที่เปิดใช้งาน</span></div>', unsafe_allow_html=True)
 
             with st.expander("📈 เส้นค่าเฉลี่ย EMA Ribbon", expanded=True):
                 st.caption("Fast EMA: 7 | Slow EMA: 15 | Trend EMA: 45")
