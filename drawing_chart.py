@@ -23,7 +23,7 @@ def render_drawing_chart(
         for c in charts_config:
             real_total_h += int(c.get("chart", {}).get("height", 130))
         _n_sub = max(0, len(charts_config) - 1)
-        real_total_h += (_n_sub * 6) + 20
+        real_total_h += (_n_sub * 6) + 20+250
 
     chart_json = json.dumps(charts_config)
     toolbar_display = "flex" if show_toolbar else "none"
@@ -1083,31 +1083,42 @@ def render_drawing_chart(
             }}
 
             function initPaneDrag(e, upperId, lowerId) {{
-                e.preventDefault();
-                const up = document.getElementById(upperId);
-                const low = document.getElementById(lowerId);
-                if (!up || !low) return;
-                _spDrag = {{
-                    up: up, low: low, bar: e.currentTarget,
-                    y: e.clientY, uh: up.clientHeight, lh: low.clientHeight
-                }};
-                e.currentTarget.classList.add('dragging');
-                document.body.style.cursor = 'ns-resize';
-                document.body.style.userSelect = 'none';
-                window.addEventListener('mousemove', onPaneDrag);
-                window.addEventListener('mouseup', stopPaneDrag);
-            }}
+            e.preventDefault();
+            const up = document.getElementById(upperId);
+            const low = lowerId ? document.getElementById(lowerId) : null;
+            if (!up) return;
+            _spDrag = {{
+                up: up,
+                low: low,
+                bar: e.currentTarget,
+                y: e.clientY,
+                uh: up.clientHeight,
+                lh: low ? low.clientHeight : 0,
+                isBottom: !low
+            }};
+            e.currentTarget.classList.add('dragging');
+            document.body.style.cursor = 'ns-resize';
+            document.body.style.userSelect = 'none';
+            window.addEventListener('mousemove', onPaneDrag);
+            window.addEventListener('mouseup', stopPaneDrag);
+        }}
 
-            function onPaneDrag(e) {{
-                if (!_spDrag) return;
-                const dy = e.clientY - _spDrag.y;
+        function onPaneDrag(e) {{
+            if (!_spDrag) return;
+            const dy = e.clientY - _spDrag.y;
+            if (_spDrag.isBottom) {{
+                // กรณีลากเส้นขอบล่างสุดของ MACD: ขยาย/หดความสูง MACD ลงล่างโดยตรง
+                _spDrag.up.style.flex = 'none';
+                _spDrag.up.style.height = Math.max(40, _spDrag.uh + dy) + 'px';
+            }} else {{
+                // กรณีลากเส้นคั่นระหว่างหน้าต่าง: กราฟหลักกับ RSI ทำงานตามเดิม
                 _spDrag.up.style.flex = 'none';
                 _spDrag.low.style.flex = 'none';
                 _spDrag.up.style.height = Math.max(80, _spDrag.uh + dy) + 'px';
                 _spDrag.low.style.height = Math.max(46, _spDrag.lh - dy) + 'px';
-                paneResizeAll();
             }}
-
+            paneResizeAll();
+        }}
             function stopPaneDrag() {{
                 if (_spDrag && _spDrag.bar) _spDrag.bar.classList.remove('dragging');
                 _spDrag = null;
@@ -1117,6 +1128,7 @@ def render_drawing_chart(
                 window.removeEventListener('mouseup', stopPaneDrag);
                 paneResizeAll();
             }}
+            
 
             function togglePaneVisibility(key) {{
                 const p = paneRegistry.find(r => r.key === key);
@@ -1218,6 +1230,15 @@ def render_drawing_chart(
                         viewEl: pane, boxEl: box, headerEl: hdr, splitterEl: sp
                     }});
                 }});
+                // ── เส้นเขียวใต้ MACD สำหรับดึงยืดลงข้างล่าง ──
+        const lastPane = paneRegistry[paneRegistry.length - 1];
+        if (lastPane && lastPane.boxEl && !document.getElementById('splitter-bar-bottom')) {{
+            const botSp = document.createElement('div');
+            botSp.id = 'splitter-bar-bottom';
+            botSp.className = 'splitter-bar';
+            lastPane.boxEl.parentNode.appendChild(botSp);
+            botSp.addEventListener('mousedown', e => initPaneDrag(e, lastPane.boxEl.id, null));
+        }}
                 paneResizeAll();
             }}
 
