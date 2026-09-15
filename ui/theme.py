@@ -95,17 +95,14 @@ def apply_theme():
             top: 0 !important;
         }}
 
-        /* ── 3) ⭐ ยุบ wrapper ของ components.html (กำจัดช่องว่าง 150px) ── */
-        .stElementContainer:has(> .stCustomComponentV1),
-        .stElementContainer:has(> iframe),
-        div[data-testid="stElementContainer"]:has(iframe[title*="components"]) {{
+        /* ── 3) ยุบเฉพาะ wrapper ของปุ่มลอยใน Sidebar (ไม่แตะต้อง iframe กราฟ) ── */
+        [data-testid="stSidebar"] .stElementContainer:has(> .stCustomComponentV1),
+        [data-testid="stSidebar"] .stElementContainer:has(> iframe),
+        [data-testid="stSidebar"] div[data-testid="stElementContainer"]:has(iframe) {{
             display: none !important;
             height: 0 !important;
             margin: 0 !important;
             padding: 0 !important;
-        }}
-        .stCustomComponentV1 iframe {{
-            position: fixed !important;
         }}
 
         /* ── 4) ยุบ stMarkdown ที่มีแค่ tag <style> ── */
