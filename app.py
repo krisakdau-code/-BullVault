@@ -1,4 +1,5 @@
 # app.py — Universal Trading Terminal (Hybrid Ultra Edition)
+import streamlit as st
 import concurrent.futures
 import datetime
 import json
@@ -81,6 +82,17 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 apply_theme()
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 0.5rem !important;
+        padding-bottom: 0rem !important;
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+        max-width: 100% !important;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # ────────────────────────── Event Listener for PostMessage ──────────────────────────
 # This component listens for messages from the sidebar's watchlist HTML component.
@@ -973,21 +985,9 @@ def render_top_toolbar():
             with c_ema2:
                 st.checkbox("⭐", key="pin_ema", help="ปักหมุดบนแถบด่วน")
 
-    # 3. เรนเดอร์ปุ่มชิปเฉพาะตัวที่ถูกติ๊กถูก ⭐
-    with col_chips:
-        pinned = []
-        if st.session_state.get("pin_rsi", True):
-            pinned.append(("show_rsi_pane", "📈 RSI", "+ RSI", "chip_rsi"))
-        if st.session_state.get("pin_macd", True):
-            pinned.append(("show_macd_pane", "📊 MACD", "+ MACD", "chip_macd"))
-        if st.session_state.get("pin_ema", False):
-            pinned.append(("show_ema", "📈 EMA", "+ EMA", "chip_ema"))
-
-        if pinned:
-            sub_cols = st.columns(len(pinned))
-            for i, (state_key, on_lbl, off_lbl, slug) in enumerate(pinned):
-                _render_chip(sub_cols[i], state_key, on_lbl, off_lbl, slug)
-
+    # 3. เรนเดอร์ปุ่มชิปเฉพาะตัวที่ถูกติ๊กถูก ⭐ (ปิดการแสดงผลบนแถบด้านบน)
+        with col_chips:
+            pass
     with col_space:
         st.write("")
 
@@ -1177,7 +1177,7 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.rerun()
 
 # ──────────────────────────── LOAD SIDEBAR ────────────────────────────
-app_config = render_sidebar()
+app_config = st.session_state.get("app_config", {})
 
 # ──────────────────────────── DASHBOARD (MAIN) ────────────────────────────
 def dashboard():
@@ -1285,11 +1285,15 @@ def dashboard():
     p_size = st.session_state.get("panel_size", "M")
 
     if p_open:
-        col_chart, col_quote = st.columns(panel_ratios.get(p_size, [3.85, 1.15]))
+        col_side, col_chart, col_quote = st.columns([1.15, 2.75, 1.10])
         col_toggle = None
     else:
-        col_chart, col_toggle = st.columns([4.92, 0.08])
+        col_side, col_chart, col_toggle = st.columns([1.15, 3.77, 0.08])
         col_quote = None
+
+    # สั่งให้เรนเดอร์กรอบแดง (Sidebar) ลงในคอลัมน์ซ้ายตรงนี้
+    with col_side:
+        render_sidebar()
 
     with col_chart:
         filtered_charts = []
