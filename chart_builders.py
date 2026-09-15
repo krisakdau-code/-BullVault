@@ -133,8 +133,6 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
         "borderVisible": True,
         "fixLeftEdge": False,
         "rightOffset": 6,
-        "handleScroll": {"mouseWheel": True, "pressedMouseMove": True, "horzTouchDrag": True, "vertTouchDrag": True},
-        "handleScale": {"axisPressedMouseMove": True, "mouseWheel": True, "pinch": True},
     }
 
     # เส้น Crosshair ไข่ปลาเชื่อมทะลุทั้ง 3 หน้าต่าง
@@ -180,6 +178,18 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
             "scaleMargins": {"top": theme.VOL_TOP_MARGIN, "bottom": 0.0},
         },
         "timeScale": pane_ts,
+        # ✅ เปิดให้คลิกลากแกนราคาขวามือเพื่อยืด-หดแนวตั้งได้ทุกกราฟ (ทั้ง Main, RSI, MACD)
+        "handleScale": {
+            "axisPressedMouseMove": True,
+            "mouseWheel": True,
+            "pinch": True,
+        },
+        "handleScroll": {
+            "mouseWheel": True,
+            "pressedMouseMove": True,
+            "horzTouchDrag": True,
+            "vertTouchDrag": True,
+        },
     }
 
     # แท่งเทียนหลัก
@@ -316,23 +326,76 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
             hist_data.append({"time": int(r["time"]), "value": val, "color": col})
 
         series_list = []
+        # ✅ ผูก Histogram เข้ากับแกนขวา (right) ใช้รูปแบบ price ปกติ เพื่อให้ขยาย-หดพร้อมเส้น MACD ได้
         if st.session_state.get("macd_show_hist", True):
-            series_list.append({"type": "Histogram", "data": hist_data, "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "macd_hist", "priceLineVisible": False, "lastValueVisible": False}})
+            series_list.append({
+                "type": "Histogram",
+                "data": hist_data,
+                "options": {
+                    "priceScaleId": "right",
+                    "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01},
+                    "priceLineVisible": False,
+                    "lastValueVisible": False,
+                }
+            })
 
         if st.session_state.get("macd_show_zero", True):
             mk_zero = [{"time": int(r["time"]), "value": 0.0} for r in records if r["time"] > 0]
-            series_list.append({"type": "Line", "data": mk_zero, "options": {"color": theme.MACD_ZERO_COLOR, "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+            series_list.append({
+                "type": "Line",
+                "data": mk_zero,
+                "options": {
+                    "color": theme.MACD_ZERO_COLOR,
+                    "lineWidth": 1,
+                    "lineStyle": 2,
+                    "priceScaleId": "right",
+                    "priceLineVisible": False,
+                    "lastValueVisible": False,
+                }
+            })
 
-        series_list.append({"type": "Line", "data": macd_data, "options": {"color": m_col, "lineWidth": m_lw, "priceLineVisible": False}})
-        series_list.append({"type": "Line", "data": sig_data, "options": {"color": s_col, "lineWidth": s_lw, "priceLineVisible": False}})
+        # ✅ ผูกเส้น MACD และ Signal เข้าแกน right ชัดเจน
+        series_list.append({
+            "type": "Line",
+            "data": macd_data,
+            "options": {
+                "color": m_col,
+                "lineWidth": m_lw,
+                "priceScaleId": "right",
+                "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01},
+                "priceLineVisible": False,
+            }
+        })
+        series_list.append({
+            "type": "Line",
+            "data": sig_data,
+            "options": {
+                "color": s_col,
+                "lineWidth": s_lw,
+                "priceScaleId": "right",
+                "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01},
+                "priceLineVisible": False,
+            }
+        })
 
         return {
             "chart": {
                 **base_chart,
                 "height": macd_h,
                 "timeScale": pane_ts,
-                "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": theme.MACD_TOP_MARGIN, "bottom": theme.MACD_BTM_MARGIN}},
-                "watermark": {"visible": True, "text": f"MACD ({m_fast}, {m_slow}, {m_sig})", "fontSize": 18, "color": theme.MACD_TITLE_COLOR, "horzAlign": "left", "vertAlign": "top"},
+                "rightPriceScale": {
+                    **base_chart["rightPriceScale"],
+                    "autoScale": True,
+                    "scaleMargins": {"top": theme.MACD_TOP_MARGIN, "bottom": theme.MACD_BTM_MARGIN},
+                },
+                "watermark": {
+                    "visible": True,
+                    "text": f"MACD ({m_fast}, {m_slow}, {m_sig})",
+                    "fontSize": 18,
+                    "color": theme.MACD_TITLE_COLOR,
+                    "horzAlign": "left",
+                    "vertAlign": "top",
+                },
             },
             "series": series_list,
         }
@@ -342,7 +405,14 @@ def build_charts(df, symbol, tf, main_h, rsi_h, macd_h):
             **base_chart,
             "height": main_h,
             "timeScale": pane_ts,
-            "watermark": {"visible": True, "text": f"{symbol} · {tf}", "fontSize": 34, "color": "rgba(255,255,255,0.05)", "horzAlign": "center", "vertAlign": "center"},
+            "watermark": {
+                "visible": True,
+                "text": f"{symbol} · {tf}",
+                "fontSize": 34,
+                "color": "rgba(255,255,255,0.05)",
+                "horzAlign": "center",
+                "vertAlign": "center",
+            },
         },
         "series": price_series,
     }]
