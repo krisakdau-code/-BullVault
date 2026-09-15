@@ -79,16 +79,23 @@ st.set_page_config(
     page_title="Diamond Armor Universal",
     page_icon="💎",
     layout="wide",
-    initial_sidebar_state="expanded"
+   initial_sidebar_state="collapsed"
 )
 apply_theme()
 st.markdown("""
 <style>
+    /* ซ่อนแถบข้างดั้งเดิม และซ่อนปุ่มแฮมเบอร์เกอร์ ☰ ทั้งหมด */
+    [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+        display: none !important;
+    }
+    header[data-testid="stHeader"] {
+        display: none !important;
+    }
     .block-container {
-        padding-top: 0.5rem !important;
+        padding-top: 0rem !important;
         padding-bottom: 0rem !important;
-        padding-left: 0.5rem !important;
-        padding-right: 0.5rem !important;
+        padding-left: 0.3rem !important;
+        padding-right: 0.3rem !important;
         max-width: 100% !important;
     }
 </style>
@@ -1181,6 +1188,7 @@ app_config = st.session_state.get("app_config", {})
 
 # ──────────────────────────── DASHBOARD (MAIN) ────────────────────────────
 def dashboard():
+    app_config = {"show_top_bar": True, "show_draw_toolbar": True}
     init_settings_state()
     if st.session_state.get("trigger_settings_modal"):
         st.session_state["trigger_settings_modal"] = False
@@ -1283,17 +1291,17 @@ def dashboard():
     panel_ratios = {"S": [4.25, 0.75], "M": [3.85, 1.15], "L": [3.40, 1.60]}
     p_open = st.session_state.get("panel_open", True)
     p_size = st.session_state.get("panel_size", "M")
-
     if p_open:
-        col_side, col_chart, col_quote = st.columns([1.15, 2.75, 1.10])
+        # ปรับสัดส่วนคอลัมน์ซ้ายให้กระชับพอดีกับการ์ดเมนู และบีบร่องคอลัมน์ให้ชิดกัน
+        col_side, col_chart, col_quote = st.columns([0.85, 3.05, 1.10], gap="small")
         col_toggle = None
     else:
-        col_side, col_chart, col_toggle = st.columns([1.15, 3.77, 0.08])
+        col_side, col_chart, col_toggle = st.columns([0.85, 4.07, 0.08], gap="small")
         col_quote = None
 
     # สั่งให้เรนเดอร์กรอบแดง (Sidebar) ลงในคอลัมน์ซ้ายตรงนี้
     with col_side:
-        render_sidebar()
+        app_config = render_sidebar()
 
     with col_chart:
         filtered_charts = []
