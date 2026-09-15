@@ -2,28 +2,27 @@
 import os
 import json
 import streamlit as st
-from ui.dock_menu import render_dock_menu
-from data.rice_ohlcv import get_rice_symbols_list
+import streamlit.components.v1 as components
 
 try:
-    from data.symbols import (
-        get_full_binance_symbols, get_full_binance_th_symbols, get_full_bitkub_symbols,
-        get_full_okx_symbols, get_full_bybit_symbols, get_full_gate_symbols,
-        get_full_mexc_symbols, get_full_kucoin_symbols, get_full_china_stocks,
-        get_full_commodities, get_full_forex, get_full_sp500_symbols, get_full_vietnam_symbols
-    )
+    from data.rice_ohlcv import get_rice_symbols_list
 except ImportError:
-    get_full_binance_symbols = get_full_binance_th_symbols = get_full_bitkub_symbols = None
-    get_full_okx_symbols = get_full_bybit_symbols = get_full_gate_symbols = None
-    get_full_mexc_symbols = get_full_kucoin_symbols = get_full_china_stocks = None
-    get_full_commodities = get_full_forex = get_full_sp500_symbols = get_full_vietnam_symbols = None
+    def get_rice_symbols_list():
+        return ["RICE:ข้าวเปลือกเจ้า", "RICE:ข้าวเปลือกหอมมะลิ", "FOB:ข้าวสารขาว 100%", "ZR=F (CBOT Rough Rice)"]
+
+try:
+    from symbols import get_full_binance_symbols
+except ImportError:
+    try:
+        from data.symbols import get_full_binance_symbols
+    except ImportError:
+        get_full_binance_symbols = None
 
 
 def render_sidebar():
     show_top = st.session_state.get("show_top_bar", True)
     show_tool = st.session_state.get("show_draw_toolbar", True)
 
-    # ฟังก์ชันสลับเหรียญ: แทนที่ลงในแท็บปัจจุบันเสมอ (ไม่สร้างแท็บใหม่)
     def update_active_tab_symbol(sym, default_tf=None):
         st.session_state["current_symbol"] = sym
         st.session_state["app_mode"] = "chart"
@@ -54,16 +53,20 @@ def render_sidebar():
         st.rerun()
 
     with st.sidebar:
-        # สไตล์ CSS เสริมสำหรับแถบแท็บสีส้มสะท้อนแสง + สีเขียวนีออน และ Scrollbar เรียบหรู
+        # สไตล์ CSS กำกับกรอบส้ม Cyber Orange และกรอบเขียว Cyber Green
         st.markdown("""
         <style>
-        /* สไตล์แท็บด้านบนของ Sidebar */
+        div[data-testid="stSidebarContent"] {
+            padding-top: 10px !important;
+        }
+        /* แถบแท็บ 2 ตัวด้านบน */
         div[data-testid="stSidebar"] div[data-baseweb="tab-list"] {
-            gap: 4px !important;
+            gap: 6px !important;
             background: #0E121B !important;
             padding: 4px !important;
             border-radius: 8px !important;
             border: 1px solid #1F2433 !important;
+            margin-bottom: 10px !important;
         }
         div[data-testid="stSidebar"] button[data-baseweb="tab"] {
             border-radius: 6px !important;
@@ -72,69 +75,59 @@ def render_sidebar():
             font-weight: 700 !important;
             color: #8F9CAE !important;
             background: transparent !important;
-            transition: all 0.2s ease !important;
+            border: 1px solid transparent !important;
         }
-        /* แท็บที่ 1: ตลาด & ค้นหา (สีส้มสะท้อนแสง) */
+        /* แท็บ 1 ส้มสะท้อนแสง */
         div[data-testid="stSidebar"] button[data-baseweb="tab"]:nth-child(1)[aria-selected="true"] {
             background: rgba(255, 122, 0, 0.15) !important;
             border: 1px solid #FF7A00 !important;
             color: #FF9433 !important;
             box-shadow: 0 0 10px rgba(255, 122, 0, 0.35) !important;
         }
-        /* แท็บที่ 2: เครื่องมือ & อินดี้ (สีเขียวนีออน) */
+        /* แท็บ 2 เขียวนีออน */
         div[data-testid="stSidebar"] button[data-baseweb="tab"]:nth-child(2)[aria-selected="true"] {
             background: rgba(0, 255, 163, 0.15) !important;
             border: 1px solid #00FFA3 !important;
             color: #00FFA3 !important;
             box-shadow: 0 0 10px rgba(0, 255, 163, 0.35) !important;
         }
-
-        /* ตกแต่ง Scrollbar ของกล่องเหรียญ */
-        div[data-testid="stVerticalBlock"]:has(> div.coin-scroll-box) {
-            scrollbar-width: thin !important;
-            scrollbar-color: #00FFA3 #131722 !important;
+        /* ช่องเลือกเหรียญ: บังคับกรอบส้มสะท้อนแสง */
+        div[data-testid="stSidebar"] div[data-baseweb="select"] > div {
+            background-color: #141824 !important;
+            border: 1px solid #FF7A00 !important;
+            border-radius: 6px !important;
+            color: #ffffff !important;
+        }
+        /* ปุ่มชิป 4 ช่อง */
+        div[data-testid="stSidebar"] button[kind="secondary"] {
+            background: #141824 !important;
+            border: 1px solid #23293A !important;
+            color: #D1D4DC !important;
+            font-size: 11px !important;
+            font-weight: 600 !important;
+            border-radius: 5px !important;
+        }
+        div[data-testid="stSidebar"] button[kind="primary"] {
+            background: rgba(255, 122, 0, 0.15) !important;
+            border: 1px solid #FF7A00 !important;
+            color: #FF9433 !important;
+            font-size: 11px !important;
+            font-weight: 700 !important;
+            border-radius: 5px !important;
         }
         </style>
         """, unsafe_allow_html=True)
 
-        # -------------------------------------------------------------
-        # ระบบ 2 แท็บหลักของ Sidebar
-        # -------------------------------------------------------------
-        tab_market, tab_tools = st.tabs(["🔍 ตลาด & ค้นหา", "⚙️ เครื่องมือ & อินดี้"])
+        tab_market, tab_tools = st.tabs(["🔍 ตลาด & ค้นหา", "⚙️ เครื่องมือ (3)"])
 
         # =============================================================
-        # แท็บที่ 1: ตลาด & ค้นหา (Cyber Orange Theme)
+        # แท็บ 1: ตลาด & ค้นหา
         # =============================================================
         with tab_market:
-            st.markdown("<div style='color: #FF9433; font-size: 11px; font-weight: 700; margin: 4px 0 2px 2px;'>🔍 ค้นหาด่วน (Quick Search)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='color:#FF9433; font-size:11px; font-weight:700; margin-bottom:4px;'>🔍 ค้นหาด่วน (Quick Search)</div>", unsafe_allow_html=True)
 
-            # 4 ชิปหมวดหมู่ตลาด (2x2 Grid ตามรูปที่ 2)
-            market_map = {
-                "Crypto": "₿ คริปโตเคอร์เรนซี",
-                "หุ้นไทย (SET)": "📈 หุ้น",
-                "สินค้าเกษตร": "🌾 สินค้าเกษตร (ราคาข้าว)",
-                "ทั้งหมด": "🌐 ทั้งหมด"
-            }
-            pills = ["Crypto", "หุ้นไทย (SET)", "สินค้าเกษตร", "ทั้งหมด"]
             current_pill = st.session_state.get("sb_pill_choice", "Crypto")
 
-            col_p1, col_p2 = st.columns(2)
-            with col_p1:
-                if st.button("🟡 Crypto", key="pill_crypto", use_container_width=True, type="primary" if current_pill == "Crypto" else "secondary"):
-                    st.session_state["sb_pill_choice"] = "Crypto"
-                    st.rerun()
-                if st.button("🇹🇭 หุ้นไทย (SET)", key="pill_thai", use_container_width=True, type="primary" if current_pill == "หุ้นไทย (SET)" else "secondary"):
-                    st.session_state["sb_pill_choice"] = "หุ้นไทย (SET)"
-                    st.rerun()
-            with col_p2:
-                if st.button("🌾 สินค้าเกษตร", key="pill_rice", use_container_width=True, type="primary" if current_pill == "สินค้าเกษตร" else "secondary"):
-                    st.session_state["sb_pill_choice"] = "สินค้าเกษตร"
-                    st.rerun()
-                if st.button("🌐 ทั้งหมด", key="pill_all", use_container_width=True, type="primary" if current_pill == "ทั้งหมด" else "secondary"):
-                    st.session_state["sb_pill_choice"] = "ทั้งหมด"
-                    st.rerun()
-
-            # โหลดรายการสัญลักษณ์ตามหมวดหมู่ที่เลือก
             sym_list = []
             if current_pill == "สินค้าเกษตร":
                 sym_list = get_rice_symbols_list()
@@ -151,144 +144,224 @@ def render_sidebar():
             else:
                 sym_list = ["BTCUSDT", "ETHUSDT", "GC=F", "CL=F", "DELTA.BK", "PTT.BK", "NVDA", "AAPL", "USDTHB=X"]
 
-            # ช่องค้นหาด่วนแบบบรรทัดเดียว (ขอบส้มเรืองแสง)
             cur_sym = st.session_state.get("current_symbol", "BTCUSDT")
             sel_idx = sym_list.index(cur_sym) if cur_sym in sym_list else 0
 
             selected_sym = st.selectbox(
-                "ค้นหาสินทรัพย์",
+                "ค้นหา",
                 sym_list,
                 index=sel_idx,
                 label_visibility="collapsed",
-                key="sb_quick_search_box"
+                key="sb_select_sym_box"
             )
 
-            # ตรวจสอบการเลือกเหรียญเพื่อเปลี่ยนชาร์ตทันที
             if selected_sym and selected_sym != st.session_state.get("current_symbol"):
-                st.session_state["last_sb_choice"] = selected_sym
                 is_rice = selected_sym.startswith("RICE:") or selected_sym.startswith("FOB:") or selected_sym == "ZR=F (CBOT Rough Rice)"
                 update_active_tab_symbol(selected_sym, default_tf="1D" if is_rice else None)
 
-            st.markdown("<hr style='border:none; border-top:1px solid #242A3A; margin: 10px 0 6px 0;'/>", unsafe_allow_html=True)
+            # ชิปเลือกหมวดหมู่ 4 ช่อง
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("🟡 Crypto", key="chip_crypto", use_container_width=True, type="primary" if current_pill == "Crypto" else "secondary"):
+                    st.session_state["sb_pill_choice"] = "Crypto"
+                    st.rerun()
+                if st.button("🇹🇭 หุ้นไทย (SET)", key="chip_thai", use_container_width=True, type="primary" if current_pill == "หุ้นไทย (SET)" else "secondary"):
+                    st.session_state["sb_pill_choice"] = "หุ้นไทย (SET)"
+                    st.rerun()
+            with c2:
+                if st.button("🌾 สินค้าเกษตร", key="chip_rice", use_container_width=True, type="primary" if current_pill == "สินค้าเกษตร" else "secondary"):
+                    st.session_state["sb_pill_choice"] = "สินค้าเกษตร"
+                    st.rerun()
+                if st.button("🌐 ทั้งหมด", key="chip_all", use_container_width=True, type="primary" if current_pill == "ทั้งหมด" else "secondary"):
+                    st.session_state["sb_pill_choice"] = "ทั้งหมด"
+                    st.rerun()
 
-            # -------------------------------------------------------------
-            # จุดที่ 1: กล่องเลื่อนดูเหรียญที่เลือกมาแล้ว (Scrollable Watchlist)
-            # -------------------------------------------------------------
-            st.markdown("<div style='color: #00FFA3; font-size: 11px; font-weight: 700; margin-bottom: 2px;'>📌 สินทรัพย์ที่เลือกแล้ว (Selected Watchlist)</div>", unsafe_allow_html=True)
-            st.caption("คลิกที่แถวเหรียญเพื่อสลับกราฟมาดูทันที")
+            st.markdown("<div style='color:#00FFA3; font-size:11px; font-weight:700; margin-top:10px; margin-bottom:2px;'>📌 เหรียญที่เลือกมาแล้ว (Selected)</div>", unsafe_allow_html=True)
 
-            # รวบรวมเหรียญที่เปิดแท็บอยู่ + รายการโปรดมาใส่ในกล่องเลื่อนดู
-            tracked_symbols = []
+            # ---------------------------------------------------------
+            # กล่องเลื่อนดูเหรียญ (Scrollable Watchlist HTML Component)
+            # ---------------------------------------------------------
+            tracked = []
             if "open_tabs" in st.session_state and st.session_state.open_tabs:
                 for t in st.session_state.open_tabs:
-                    if t.get("symbol") and t["symbol"] not in tracked_symbols:
-                        tracked_symbols.append(t["symbol"])
+                    if t.get("symbol") and t["symbol"] not in tracked:
+                        tracked.append(t["symbol"])
 
-            # เพิ่มเหรียญยอดนิยมเข้ามาสำรองหากยังมีน้อย
-            default_feed = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "GC=F", "NVDA", "PTT.BK"]
-            for df_sym in default_feed:
-                if df_sym not in tracked_symbols:
-                    tracked_symbols.append(df_sym)
+            default_feed = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "GC=F", "NVDA", "PTT.BK", "ข้าวหอม 100%"]
+            for s_feed in default_feed:
+                if s_feed not in tracked:
+                    tracked.append(s_feed)
 
-            # คอนเทนเนอร์แบบเลื่อนแนวตั้ง (Scrollable Container ความสูง 350px)
-            with st.container(height=350):
-                st.markdown('<div class="coin-scroll-box"></div>', unsafe_allow_html=True)
-                for sym_item in tracked_symbols:
-                    is_active = (sym_item == st.session_state.get("current_symbol"))
-                    
-                    # ป้ายชื่อเหรียญย่อ
-                    lbl = sym_item.replace("_THB", "").replace(".BK", "")
-                    border_style = "border: 1px solid #00FFA3; background: rgba(0, 255, 163, 0.12);" if is_active else "border: 1px solid #242A3A; background: #131722;"
-                    
-                    c_btn, c_del = st.columns([4, 1])
-                    with c_btn:
-                        btn_label = f"● {lbl}" if is_active else lbl
-                        if st.button(btn_label, key=f"sb_wl_btn_{sym_item}", use_container_width=True, type="primary" if is_active else "secondary"):
-                            is_r = sym_item.startswith("RICE:") or sym_item.startswith("FOB:") or sym_item == "ZR=F (CBOT Rough Rice)"
-                            update_active_tab_symbol(sym_item, default_tf="1D" if is_r else None)
-                    with c_del:
-                        if st.button("✕", key=f"sb_wl_del_{sym_item}", help=f"ลบ {sym_item}"):
-                            # ลบออกจากแท็บหากมีมากกว่า 1 แท็บ
-                            if "open_tabs" in st.session_state and len(st.session_state.open_tabs) > 1:
-                                st.session_state.open_tabs = [t for t in st.session_state.open_tabs if t.get("symbol") != sym_item]
-                            st.rerun()
+            quotes = st.session_state.get("quotes_dict", {})
+            rows_html = []
+            active_current = st.session_state.get("current_symbol", "BTCUSDT")
+
+            for sym_code in tracked:
+                is_active = (sym_code == active_current)
+                lbl = sym_code.replace("_THB", "").replace(".BK", "")
+                
+                # ข้อมูลราคาและ % เปลี่ยนแปลง
+                q = quotes.get(sym_code, {})
+                price_val = q.get("price", 0.0)
+                chg_val = q.get("change", 0.0)
+                
+                # ราคา Mockup สำรองถ้าไม่มีข้อมูลสด
+                if price_val == 0.0:
+                    mock_p = {"BTCUSDT": 79036.15, "ETHUSDT": 2645.80, "SOLUSDT": 184.25, "BNBUSDT": 588.50, "GC=F": 2684.50, "NVDA": 142.30, "PTT.BK": 33.50, "ข้าวหอม 100%": 545.00}
+                    mock_c = {"BTCUSDT": 2.27, "ETHUSDT": 3.14, "SOLUSDT": 5.42, "BNBUSDT": -0.85, "GC=F": 0.45, "NVDA": -1.12, "PTT.BK": 0.75, "ข้าวหอม 100%": 0.00}
+                    price_val = mock_p.get(sym_code, 100.0)
+                    chg_val = mock_c.get(sym_code, 1.25)
+
+                p_str = f"{price_val:,.2f}"
+                is_up = (chg_val >= 0)
+                c_sign = "+" if is_up else ""
+                badge_color = "#00FFA3" if is_up else "#ef5350"
+                badge_bg = "rgba(0, 255, 163, 0.12)" if is_up else "rgba(239, 83, 80, 0.12)"
+                row_border = "1px solid #00FFA3; box-shadow: 0 0 8px rgba(0, 255, 163, 0.25);" if is_active else "1px solid #23293A;"
+                row_bg = "#182030" if is_active else "#141824"
+
+                market_sub = "Binance Spot" if "USDT" in sym_code else ("SET Index" if ".BK" in sym_code else ("Futures" if "=F" in sym_code else "Market"))
+
+                row_markup = f"""
+                <div class="coin-row" style="background:{row_bg}; border:{row_border};" onclick="selectCoin('{sym_code}')">
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-size:12px; font-weight:700; color:#ffffff;">{lbl}</span>
+                        <span style="font-size:9px; color:#787B86;">{market_sub}</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span style="font-size:11px; font-weight:600; font-family:monospace; color:#ffffff;">{p_str}</span>
+                        <span style="font-size:10px; font-weight:700; color:{badge_color}; background:{badge_bg}; border:1px solid {badge_color}; border-radius:4px; padding:1px 5px;">
+                            {c_sign}{chg_val:.2f}%
+                        </span>
+                    </div>
+                </div>
+                """
+                rows_html.append(row_markup)
+
+            watchlist_html = f"""
+            <style>
+                body {{ margin:0; padding:0; background:transparent; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
+                .scroll-box {{
+                    height: 330px;
+                    overflow-y: auto;
+                    background: #0E121B;
+                    border: 1px solid rgba(0, 255, 163, 0.4);
+                    border-radius: 8px;
+                    padding: 6px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 5px;
+                    box-sizing: border-box;
+                }}
+                .scroll-box::-webkit-scrollbar {{
+                    width: 5px;
+                }}
+                .scroll-box::-webkit-scrollbar-track {{
+                    background: #0E121B;
+                }}
+                .scroll-box::-webkit-scrollbar-thumb {{
+                    background: #00FFA3;
+                    border-radius: 3px;
+                }}
+                .coin-row {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 5px 8px;
+                    border-radius: 6px;
+                    cursor: pointer;
+                    user-select: none;
+                    transition: all 0.15s ease;
+                }}
+                .coin-row:hover {{
+                    border-color: #00FFA3 !important;
+                    background: #182030 !important;
+                }}
+            </style>
+            <div class="scroll-box">
+                {''.join(rows_html)}
+            </div>
+            <script>
+                function selectCoin(sym) {{
+                    window.parent.postMessage({{
+                        type: 'streamlit:setComponentValue',
+                        value: sym
+                    }}, '*');
+                }}
+            </script>
+            """
+
+            clicked_sym = components.html(watchlist_html, height=340)
+            if clicked_sym and clicked_sym != st.session_state.get("current_symbol"):
+                is_r = clicked_sym.startswith("RICE:") or clicked_sym.startswith("FOB:") or clicked_sym == "ZR=F (CBOT Rough Rice)"
+                update_active_tab_symbol(clicked_sym, default_tf="1D" if is_r else None)
 
         # =============================================================
-        # แท็บที่ 2: เครื่องมือ & อินดี้ (Cyber Green Theme)
+        # แท็บ 2: เครื่องมือ (3)
         # =============================================================
         with tab_tools:
-            st.markdown("<div style='color: #00FFA3; font-size: 11px; font-weight: 700; margin-bottom: 6px;'>⚡ เครื่องมือระบบ (Launchers)</div>", unsafe_allow_html=True)
+            st.markdown("<div style='color:#00FFA3; font-size:11px; font-weight:700; margin-bottom:6px;'>⚡ เครื่องมือระบบ (Launchers)</div>", unsafe_allow_html=True)
             
-            # ปุ่มไอคอนระบบ 4 ช่อง (2x2 Grid)
-            c_fibo, c_market = st.columns(2)
+            c_fibo, c_mkt = st.columns(2)
             with c_fibo:
-                if st.button("📐 Fibonacci", key="sb_btn_fibo", use_container_width=True, help="วิเคราะห์เป้าหมายราคา Fibonacci Suite"):
+                if st.button("📐 Fibonacci", key="btn_fibo_side", use_container_width=True):
                     st.session_state["trigger_fib_modal"] = True
                     st.rerun()
-            with c_market:
-                if st.button("📊 ตลาด 24h", key="sb_btn_mkt", use_container_width=True, help="ภาพรวมตลาด 24 ชม. & เครื่องวัดสัญญาณ"):
+            with c_mkt:
+                if st.button("📊 ตลาด 24h", key="btn_mkt_side", use_container_width=True):
                     st.session_state["trigger_market_modal"] = True
                     st.rerun()
 
             c_rice, c_theme = st.columns(2)
             with c_rice:
-                if st.button("🌾 ราคาข้าว", key="sb_btn_rice", use_container_width=True, help="ดูดัชนีราคาข้าวและสถิติการส่งออก"):
+                if st.button("🌾 ราคาข้าว", key="btn_rice_side", use_container_width=True):
                     st.session_state["app_mode"] = "rice"
                     st.rerun()
             with c_theme:
-                if st.button("⚙️ สไตล์กราฟ", key="sb_btn_theme", use_container_width=True, help="ปรับแต่งสีแท่งเทียนและสไตล์กราฟ"):
+                if st.button("⚙️ สไตล์กราฟ", key="btn_theme_side", use_container_width=True):
                     st.session_state["trigger_settings_modal"] = True
                     st.rerun()
 
-            st.markdown("<hr style='border:none; border-top:1px solid #242A3A; margin: 10px 0 6px 0;'/>", unsafe_allow_html=True)
+            st.markdown("<div style='color:#00FFA3; font-size:11px; font-weight:700; margin-top:12px; margin-bottom:4px;'>⚙️ ตั้งค่าอินดิเคเตอร์ที่เปิดอยู่</div>", unsafe_allow_html=True)
 
-            # การตั้งค่าอินดิเคเตอร์แบบไดนามิก (เปิดเฉพาะตัวที่ใช้งาน)
-            st.markdown("<div style='color: #00FFA3; font-size: 11px; font-weight: 700; margin-bottom: 4px;'>⚙️ ตั้งค่าอินดิเคเตอร์ที่เปิดอยู่</div>", unsafe_allow_html=True)
-
-            # 1. กล่อง EMA Ribbon
             if st.session_state.get("show_ema", True):
                 with st.expander("📈 เส้นค่าเฉลี่ย EMA Ribbon", expanded=True):
-                    st.session_state["fast_ema"] = st.number_input("Fast EMA", min_value=1, max_value=200, value=int(st.session_state.get("fast_ema", 7)), key="sb_in_fast_ema")
-                    st.session_state["slow_ema"] = st.number_input("Slow EMA", min_value=1, max_value=200, value=int(st.session_state.get("slow_ema", 13)), key="sb_in_slow_ema")
-                    st.session_state["trend_ema"] = st.number_input("Trend EMA", min_value=1, max_value=500, value=int(st.session_state.get("trend_ema", 45)), key="sb_in_trend_ema")
+                    st.session_state["fast_ema"] = st.number_input("Fast EMA", min_value=1, max_value=200, value=int(st.session_state.get("fast_ema", 7)), key="in_f_ema")
+                    st.session_state["slow_ema"] = st.number_input("Slow EMA", min_value=1, max_value=200, value=int(st.session_state.get("slow_ema", 13)), key="in_s_ema")
+                    st.session_state["trend_ema"] = st.number_input("Trend EMA", min_value=1, max_value=500, value=int(st.session_state.get("trend_ema", 45)), key="in_t_ema")
 
-            # 2. กล่อง RSI
             if st.session_state.get("show_rsi_pane", True):
                 with st.expander("📉 พารามิเตอร์ RSI (14)", expanded=False):
-                    st.session_state["rsi_upper_band"] = st.number_input("Upper Band (UB)", value=float(st.session_state.get("rsi_upper_band", 70.0)), key="sb_in_rsi_ub")
-                    st.session_state["rsi_lower_band"] = st.number_input("Lower Band (LB)", value=float(st.session_state.get("rsi_lower_band", 30.0)), key="sb_in_rsi_lb")
-                    st.session_state["rsi_line_color"] = st.color_picker("สีเส้นสัญญาณ RSI", st.session_state.get("rsi_line_color", "#00FFA3"), key="sb_in_rsi_col")
+                    st.session_state["rsi_upper_band"] = st.number_input("Upper Band (UB)", value=float(st.session_state.get("rsi_upper_band", 70.0)), key="in_ub")
+                    st.session_state["rsi_lower_band"] = st.number_input("Lower Band (LB)", value=float(st.session_state.get("rsi_lower_band", 30.0)), key="in_lb")
+                    st.session_state["rsi_line_color"] = st.color_picker("สีเส้น RSI", st.session_state.get("rsi_line_color", "#00FFA3"), key="in_r_col")
 
-            # 3. กล่อง MACD
             if st.session_state.get("show_macd_pane", True):
                 with st.expander("📊 พารามิเตอร์ MACD", expanded=False):
-                    st.session_state["macd_line_color"] = st.color_picker("สีเส้น MACD", st.session_state.get("macd_line_color", "#00FFA3"), key="sb_in_macd_col")
-                    st.session_state["macd_signal_color"] = st.color_picker("สีเส้น Signal", st.session_state.get("macd_signal_color", "#FFEB3B"), key="sb_in_sig_col")
+                    st.session_state["macd_line_color"] = st.color_picker("สีเส้น MACD", st.session_state.get("macd_line_color", "#00FFA3"), key="in_m_col")
+                    st.session_state["macd_signal_color"] = st.color_picker("สีเส้น Signal", st.session_state.get("macd_signal_color", "#FFEB3B"), key="in_sg_col")
 
-        # -------------------------------------------------------------
+        # =============================================================
         # ด้านล่างสุด: สวิตช์เปิด-ปิดแถบควบคุม + นาฬิกา BKK LIVE
-        # -------------------------------------------------------------
-        st.markdown("<hr style='border:none; border-top:1px solid #242A3A; margin: 12px 0 6px 0;'/>", unsafe_allow_html=True)
+        # =============================================================
+        st.markdown("<div style='margin-top:10px;'></div>", unsafe_allow_html=True)
         show_tool = st.toggle("✏️ แถบวาดรูป (Draw)", key="show_draw_toolbar", value=show_tool)
         show_top = st.toggle("⏱️ แถบควบคุมบน (Top)", key="show_top_bar", value=show_top)
 
-        # แถบนาฬิกา BKK LIVE แบบมินิมอล
         st.markdown("""
-        <div style="margin-top: 8px; background: #0E121B; border: 1px solid #1E2433; border-radius: 6px; padding: 4px 8px; display: flex; align-items: center; justify-content: space-between;">
-            <div style="font-size: 10px; color: #8F9CAE; font-family: monospace;">🕒 BKK (UTC+7) <span id="sb-clock-live">--:--:--</span></div>
-            <div style="font-size: 9px; color: #00FFA3; font-weight: 700; background: rgba(0, 255, 163, 0.15); padding: 1px 5px; border-radius: 3px;">LIVE</div>
+        <div style="margin-top:6px; background:#0E121B; border:1px solid #1E2433; border-radius:6px; padding:4px 8px; display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-size:10px; color:#8F9CAE; font-family:monospace;">🕒 BKK (UTC+7) <span id="clock-live-txt">--:--:--</span></div>
+            <div style="font-size:9px; color:#00FFA3; font-weight:700; background:rgba(0,255,163,0.15); padding:1px 5px; border-radius:3px;">LIVE</div>
         </div>
         <script>
         (function() {
-            function updateLiveClock() {
-                const el = document.getElementById('sb-clock-live');
-                if (el) {
-                    el.textContent = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
-                }
+            function updateClock() {
+                const el = document.getElementById('clock-live-txt');
+                if (el) el.textContent = new Date().toLocaleTimeString('en-GB', { timeZone: 'Asia/Bangkok', hour12: false });
             }
-            updateLiveClock();
-            if (window.sbLiveClockInterval) clearInterval(window.sbLiveClockInterval);
-            window.sbLiveClockInterval = setInterval(updateLiveClock, 1000);
+            updateClock();
+            if (window.timerLive) clearInterval(window.timerLive);
+            window.timerLive = setInterval(updateClock, 1000);
         })();
         </script>
         """, unsafe_allow_html=True)

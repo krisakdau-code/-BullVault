@@ -1126,38 +1126,6 @@ def render_watchlist_component(key_prefix: str = "desk"):
 # ──────────────────────────── LOAD SIDEBAR ────────────────────────────
 app_config = render_sidebar()
 
-# ─── Dynamic Indicator Settings in Sidebar (แสดงเฉพาะตัวที่เปิดใช้งาน) ───
-with st.sidebar:
-    st.markdown("---")
-    st.markdown("<b style='color:#00FFA3; font-size:13px;'>⚙️ การตั้งค่าอินดิเคเตอร์ที่เปิดใช้งาน</b>", unsafe_allow_html=True)
-    has_any_ind = False
-
-    # 1. การตั้งค่าเส้น EMA (แสดงเมื่อ show_ema ถูกเปิด)
-    if st.session_state.get("show_ema", True):
-        has_any_ind = True
-        with st.expander("📈 เส้นค่าเฉลี่ย EMA", expanded=True):
-            st.session_state["fast_ema"] = st.number_input("Fast EMA", min_value=1, max_value=500, value=int(st.session_state.get("fast_ema", 7)), key="sb_fast_ema")
-            st.session_state["slow_ema"] = st.number_input("Slow EMA", min_value=1, max_value=500, value=int(st.session_state.get("slow_ema", 13)), key="sb_slow_ema")
-            st.session_state["trend_ema"] = st.number_input("Trend EMA", min_value=1, max_value=500, value=int(st.session_state.get("trend_ema", 45)), key="sb_trend_ema")
-
-    # 2. การตั้งค่า RSI (แสดงเมื่อ show_rsi_pane ถูกเปิด)
-    if st.session_state.get("show_rsi_pane", True):
-        has_any_ind = True
-        with st.expander("📈 พารามิเตอร์ RSI", expanded=False):
-            st.session_state["rsi_line_color"] = st.color_picker("สีเส้น RSI", st.session_state.get("rsi_line_color", "#00FFA3"), key="sb_rsi_col")
-            st.session_state["rsi_upper_band"] = st.number_input("Upper Band", value=float(st.session_state.get("rsi_upper_band", 70.0)), key="sb_rsi_ub")
-            st.session_state["rsi_lower_band"] = st.number_input("Lower Band", value=float(st.session_state.get("rsi_lower_band", 30.0)), key="sb_rsi_lb")
-
-    # 3. การตั้งค่า MACD (แสดงเมื่อ show_macd_pane ถูกเปิด)
-    if st.session_state.get("show_macd_pane", True):
-        has_any_ind = True
-        with st.expander("📊 พารามิเตอร์ MACD", expanded=False):
-            st.session_state["macd_line_color"] = st.color_picker("สีเส้น MACD", st.session_state.get("macd_line_color", "#00FFA3"), key="sb_macd_col")
-            st.session_state["macd_signal_color"] = st.color_picker("สีเส้น Signal", st.session_state.get("macd_signal_color", "#FFEB3B"), key="sb_sig_col")
-
-    if not has_any_ind:
-        st.caption("💡 ไม่มีอินดิเคเตอร์เปิดใช้งาน คลิก '📊 Indicators ▾' ที่แถบด้านบนเพื่อเปิดใช้งาน")
-
 # ──────────────────────────── DASHBOARD (MAIN) ────────────────────────────
 def dashboard():
     init_settings_state()
