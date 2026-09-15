@@ -1,4 +1,5 @@
 # ui/sidebar_refactored.py
+import os
 import json
 import streamlit as st
 import streamlit.components.v1 as components
@@ -20,7 +21,7 @@ except ImportError:
 
 def render_sidebar():
     # -------------------------------------------------------------
-    # จัดการ Event จาก Watchlist และปุ่มต่างๆ
+    # 1. ดักรับ Event จากการคลิกเลือกเหรียญ/หุ้น (Query Params)
     # -------------------------------------------------------------
     chosen_sym = None
     if "select_sym" in st.query_params:
@@ -82,46 +83,107 @@ def render_sidebar():
     show_top = st.session_state.get("show_top_bar", True)
     show_tool = st.session_state.get("show_draw_toolbar", True)
 
-    # รวมฐานข้อมูลสินทรัพย์จริงทุกกระดาน
-    binance_symbols = []
-    try:
-        if get_full_binance_symbols:
-            binance_symbols = get_full_binance_symbols()
-    except Exception:
-        pass
-    if not binance_symbols:
-        binance_symbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "DOGEUSDT", "XRPUSDT", "ADAUSDT", "PEPEUSDT", "AVAXUSDT", "NEARUSDT", "LINKUSDT", "SUIUSDT"]
+   # -------------------------------------------------------------
+    # 2. ฐานข้อมูลสินทรัพย์จริงทุกกระดาน (โหลดจาก data/*.json)
+    # -------------------------------------------------------------
+    def load_json_symbols(filename, fallback):
+        path = os.path.join("data", filename)
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    return list(json.load(f).keys())
+            except Exception:
+                pass
+        return fallback
 
     all_markets_data = {
         "Crypto": {
-            "Binance Spot": {"badge": "BINANCE", "symbols": binance_symbols},
-            "Binance Futures": {"badge": "FUTURES", "symbols": ["BTCUSDT.P", "ETHUSDT.P", "SOLUSDT.P", "BNBUSDT.P", "DOGEUSDT.P", "XRPUSDT.P", "1000PEPEUSDT.P"]},
-            "Bitkub (THB)": {"badge": "BITKUB", "symbols": ["BTC_THB", "ETH_THB", "KUB_THB", "SOL_THB", "USDT_THB", "DOGE_THB", "XRP_THB", "ADA_THB", "NEAR_THB", "OP_THB", "ARB_THB"]},
-            "OKX": {"badge": "OKX", "symbols": ["BTC-USDT", "ETH-USDT", "SOL-USDT", "OKB-USDT", "DOGE-USDT", "XRP-USDT"]},
-            "Bybit": {"badge": "BYBIT", "symbols": ["BTCUSDT", "ETHUSDT", "SOLUSDT", "MNTUSDT", "TONUSDT"]}
+            "Binance Spot": {
+                "badge": "BINANCE", 
+                "symbols": load_json_symbols("binance_crypto.json", ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"])
+            },
+            "Binance TH": {
+                "badge": "BINANCE TH", 
+                "symbols": load_json_symbols("binance_th_crypto.json", ["BTC_THB", "ETH_THB", "USDT_THB"])
+            },
+            "OKX": {
+                "badge": "OKX", 
+                "symbols": load_json_symbols("okx_crypto.json", ["BTC-USDT", "ETH-USDT", "SOL-USDT"])
+            },
+            "KuCoin": {
+                "badge": "KUCOIN", 
+                "symbols": load_json_symbols("kucoin_crypto.json", ["BTC-USDT", "ETH-USDT", "KCS-USDT"])
+            },
+            "Bitkub (THB)": {
+                "badge": "BITKUB", 
+                "symbols": load_json_symbols("bitkub_crypto.json", ["BTC_THB", "ETH_THB", "KUB_THB"])
+            },
+            "Bybit": {
+                "badge": "BYBIT", 
+                "symbols": load_json_symbols("bybit_crypto.json", ["BTCUSDT", "ETHUSDT"])
+            }
         },
-        "หุ้นไทย (SET)": {
-            "SET Index": {"badge": "SET", "symbols": ["DELTA.BK", "PTT.BK", "AOT.BK", "KBANK.BK", "SCB.BK", "ADVANC.BK", "CPALL.BK", "GULF.BK", "TRUE.BK", "BDMS.BK", "BBL.BK", "KTB.BK", "PTTEP.BK", "CPN.BK"]},
-            "mai": {"badge": "MAI", "symbols": ["AU.BK", "DEXON.BK", "KLINIQ.BK", "SPA.BK", "MASTER.BK"]}
+        "หุ้นต่างประเทศ": {
+            "สหรัฐฯ (US)": {
+                "badge": "US", 
+                "symbols": load_json_symbols("us_stocks.json", ["NVDA", "AAPL", "MSFT", "TSLA"])
+            },
+            "จีน/ฮ่องกง (China/HK)": {
+                "badge": "CHINA", 
+                "symbols": load_json_symbols("china_stocks.json", ["0700.HK", "9988.HK", "BABA"])
+            },
+            "เวียดนาม (VN)": {
+                "badge": "VIETNAM", 
+                "symbols": load_json_symbols("vietnam_stocks.json", ["VNM.VN", "VIC.VN", "HPG.VN"])
+            },
+            "Forex": {
+                "badge": "FOREX", 
+                "symbols": load_json_symbols("forex.json", ["USDTHB=X", "EURUSD=X", "USDJPY=X"])
+            }
         },
-        "หุ้นนอก/Forex": {
-            "Nasdaq / US": {"badge": "NASDAQ", "symbols": ["NVDA", "AAPL", "MSFT", "TSLA", "AMZN", "GOOGL", "META", "AMD", "COIN", "MSTR"]},
-            "Forex (Currencies)": {"badge": "FOREX", "symbols": ["USDTHB=X", "EURUSD=X", "GBPUSD=X", "USDJPY=X", "AUDUSD=X", "GBPJPY=X"]}
+        "หุ้นไทย": {
+            "SET Index": {
+                "badge": "SET", 
+                "symbols": load_json_symbols("thai_stocks.json", ["DELTA.BK", "PTT.BK", "AOT.BK"])
+            },
+            "mai": {
+                "badge": "MAI", 
+                "symbols": ["AU.BK", "DEXON.BK", "KLINIQ.BK", "SPA.BK", "MASTER.BK"]
+            },
+            "TFEX": {
+                "badge": "TFEX", 
+                "symbols": ["S50=F", "GO=F"]
+            }
         },
         "สินค้าเกษตร": {
-            "สมาคมโรงสีข้าว": {"badge": "RICE", "symbols": get_rice_symbols_list()},
-            "ตลาดส่งออก (FOB)": {"badge": "FOB", "symbols": ["FOB:ข้าวสารขาว 100%", "FOB:ข้าวนึ่ง 100%", "FOB:ข้าวหอมมะลิไทย"]},
-            "CBOT Futures": {"badge": "CBOT", "symbols": ["ZR=F (CBOT Rough Rice)"]}
+            "สมาคมโรงสีข้าว": {
+                "badge": "RICE", 
+                "symbols": get_rice_symbols_list()
+            },
+            "ส่งออก (FOB)": {
+                "badge": "FOB", 
+                "symbols": ["FOB:ข้าวสารขาว 100%", "FOB:ข้าวนึ่ง 100%", "FOB:ข้าวหอมมะลิไทย"]
+            },
+            "CBOT ข้าว": {
+                "badge": "CBOT", 
+                "symbols": ["ZR=F (CBOT Rough Rice)", "ZC=F (Corn)", "ZS=F (Soybean)", "ZW=F (Wheat)"]
+            }
         },
         "โภคภัณฑ์": {
-            "Precious Metals": {"badge": "METALS", "symbols": ["GC=F", "SI=F", "PL=F"]},
-            "Energy": {"badge": "ENERGY", "symbols": ["CL=F", "BZ=F", "NG=F"]}
+            "โลหะมีค่า (Gold)": {
+                "badge": "METALS", 
+                "symbols": ["GC=F", "SI=F", "PL=F"]
+            },
+            "พลังงาน (Energy)": {
+                "badge": "ENERGY", 
+                "symbols": ["CL=F", "BZ=F", "NG=F"]
+            }
         }
     }
 
     cur_sym = st.session_state.get("current_symbol", "BTCUSDT")
 
-    # Watchlist Cards
+    # Watchlist Feed
     tracked = []
     if "open_tabs" in st.session_state and st.session_state.open_tabs:
         for t in st.session_state.open_tabs:
@@ -158,7 +220,7 @@ def render_sidebar():
         market_sub = "Binance Spot" if "USDT" in sym_code else ("SET Index" if ".BK" in sym_code else ("Futures" if "=F" in sym_code else "Market"))
 
         rows_html.append(f"""
-        <div class="coin-card" style="background:{row_bg}; border:{row_border};" onclick="selectCoin('{sym_code}')">
+        <a href="/?select_sym={sym_code}" target="_top" class="coin-card" style="background:{row_bg}; border:{row_border}; text-decoration:none;">
             <div>
                 <div class="coin-sym">{lbl}</div>
                 <div class="coin-sub">{market_sub}</div>
@@ -169,7 +231,7 @@ def render_sidebar():
                     {c_sign}{chg_val:.2f}%
                 </span>
             </div>
-        </div>
+        </a>
         """)
 
     draw_status = "ON" if show_tool else "OFF"
@@ -178,7 +240,6 @@ def render_sidebar():
     top_cls = "btn-on" if show_top else "btn-off"
 
     with st.sidebar:
-        # สไตล์กำกับแถบแท็บ 2 สี (Cyber Orange / Cyber Green)
         st.markdown("""
         <style>
         div[data-testid="stSidebarContent"] { padding-top: 6px !important; }
@@ -217,7 +278,7 @@ def render_sidebar():
         tab_market, tab_tools = st.tabs(["🔍 ตลาด & ค้นหา", "🟢 เครื่องมือ & อินดี้ (3)"])
 
         # =============================================================
-        # แท็บ 1: ระบบเลือก 3 ชั้นลื่นไหลในตัว + Watchlist
+        # แท็บ 1: ระบบ 3 ชั้น Cascading + Modal คลังสินทรัพย์
         # =============================================================
         with tab_market:
             tab1_html = f"""
@@ -228,11 +289,17 @@ def render_sidebar():
                 * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }}
                 body {{ background: transparent; color: #D1D4DC; user-select: none; overflow: hidden; }}
 
-                .sec-title-orange {{ color: #FF9400; font-size: 11px; font-weight: 700; margin-bottom: 5px; }}
+                .sec-title-orange {{ color: #FF9400; font-size: 11px; font-weight: 700; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }}
                 .sec-title-green {{ color: #00FFA3; font-size: 11px; font-weight: 700; margin: 8px 0 5px 0; }}
 
+                .btn-open-modal {{
+                    background: rgba(255, 122, 0, 0.12); border: 1px solid #FF7A00; color: #FF9433;
+                    font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 4px; cursor: pointer;
+                }}
+                .btn-open-modal:hover {{ background: rgba(255, 122, 0, 0.25); }}
+
                 .pills-scroll {{
-                    display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 5px;
+                    display: flex; gap: 4px; overflow-x: auto; padding-bottom: 3px; margin-bottom: 4px;
                 }}
                 .pills-scroll::-webkit-scrollbar {{ height: 3px; }}
                 .pills-scroll::-webkit-scrollbar-thumb {{ background: #23293A; border-radius: 2px; }}
@@ -240,7 +307,6 @@ def render_sidebar():
                 .pill-btn {{
                     white-space: nowrap; background: #0B0E14; border: 1px solid #1F2633; color: #8F9CAE;
                     font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 4px; cursor: pointer;
-                    transition: all 0.15s ease;
                 }}
                 .pill-btn.active-cat {{
                     background: rgba(255, 122, 0, 0.15); border: 1px solid #FF7A00; color: #FF9400; font-weight: 700;
@@ -249,7 +315,6 @@ def render_sidebar():
                 .pill-btn-sub {{
                     white-space: nowrap; background: #0B0E14; border: 1px solid #1F2633; color: #8F9CAE;
                     font-size: 9.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px; cursor: pointer;
-                    transition: all 0.15s ease;
                 }}
                 .pill-btn-sub.active-sub {{
                     background: rgba(0, 255, 163, 0.15); border: 1px solid #00FFA3; color: #00FFA3; font-weight: 700;
@@ -305,26 +370,51 @@ def render_sidebar():
                     color: #00FFA3; border: 1px solid #00FFA3; background: rgba(0, 255, 163, 0.12);
                     padding: 1px 5px; border-radius: 3px; font-weight: 700;
                 }}
+
+                /* Modal Overlay */
+                .modal-overlay {{
+                    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                    background: rgba(5, 7, 12, 0.95); z-index: 9999; padding: 10px; flex-direction: column;
+                }}
+                .modal-header {{ display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }}
+                .modal-title {{ color: #00FFA3; font-size: 12px; font-weight: 700; }}
+                .modal-close {{ color: #EF5350; font-size: 16px; font-weight: 700; cursor: pointer; padding: 0 4px; }}
+                .modal-input {{
+                    background: #0B0E14; border: 1px solid #00FFA3; border-radius: 5px; padding: 6px 10px;
+                    color: #FFFFFF; font-size: 11px; width: 100%; outline: none; margin-bottom: 8px;
+                }}
+                .modal-results {{
+                    flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px;
+                }}
+                .modal-item {{
+                    display: flex; justify-content: space-between; align-items: center; padding: 5px 8px;
+                    background: #0E131E; border: 1px solid #1A202C; border-radius: 4px; cursor: pointer;
+                }}
+                .modal-item:hover {{ border-color: #00FFA3; background: #162030; }}
             </style>
             </head>
             <body>
-                <div class="sec-title-orange">🔍 ค้นหาด่วน (Quick Search)</div>
+                <div class="sec-title-orange">
+                    <span>🔍 ค้นหาด่วน (Quick Search)</span>
+                    <span class="btn-open-modal" onclick="openModal()">⛶ คลังสินทรัพย์</span>
+                </div>
 
-                <!-- 1. แถบหมวดหมู่หลัก -->
+                <!-- 1. แถบหมวดหมู่หลัก (ชั้น 1) -->
                 <div class="pills-scroll" id="cat-pills-container"></div>
 
-                <!-- 2. แถบกระดานย่อย -->
+                <!-- 2. แถบกระดานย่อย (ชั้น 2) -->
                 <div class="pills-scroll" id="exch-pills-container"></div>
 
-                <!-- 3. ช่องค้นหาสินทรัพย์ -->
+                <!-- 3. ช่องค้นหา + ป้ายกระดาน (ชั้น 3) -->
                 <div class="search-box">
                     <span class="search-icon">🔍</span>
-                    <select class="search-select" id="symbol-select" onchange="selectCoin(this.value)"></select>
+                    <select class="search-select" id="symbol-select" onchange="navTop(this.value)"></select>
                     <span class="badge-binance" id="exch-badge">BINANCE</span>
                 </div>
 
                 <div class="sec-title-green">📌 เหรียญที่เลือกมาแล้ว (Selected)</div>
 
+                <!-- 4. Watchlist เลื่อนได้ -->
                 <div class="watchlist-box">
                     {''.join(rows_html)}
                 </div>
@@ -332,11 +422,11 @@ def render_sidebar():
                 <div class="bottom-ctrls">
                     <div class="ctrl-row">
                         <span>✏️ แถบวาดรูป (Draw)</span>
-                        <span class="status-btn {draw_cls}" onclick="toggleTool('draw')">{draw_status}</span>
+                        <span class="status-btn {draw_cls}" onclick="navToggle('draw')">{draw_status}</span>
                     </div>
                     <div class="ctrl-row">
                         <span>⏱️ แถบควบคุมบน (Top)</span>
-                        <span class="status-btn {top_cls}" onclick="toggleTool('top')">{top_status}</span>
+                        <span class="status-btn {top_cls}" onclick="navToggle('top')">{top_status}</span>
                     </div>
                 </div>
 
@@ -345,11 +435,37 @@ def render_sidebar():
                     <span class="badge-live">LIVE</span>
                 </div>
 
+                <!-- หน้าต่าง Modal คลังสินทรัพย์ทั้งหมด -->
+                <div class="modal-overlay" id="asset-modal">
+                    <div class="modal-header">
+                        <span class="modal-title">📂 คลังสินทรัพย์และกระดานทั้งหมด</span>
+                        <span class="modal-close" onclick="closeModal()">✕</span>
+                    </div>
+                    <input type="text" class="modal-input" id="modal-search-box" placeholder="พิมพ์ชื่อค้นหา เช่น BTC, OKX, PTT, ข้าว, VNM..." oninput="filterModalItems(this.value)">
+                    <div class="modal-results" id="modal-results-container"></div>
+                </div>
+
                 <script>
                     const marketData = {json.dumps(all_markets_data)};
                     let curCat = "Crypto";
                     let curExch = "Binance Spot";
                     let curSym = "{cur_sym}";
+
+                    function navTop(sym) {{
+                        const a = document.createElement('a');
+                        a.href = '/?select_sym=' + encodeURIComponent(sym);
+                        a.target = '_top';
+                        document.body.appendChild(a);
+                        a.click();
+                    }}
+
+                    function navToggle(t) {{
+                        const a = document.createElement('a');
+                        a.href = '/?toggle_tool=' + encodeURIComponent(t);
+                        a.target = '_top';
+                        document.body.appendChild(a);
+                        a.click();
+                    }}
 
                     function renderCats() {{
                         const container = document.getElementById('cat-pills-container');
@@ -394,37 +510,38 @@ def render_sidebar():
                         renderSymbols();
                     }}
 
-                    function sendEvent(data) {{
-                        try {{ window.parent.postMessage(data, '*'); }} catch(e) {{}}
-                        try {{ window.top.postMessage(data, '*'); }} catch(e) {{}}
-                        try {{
-                            const p = window.parent || window.top;
-                            if (p && p.location && p.location.href) {{
-                                const url = new URL(p.location.href);
-                                for (const [k, v] of Object.entries(data)) {{
-                                    if (k !== 'type') url.searchParams.set(k, v);
+                    function openModal() {{
+                        document.getElementById('asset-modal').style.display = 'flex';
+                        filterModalItems('');
+                    }}
+
+                    function closeModal() {{
+                        document.getElementById('asset-modal').style.display = 'none';
+                    }}
+
+                    function filterModalItems(query) {{
+                        const container = document.getElementById('modal-results-container');
+                        const q = query.trim().toUpperCase();
+                        let html = '';
+
+                        for (const [cName, exchs] of Object.entries(marketData)) {{
+                            for (const [eName, eData] of Object.entries(exchs)) {{
+                                for (const sym of eData.symbols) {{
+                                    if (!q || sym.toUpperCase().includes(q) || eName.toUpperCase().includes(q) || cName.toUpperCase().includes(q)) {{
+                                        html += `
+                                            <div class="modal-item" onclick="navTop('${{sym}}')">
+                                                <div>
+                                                    <span style="color:#FFF; font-size:11px; font-weight:700;">${{sym}}</span>
+                                                    <span style="color:#787B86; font-size:9.5px; margin-left:6px;">${{eName}}</span>
+                                                </div>
+                                                <span style="color:#00FFA3; border:1px solid #00FFA3; font-size:8.5px; padding:1px 5px; border-radius:3px;">${{eData.badge}}</span>
+                                            </div>
+                                        `;
+                                    }}
                                 }}
-                                if (data.symbol) url.searchParams.set('select_sym', data.symbol);
-                                p.location.href = url.href;
                             }}
-                        }} catch(e) {{}}
-                    }}
-
-                    function selectCoin(sym) {{
-                        curSym = sym;
-                        sendEvent({{
-                            type: 'SELECT_SYMBOL',
-                            symbol: sym,
-                            select_sym: sym,
-                            value: sym
-                        }});
-                    }}
-
-                    function toggleTool(t) {{
-                        sendEvent({{
-                            type: 'TOGGLE_TOOL',
-                            toggle_tool: t
-                        }});
+                        }}
+                        container.innerHTML = html || '<div style="color:#787B86; font-size:11px; text-align:center; padding:10px;">ไม่พบสินทรัพย์ที่ค้นหา</div>';
                     }}
 
                     function updateClock() {{
@@ -531,10 +648,10 @@ def render_sidebar():
                 <div class="sec-sub">ปุ่มไอคอนเรียบหรู ลดตัวหนังสือรกตา ชี้เมาส์เพื่อดูคำอธิบาย</div>
 
                 <div class="icons-grid">
-                    <div class="icon-btn" onmouseover="setTT('📐 Fibonacci Suite & Golden Zone', 'คำนวณเป้าหมายราคาและแนวรับต้านอัตโนมัติ')" onclick="triggerAction('fibo')">📐</div>
-                    <div class="icon-btn" onmouseover="setTT('📊 ตลาด 24h (Market Analysis)', 'ภาพรวมสถิติวอลุ่ม การซื้อขาย และโมเมนตัมตลาด')" onclick="triggerAction('market')">📊</div>
-                    <div class="icon-btn" onmouseover="setTT('🌾 กราฟราคาข้าวไทย', 'สลับสู่โหมดวิเคราะห์ข้อมูลราคาสินค้าเกษตรไทย')" onclick="triggerAction('rice')">🌾</div>
-                    <div class="icon-btn" onmouseover="setTT('⚙️ สไตล์กราฟ & การแสดงผล', 'ปรับแต่งธีม สีแท่งเทียน และอินเทอร์เฟซผู้ใช้')" onclick="triggerAction('theme')">🟣</div>
+                    <div class="icon-btn" onmouseover="setTT('📐 Fibonacci Suite & Golden Zone', 'คำนวณเป้าหมายราคาและแนวรับต้านอัตโนมัติ')" onclick="navAction('fibo')">📐</div>
+                    <div class="icon-btn" onmouseover="setTT('📊 ตลาด 24h (Market Analysis)', 'ภาพรวมสถิติวอลุ่ม การซื้อขาย และโมเมนตัมตลาด')" onclick="navAction('market')">📊</div>
+                    <div class="icon-btn" onmouseover="setTT('🌾 กราฟราคาข้าวไทย', 'สลับสู่โหมดวิเคราะห์ข้อมูลราคาสินค้าเกษตรไทย')" onclick="navAction('rice')">🌾</div>
+                    <div class="icon-btn" onmouseover="setTT('⚙️ สไตล์กราฟ & การแสดงผล', 'ปรับแต่งธีม สีแท่งเทียน และอินเทอร์เฟซผู้ใช้')" onclick="navAction('theme')">🟣</div>
                 </div>
 
                 <div class="tooltip-banner">
@@ -598,11 +715,11 @@ def render_sidebar():
                 <div class="bottom-ctrls">
                     <div class="ctrl-row">
                         <span>✏️ แถบวาดรูป (Drawing Bar)</span>
-                        <span class="status-btn {draw_cls}" onclick="toggleTool('draw')">{draw_status}</span>
+                        <span class="status-btn {draw_cls}" onclick="navToggle('draw')">{draw_status}</span>
                     </div>
                     <div class="ctrl-row">
                         <span>⏱️ แถบเครื่องมือบน (Toolbar)</span>
-                        <span class="status-btn {top_cls}" onclick="toggleTool('top')">{top_status}</span>
+                        <span class="status-btn {top_cls}" onclick="navToggle('top')">{top_status}</span>
                     </div>
                 </div>
 
@@ -617,27 +734,20 @@ def render_sidebar():
                         document.getElementById('tt-desc-el').textContent = d;
                     }}
 
-                    function sendEvent(data) {{
-                        try {{ window.parent.postMessage(data, '*'); }} catch(e) {{}}
-                        try {{ window.top.postMessage(data, '*'); }} catch(e) {{}}
-                        try {{
-                            const p = window.parent || window.top;
-                            if (p && p.location && p.location.href) {{
-                                const url = new URL(p.location.href);
-                                for (const [k, v] of Object.entries(data)) {{
-                                    if (k !== 'type') url.searchParams.set(k, v);
-                                }}
-                                p.location.href = url.href;
-                            }}
-                        }} catch(e) {{}}
+                    function navAction(a) {{
+                        const el = document.createElement('a');
+                        el.href = '/?trigger_action=' + encodeURIComponent(a);
+                        el.target = '_top';
+                        document.body.appendChild(el);
+                        el.click();
                     }}
 
-                    function triggerAction(a) {{
-                        sendEvent({{ type: 'TRIGGER_ACTION', trigger_action: a }});
-                    }}
-
-                    function toggleTool(t) {{
-                        sendEvent({{ type: 'TOGGLE_TOOL', toggle_tool: t }});
+                    function navToggle(t) {{
+                        const el = document.createElement('a');
+                        el.href = '/?toggle_tool=' + encodeURIComponent(t);
+                        el.target = '_top';
+                        document.body.appendChild(el);
+                        el.click();
                     }}
 
                     function updateClock() {{
