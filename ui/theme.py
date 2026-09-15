@@ -2,21 +2,37 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-NEON = "#FF7A1A"  # Neon Orange
-OBSIDIAN = "#07090E"  # Dark Obsidian
+# ==============================================================================
+# 🎨 แผงควบคุมสีหลักของทั้งระบบ (แก้สีทุกจุดได้จากตรงนี้จุดเดียว)
+# ==============================================================================
+CYBER_COLORS = {
+    "neon_green": "#22D090",       # สีเขียวนีออน (สวิตช์ ON, เส้นไฮไลต์, ป้าย LIVE, ขอบ Active)
+    "cyber_orange": "#FF7A00",     # สีส้มไซเบอร์ (ปุ่มลอย ☰, ปุ่มหมวดหมู่, กรอบค้นหา)
+    "bg_main": "#0E0606",          # สีพื้นหลังจอหลัก (Dark Obsidian)
+    "bg_sidebar": "#100808",       # สีพื้นหลังแถบข้าง (Sidebar)
+    "bg_card": "#140B0B",          # สีพื้นหลังการ์ด / กล่องข้อความ
+    "bg_card_active": "#241111",   # สีพื้นหลังการ์ดที่กำลังเลือกดูอยู่
+    "border_dim": "#331F1F",       # สีกรอบเส้นบางทั่วไป
+    "text_main": "#FFFFFF",        # สีตัวอักษรหลัก
+    "text_muted": "#B19393",       # สีตัวอักษรรอง / คำอธิบาย
+}
 
 
 def apply_theme():
     """โหลดสไตล์ CSS Cyberpunk และฝังปุ่มเปิด-ปิด Sidebar แบบถาวร"""
+    c = CYBER_COLORS
 
-    # 1. CSS ปรับแต่งสีและเลย์เอาต์หน้าจอ
+    # 1. CSS ปรับแต่งสี เลย์เอาต์ และแก้ปัญหาการทับกัน
     st.markdown(
         f"""
     <style>
+        /* พื้นหลังหน้าจอหลัก */
         .stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] {{
-            background-color: {OBSIDIAN} !important;
+            background-color: {c['bg_main']} !important;
+            color: {c['text_main']} !important;
         }}
 
+        /* ซ่อน Header มาตรฐานของ Streamlit */
         header[data-testid="stHeader"], .stAppHeader {{
             background: transparent !important;
             height: 0px !important;
@@ -34,6 +50,7 @@ def apply_theme():
             display: none !important;
         }}
 
+        /* คืนพื้นที่ให้กราฟเต็มจอ */
         .block-container,
         [data-testid="stAppViewBlockContainer"],
         [data-testid="stMainBlockContainer"],
@@ -46,33 +63,59 @@ def apply_theme():
             width: 100% !important;
         }}
 
-        div[data-testid="stVerticalBlock"],
-        div.st-emotion-cache-q25c81,
-        div.st-emotion-cache-1ndxyp5 {{ gap: 0px !important; }}
-        div[data-testid="stHorizontalBlock"] {{ gap: 0px !important; }}
-        div[data-testid="column"] {{ padding: 0px !important; }}
+        /* ปลดล็อกระยะห่างใน Sidebar (แก้ปัญหาตัวหนังสือทับกันถาวร) */
+        [data-testid="stSidebar"] div[data-testid="stVerticalBlock"] {{
+            gap: 8px !important;
+        }}
 
+        /* สีพื้นหลังแถบข้าง */
         [data-testid="stSidebar"] {{
-            background-color: #0A0D14 !important;
-            border-right: 1px solid rgba(255, 122, 26, 0.25) !important;
+            background-color: {c['bg_sidebar']} !important;
+            border-right: 1px solid rgba(255, 122, 0, 0.25) !important;
         }}
         [data-testid="stSidebarContent"] {{
-            background-color: #0A0D14 !important;
-            padding: 6px 8px !important;
+            background-color: {c['bg_sidebar']} !important;
+            padding: 8px 10px 16px 10px !important;
         }}
-        [data-testid="stSidebarCollapseButton"] button {{
-            color: {NEON} !important;
+
+        /* ซ่อนปุ่ม << ใน Sidebar (วงสีเขียว) */
+        button[data-testid="stSidebarCollapseButton"],
+        div[data-testid="stSidebarCollapseButton"],
+        button[aria-label="Close sidebar"],
+        [data-testid="stSidebarCollapseButton"] {{
+            display: none !important;
+            visibility: hidden !important;
         }}
-        [data-testid="stSidebarCollapseButton"] svg {{
-            fill: {NEON} !important;
-            stroke: {NEON} !important;
+
+        /* กำจัดสีฟ้าใต้แท็บ ให้เป็นสีเขียวนีออน Cyber */
+        div[data-testid="stSidebar"] [data-baseweb="tab-highlight"] {{
+            background-color: {c['neon_green']} !important;
+            height: 2px !important;
+        }}
+        div[data-testid="stSidebar"] button[data-baseweb="tab"][aria-selected="true"] {{
+            color: {c['neon_green']} !important;
+        }}
+        div[data-testid="stSidebar"] button[data-baseweb="tab"][aria-selected="true"] p {{
+            color: {c['neon_green']} !important;
+        }}
+
+        /* สวิตช์ Toggle ตอนเปิด: เปลี่ยนจากสีฟ้าเป็นสีเขียวนีออน Cyber */
+        div[data-testid="stSidebar"] div[data-testid="stToggle"] input:checked ~ div,
+        div[data-testid="stSidebar"] div[data-testid="stToggle"] [data-checked="true"] {{
+            background-color: {c['neon_green']} !important;
+            border-color: {c['neon_green']} !important;
+            box-shadow: 0 0 10px rgba(0, 255, 163, 0.45) !important;
+        }}
+        div[data-testid="stSidebar"] div[data-testid="stToggle"] input:checked ~ div > div,
+        div[data-testid="stSidebar"] div[data-testid="stToggle"] [data-checked="true"] > div {{
+            background-color: {c['bg_main']} !important;
         }}
     </style>
     """,
         unsafe_allow_html=True,
     )
 
-    # 2. ฝังปุ่มลอยผ่าน JavaScript อยู่นอกระบบ React ของ Streamlit ไม่มีวันหาย 100%
+    # 2. ฝังปุ่มลอย ☰ สีส้ม Cyberpunk (เปิด-ปิด Sidebar ได้ตลอดเวลา)
     components.html(
         f"""
     <script>
@@ -87,7 +130,6 @@ def apply_theme():
             btn.innerHTML = '&#9776;'; // สัญลักษณ์เมนู 3 ขีด (☰)
             btn.title = "เปิด/ปิด เมนูข้าง";
             
-            // ตำแหน่งลอย: อยู่ใต้ช่อง 1h เหนือแถบเครื่องมือสีน้ำเงิน
             btn.style.position = 'fixed';
             btn.style.top = '48px';
             btn.style.left = '8px';
@@ -95,8 +137,8 @@ def apply_theme():
             btn.style.width = '32px';
             btn.style.height = '32px';
             btn.style.background = '#0E121A';
-            btn.style.color = '{NEON}';
-            btn.style.border = '1.5px solid {NEON}';
+            btn.style.color = '{c["cyber_orange"]}';
+            btn.style.border = '1.5px solid {c["cyber_orange"]}';
             btn.style.borderRadius = '6px';
             btn.style.fontSize = '16px';
             btn.style.fontWeight = 'bold';
@@ -104,21 +146,20 @@ def apply_theme():
             btn.style.display = 'flex';
             btn.style.alignItems = 'center';
             btn.style.justifyContent = 'center';
-            btn.style.boxShadow = '0 0 10px rgba(255, 122, 26, 0.5)';
+            btn.style.boxShadow = '0 0 10px rgba(255, 122, 0, 0.5)';
             btn.style.transition = 'all 0.2s ease';
 
             btn.onmouseenter = () => {{
-                btn.style.borderColor = '#00FF66';
-                btn.style.color = '#00FF66';
-                btn.style.boxShadow = '0 0 14px rgba(0, 255, 102, 0.7)';
+                btn.style.borderColor = '{c["neon_green"]}';
+                btn.style.color = '{c["neon_green"]}';
+                btn.style.boxShadow = '0 0 14px rgba(0, 255, 163, 0.7)';
             }};
             btn.onmouseleave = () => {{
-                btn.style.borderColor = '{NEON}';
-                btn.style.color = '{NEON}';
-                btn.style.boxShadow = '0 0 10px rgba(255, 122, 26, 0.5)';
+                btn.style.borderColor = '{c["cyber_orange"]}';
+                btn.style.color = '{c["cyber_orange"]}';
+                btn.style.boxShadow = '0 0 10px rgba(255, 122, 0, 0.5)';
             }};
 
-            // สั่งเปิด-ปิด Sidebar เมื่อกดคลิก
             btn.onclick = () => {{
                 const nativeBtn = doc.querySelector('[data-testid="stSidebarCollapseButton"] button') ||
                                   doc.querySelector('[data-testid="stSidebarCollapsedControl"] button') ||
@@ -126,7 +167,6 @@ def apply_theme():
                 if (nativeBtn) {{
                     nativeBtn.click();
                 }} else {{
-                    // Fallback: ถ้าหาปุ่ม Streamlit ไม่เจอ ให้สั่งกางเองตรงๆ
                     const sidebar = doc.querySelector('[data-testid="stSidebar"]');
                     if (sidebar) {{
                         const isClosed = sidebar.getAttribute('aria-expanded') === 'false';
@@ -138,7 +178,6 @@ def apply_theme():
             doc.body.appendChild(btn);
         }}
 
-        // รันตั้งค่าทันทีและคอยเช็คทุก 1 วินาทีกันหลุด
         setupButton();
         setInterval(setupButton, 1000);
     }})();
