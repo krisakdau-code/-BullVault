@@ -74,7 +74,7 @@ def render_sidebar():
     cur_sym = st.session_state.get("current_symbol", "BTCUSDT")
 
     # -------------------------------------------------------------
-    # 2. Database Catalogs (โหลดจาก data/*.json)
+    # 2. Catalogs
     # -------------------------------------------------------------
     all_markets = {
         "Crypto": {
@@ -119,267 +119,16 @@ def render_sidebar():
     exch_badge = all_markets[cur_cat][cur_exch]["badge"]
 
     # -------------------------------------------------------------
-    # 3. CSS Overlay ปรับแต่งและแก้ปัญหาการทับกัน + กำจัดสีฟ้า
+    # 3. Sidebar Body (ไม่ฝัง CSS ทับซ้อน ปล่อยให้ theme.py คุมทั้งหมด)
     # -------------------------------------------------------------
     with st.sidebar:
-        st.markdown("""
-        <style>
-        /* 1. ปิดปุ่มพับ Sidebar (<<) */
-        button[data-testid="stSidebarCollapseButton"],
-        div[data-testid="stSidebarCollapseButton"],
-        button[aria-label="Close sidebar"],
-        [data-testid="stSidebarCollapseButton"] {
-            display: none !important;
-            visibility: hidden !important;
-        }
-
-        /* 2. พื้นหลังแถบข้าง */
-        div[data-testid="stSidebarContent"] {
-            background-color: #06080E !important;
-            padding: 8px 10px 16px 10px !important;
-        }
-
-        /* 3. ลบเส้นสีฟ้าใต้แท็บ (Remove Default Blue Highlight) */
-        div[data-testid="stSidebar"] div[data-baseweb="tab-highlight"] {
-            display: none !important;
-            background-color: transparent !important;
-        }
-        div[data-testid="stSidebar"] div[data-baseweb="tab-border"] {
-            display: none !important;
-            background-color: transparent !important;
-        }
-
-        /* 4. สไตล์หัวแท็บคู่บน */
-        div[data-testid="stSidebar"] div[data-baseweb="tab-list"] {
-            gap: 6px !important;
-            background: #0B0E14 !important;
-            padding: 3px !important;
-            border-radius: 8px !important;
-            border: 1px solid #1A202C !important;
-            margin-bottom: 8px !important;
-        }
-        div[data-testid="stSidebar"] button[data-baseweb="tab"] {
-            border-radius: 6px !important;
-            padding: 5px 8px !important;
-            font-size: 11px !important;
-            font-weight: 700 !important;
-            color: #8F9CAE !important;
-            background: transparent !important;
-            border: 1px solid transparent !important;
-            outline: none !important;
-        }
-        /* แท็บ 1: เมื่อ Active เปลี่ยนเป็นสีส้ม Cyber */
-        div[data-testid="stSidebar"] button[data-baseweb="tab"]:nth-child(1)[aria-selected="true"] {
-            background: rgba(255, 122, 0, 0.16) !important;
-            border: 1.2px solid #FF7A00 !important;
-            color: #FF9433 !important;
-            box-shadow: 0 0 10px rgba(255, 122, 0, 0.35) !important;
-        }
-        /* แท็บ 2: เมื่อ Active เปลี่ยนเป็นสีเขียวนีออน Cyber */
-        div[data-testid="stSidebar"] button[data-baseweb="tab"]:nth-child(2)[aria-selected="true"] {
-            background: rgba(0, 255, 163, 0.14) !important;
-            border: 1.2px solid #00FFA3 !important;
-            color: #00FFA3 !important;
-            box-shadow: 0 0 10px rgba(0, 255, 163, 0.35) !important;
-        }
-
-        /* 5. แก้ไขปัญหาตัวหนังสือซ้อนทับ (Header Layout Fix) */
-        .cyber-header-orange {
-            color: #FF9400 !important;
-            font-size: 10.5px !important;
-            font-weight: 800 !important;
-            letter-spacing: 0.5px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            width: 100% !important;
-            min-height: 26px !important;
-            line-height: 1.6 !important;
-            margin-top: 14px !important;
-            margin-bottom: 8px !important;
-            clear: both !important;
-        }
-        .cyber-header-green {
-            color: #00FFA3 !important;
-            font-size: 10.5px !important;
-            font-weight: 800 !important;
-            letter-spacing: 0.5px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: space-between !important;
-            width: 100% !important;
-            min-height: 26px !important;
-            line-height: 1.6 !important;
-            margin-top: 14px !important;
-            margin-bottom: 8px !important;
-            clear: both !important;
-        }
-        .cyber-badge-orange {
-            background: rgba(255, 122, 0, 0.15) !important;
-            border: 1px solid #FF7A00 !important;
-            color: #FF9400 !important;
-            font-size: 8px !important;
-            font-weight: 800 !important;
-            padding: 1px 5px !important;
-            border-radius: 4px !important;
-            line-height: normal !important;
-            min-width: 0 !important;
-            flex-shrink: 0 !important;
-        }
-        .cyber-badge-green {
-            background: rgba(0, 255, 163, 0.15) !important;
-            border: 1px solid #00FFA3 !important;
-            color: #00FFA3 !important;
-            font-size: 8px !important;
-            font-weight: 800 !important;
-            padding: 1px 5px !important;
-            border-radius: 4px !important;
-            line-height: normal !important;
-            min-width: 0 !important;
-            flex-shrink: 0 !important;
-        }
-
-        /* 6. บังคับระยะเว้นด้านบนของ Widget เพื่อไม่ให้ลอยทับหัวข้อ */
-        div[data-testid="stSidebar"] div[data-testid="stHorizontalBlock"] {
-            margin-top: 6px !important;
-            margin-bottom: 6px !important;
-            position: relative !important;
-            clear: both !important;
-        }
-        div[data-testid="stSidebar"] div.stSelectbox,
-        div[data-testid="stSidebar"] div[data-baseweb="select"] {
-            margin-top: 6px !important;
-            position: relative !important;
-            clear: both !important;
-        }
-        div[data-testid="stSidebar"] div[data-testid="stExpander"] {
-            margin-top: 8px !important;
-            position: relative !important;
-            clear: both !important;
-        }
-
-        /* 7. ปุ่มและการ์ด */
-        div[data-testid="stSidebar"] div.stButton > button {
-            background: #0B0E14 !important;
-            border: 1px solid #1F2633 !important;
-            color: #8F9CAE !important;
-            border-radius: 5px !important;
-            font-size: 10px !important;
-            font-weight: 700 !important;
-            padding: 3px 5px !important;
-            height: auto !important;
-            white-space: nowrap !important;
-            text-overflow: ellipsis !important;
-            overflow: hidden !important;
-        }
-        div[data-testid="stSidebar"] div.stButton > button:hover {
-            border-color: #00FFA3 !important;
-            color: #FFFFFF !important;
-            background: #111724 !important;
-        }
-
-        /* ปุ่มหมวด 2x2 เมื่อ Active */
-        div[data-testid="stSidebar"] div.cat-active > div.stButton > button {
-            background: rgba(255, 122, 0, 0.18) !important;
-            border: 1.2px solid #FF7A00 !important;
-            color: #FF9400 !important;
-            box-shadow: 0 0 8px rgba(255, 122, 0, 0.3) !important;
-        }
-
-        /* กระดานแนวตั้งเมื่อ Active */
-        div[data-testid="stSidebar"] div.exch-active > div.stButton > button {
-            background: rgba(0, 255, 163, 0.15) !important;
-            border: 1.2px solid #00FFA3 !important;
-            color: #00FFA3 !important;
-            box-shadow: 0 0 8px rgba(0, 255, 163, 0.25) !important;
-            text-align: left !important;
-            padding-left: 8px !important;
-        }
-        div[data-testid="stSidebar"] div.exch-inactive > div.stButton > button {
-            text-align: left !important;
-            padding-left: 8px !important;
-        }
-
-        /* Selectbox สไตล์ Cyber */
-        div[data-testid="stSidebar"] div[data-baseweb="select"] {
-            background-color: #0B0E14 !important;
-            border: 1.2px solid #FF7A00 !important;
-            border-radius: 5px !important;
-            box-shadow: 0 0 6px rgba(255, 122, 0, 0.2) !important;
-        }
-        div[data-testid="stSidebar"] div[data-baseweb="select"] * {
-            color: #FFFFFF !important;
-            font-size: 11px !important;
-            font-weight: 700 !important;
-        }
-
-        /* การ์ด Watchlist เมื่อ Active */
-        div[data-testid="stSidebar"] div.card-active > div.stButton > button {
-            background: #111724 !important;
-            border: 1.2px solid #00FFA3 !important;
-            color: #FFFFFF !important;
-            box-shadow: 0 0 8px rgba(0, 255, 163, 0.35) !important;
-        }
-
-        /* ปุ่มแท็กสี Popover */
-        div[data-testid="stSidebar"] div[data-testid="stPopover"] button svg {
-            display: none !important;
-        }
-        div[data-testid="stSidebar"] div[data-testid="stPopover"] button {
-            background: transparent !important;
-            border: 1px solid #1F2633 !important;
-            border-radius: 5px !important;
-            padding: 2px 0px !important;
-            min-width: 24px !important;
-            width: 24px !important;
-            height: 28px !important;
-            justify-content: center !important;
-        }
-        div[data-testid="stSidebar"] div[data-testid="stPopover"] button:hover {
-            border-color: #00FFA3 !important;
-            background: #111724 !important;
-        }
-
-        /* 8. สวิตช์ Toggle: เปลี่ยนจากสีฟ้าเป็นสีเขียวนีออน Cyber (Neon Green) */
-        div[data-testid="stSidebar"] div[role="switch"][aria-checked="true"],
-        div[data-testid="stSidebar"] [data-baseweb="checkbox"] div[role="switch"][aria-checked="true"] {
-            background-color: #00FFA3 !important;
-            border-color: #00FFA3 !important;
-            box-shadow: 0 0 10px rgba(0, 255, 163, 0.45) !important;
-        }
-        div[data-testid="stSidebar"] div[role="switch"][aria-checked="true"] div,
-        div[data-testid="stSidebar"] [data-baseweb="checkbox"] div[role="switch"][aria-checked="true"] div {
-            background-color: #06080E !important;
-        }
-        div[data-testid="stSidebar"] div[role="switch"][aria-checked="false"] {
-            background-color: #1A202C !important;
-            border: 1px solid #2D3748 !important;
-        }
-
-        /* Scrollbar สีนีออน */
-        div[data-testid="stSidebar"] ::-webkit-scrollbar {
-            width: 4px !important;
-        }
-        div[data-testid="stSidebar"] ::-webkit-scrollbar-thumb {
-            background: #00FFA3 !important;
-            border-radius: 2px !important;
-        }
-
-        .clock-container {
-            margin-top: 10px; background: #0B0E14; border: 1px solid #1A202C; border-radius: 6px;
-            padding: 5px 8px; display: flex; justify-content: space-between; align-items: center;
-            font-family: monospace; font-size: 9.5px; color: #8F9CAE;
-        }
-        </style>
-        """, unsafe_allow_html=True)
-
         tab_market, tab_tools = st.tabs(["🔍 ตลาด & ค้นหา", "🟢 เครื่องมือ & อินดี้ (3)"])
 
         # =============================================================
-        # แท็บ 1: ระบบ 3 ชั้น + Watchlist (จัดระเบียบไม่ให้ซ้อนทับ)
+        # แท็บ 1: ระบบ 3 ชั้น + Watchlist
         # =============================================================
         with tab_market:
-            # 1. Category Grid 2x2
+            # 1. Category 2x2
             st.markdown('<div class="cyber-header-orange"><span>⚡ ค้นหาด่วน (CATEGORIES 2x2)</span></div>', unsafe_allow_html=True)
             cat_keys = ["Crypto", "หุ้นไทย (SET)", "หุ้นนอก / Forex", "สินค้าเกษตร/โภคภัณฑ์"]
 
@@ -421,7 +170,7 @@ def render_sidebar():
                     st.rerun()
                 st.markdown('</div>', unsafe_allow_html=True)
 
-            # 2. Exchange Selector (แถวเลื่อนแนวตั้ง)
+            # 2. กระดานเทรด (Exchange Selector)
             st.markdown('<div class="cyber-header-orange" style="font-size:9.5px; color:#8F9CAE;"><span>EXCHANGE SELECTOR</span></div>', unsafe_allow_html=True)
             exchs = list(all_markets[cur_cat].keys())
             with st.container(height=100):
@@ -434,7 +183,7 @@ def render_sidebar():
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
 
-            # 3. Dropdown ค้นหาสินทรัพย์
+            # 3. Dropdown สินทรัพย์
             st.markdown(f'<div class="cyber-header-orange"><span>🔍 สินทรัพย์</span><span class="cyber-badge-orange">{exch_badge}</span></div>', unsafe_allow_html=True)
             search_opts = list(available_symbols)
             if cur_sym not in search_opts:
@@ -452,7 +201,7 @@ def render_sidebar():
                 set_active_symbol(chosen)
                 st.rerun()
 
-            # 4. Selected Watchlist
+            # 4. รายการติดตาม Watchlist (Two-Way Auto Sync)
             st.markdown("""
             <div class="cyber-header-green">
                 <span>📌 รายการติดตาม (SELECTED)</span>
@@ -526,7 +275,7 @@ def render_sidebar():
                                             group.remove(sym)
                                     st.rerun()
 
-            # 5. สวิตช์ล่าง (Toggles สีนีออนเขียว)
+            # 5. สวิตช์เปิด/ปิด ล่างสุด
             st.markdown('<div style="height:6px;"></div>', unsafe_allow_html=True)
             t_col1, t_col2 = st.columns(2)
             with t_col1:
@@ -552,7 +301,7 @@ def render_sidebar():
             """, unsafe_allow_html=True)
 
         # =============================================================
-        # แท็บ 2: เครื่องมือ & อินดี้ (3) - สะอาดตา ไม่ซ้อนทับ
+        # แท็บ 2: เครื่องมือ & อินดี้ (3)
         # =============================================================
         with tab_tools:
             st.markdown('<div class="cyber-header-green"><span>⚡ เครื่องมือระบบ (QUICK TOOLS)</span></div>', unsafe_allow_html=True)
