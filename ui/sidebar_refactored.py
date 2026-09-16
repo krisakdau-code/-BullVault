@@ -1,5 +1,6 @@
 import streamlit as st
 import datetime
+from ui.symbol_modal import render_symbol_modal, get_current_trigger_label
 from data.symbols import (
     get_full_binance_symbols,
     get_full_binance_th_symbols,
@@ -150,64 +151,33 @@ def render_sidebar():
             key="sb_asset_cat"
         )
 
-       # ขั้นที่ 2: เลือกระดับกระดาน / ประเทศ และดึงรายชื่อสินทรัพย์จริงจาก data/
-        symbol_map = {}
+      # ขั้นที่ 2: ปุ่มกดเปิดป๊อปอัปเลือกเหรียญ/หุ้น (Symbol Search Modal)
+        from ui.symbol_modal import render_symbol_modal
+        
+        selected_sym = st.session_state.get("current_symbol", "BTCUSDT")
+        
+        c_btn1, c_btn2 = st.columns([3, 1])
+        with c_btn1:
+            if st.button(f"🔍 {selected_sym}", key="btn_open_modal_main", use_container_width=True, type="secondary"):
+                render_symbol_modal()
+        with c_btn2:
+            if st.button("เลือก", key="btn_open_modal_sub", use_container_width=True, type="primary"):
+                render_symbol_modal()
 
-        if "คริปโต" in cat:
-            sub = st.radio("กระดาน", ["Binance Spot", "Binance TH", "Bitkub"], horizontal=True, label_visibility="collapsed", key="sb_sub_cr")
-            if sub == "Bitkub":
-                raw_syms = get_full_bitkub_symbols() or ["BTC_THB", "ETH_THB"]
-                tag = "BITKUB"
-            elif sub == "Binance TH":
-                raw_syms = get_full_binance_th_symbols() or ["BTCUSDT", "ETHUSDT"]
-                tag = "BINANCE TH"
-            else:
-                raw_syms = get_full_binance_symbols() or ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
-                tag = "BINANCE"
-            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": tag} for s in raw_syms}
-
-        elif "หุ้น" in cat:
-            sub_st = st.radio("ตลาด", ["หุ้นไทย (SET)", "หุ้นสหรัฐฯ (US)", "หุ้นจีน (China)", "หุ้นเวียดนาม (VN)"], horizontal=True, label_visibility="collapsed", key="sb_sub_st")
-            if "ไทย" in sub_st:
-                raw_syms = _load_json("thai_stocks.json") or ["DELTA.BK", "PTT.BK", "AOT.BK"][cite: 1]
-                tag = "SET"
-            elif "สหรัฐ" in sub_st:
-                raw_syms = get_full_sp500_symbols() or ["NVDA", "AAPL", "TSLA", "MSFT"]
-                tag = "US"
-            elif "จีน" in sub_st:
-                raw_syms = get_full_china_stocks() or ["0700.HK", "9988.HK"]
-                tag = "CHINA"
-            else:
-                raw_syms = get_full_vietnam_symbols() or ["VNM.VN", "VIC.VN"]
-                tag = "VN"
-            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": tag} for s in raw_syms}
-
-        elif "ฟอเร็กซ์" in cat:
-            raw_syms = get_full_forex() or ["USDTHB=X", "EURUSD=X", "USDJPY=X"]
-            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": "FOREX"} for s in raw_syms}
-
-        elif "สินค้า" in cat or "โภคภัณฑ์" in cat:
-            raw_syms = get_full_commodities() or ["GC=F", "SI=F", "CL=F"]
-            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": "COMMODITY"} for s in raw_syms}
-
-        else:
-            sub = st.radio("หมวดข้าว", ["ข้าวไทย", "ตลาดโลก (CBOT)"], horizontal=True, label_visibility="collapsed", key="sb_sub_rc")
-            raw_syms = _load_json("rice_catalog.json") or ["RICE:ข้าวเปลือกหอมมะลิ", "ZR=F (CBOT Rough Rice)"]
-            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": "RICE"} for s in raw_syms}
-
-        # ขั้นที่ 3: ช่องค้นหา + Badge สีส้ม
-        sym_list = list(symbol_map.keys())
-        active_sym = st.session_state.get("current_symbol", sym_list[0])
-        def_idx = sym_list.index(active_sym) if active_sym in sym_list else 0
-
-        c_s1, c_s2 = st.columns([3, 1])
-        with c_s1:
-            selected_sym = st.selectbox("เลือก", sym_list, index=def_idx, label_visibility="collapsed", key="sb_sym_box")
-        with c_s2:
-            if st.button("เลือก", use_container_width=True, key="btn_choose_sym"):
-                set_active_symbol(selected_sym)
-                st.rerun()
-
+        # กำหนด symbol_map รองรับการ์ดแสดงผลและรายการด้านล่าง
+        tag = "BINANCE"
+        if ".BK" in selected_sym: tag = "SET"
+        elif "=" in selected_sym: tag = "FX" if "X" in selected_sym else "COMMODITY"
+        
+        symbol_map = {
+            selected_sym: {"price": "--", "chg": "0.00%", "up": True, "tag": tag},
+            "BTCUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},
+            "ETHUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},
+            "SOLUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},
+            "BNBUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},
+            "GC=F": {"price": "--", "chg": "0.00%", "up": True, "tag": "COMMODITY"},
+            "DELTA.BK": {"price": "--", "chg": "0.00%", "up": True, "tag": "SET"},
+        }
         # ขั้นที่ 4: กล่องแสดงเหรียญที่เลือก (Selected Asset Card) สไตล์ในรูป
         cur_info = symbol_map.get(selected_sym, {"price": "---", "chg": "+0.00%", "up": True, "tag": "MARKET"})
         p_badge = "tv-pill-green" if cur_info["up"] else "tv-pill-red"
