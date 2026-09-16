@@ -54,6 +54,8 @@ def set_active_symbol(sym_code):
 
 
 def render_sidebar():
+    def render_sidebar():
+     st.markdown('<div id="custom-left-menu-anchor" style="display:none;"></div>', unsafe_allow_html=True)
     # -------------------------------------------------------------
     # 1. State Management & Favorite Colors
     # -------------------------------------------------------------
