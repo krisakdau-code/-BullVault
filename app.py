@@ -1,5 +1,4 @@
 # app.py — Universal Trading Terminal (Hybrid Ultra Edition)
-import streamlit as st
 import concurrent.futures
 import datetime
 import json
@@ -78,53 +77,129 @@ except ImportError:
 st.set_page_config(
     page_title="Diamond Armor Universal",
     page_icon="💎",
-    layout="wide",
-   initial_sidebar_state="collapsed"
+    layout="wide"
 )
 apply_theme()
+
 st.markdown("""
 <style>
-    /* ซ่อนแถบข้างดั้งเดิม และซ่อนปุ่มแฮมเบอร์เกอร์ ☰ ทั้งหมด */
-    [data-testid="stSidebar"], [data-testid="collapsedControl"] {
+    /* 1. ลบ top bar 40px และรีเซ็ตระยะขอบของ layout หลัก */
+    [data-testid="stSidebar"] { top: 0 !important; }
+    section[data-testid="stMain"] { padding-top: 0 !important; }
+    [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
+    [data-testid="stAppViewBlockContainer"] { padding-top: 0 !important; }
+
+    /* 2. ยุบ Header ทุกรูปแบบให้เหลือ 0px */
+    header, .stAppHeader,
+    [data-testid="stHeader"], [data-testid="stAppHeader"],
+    [data-testid="stDecoration"], [data-testid="stToolbar"],
+    [data-testid="stStatusWidget"], [data-testid="stMainMenu"] {
         display: none !important;
+        height: 0 !important; min-height: 0 !important;
+        padding: 0 !important; margin: 0 !important;
     }
-    header[data-testid="stHeader"] {
-        display: none !important;
-    }
-    .block-container {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-        padding-left: 0.3rem !important;
-        padding-right: 0.3rem !important;
+
+    /* 3. Block container รีเซ็ตเป็น 0 (เลิกใช้ margin-top ติดลบ) */
+    .block-container,
+    .stMainBlockContainer,
+    [data-testid="stMainBlockContainer"] {
+        padding-top: 0 !important;
+        margin-top: 0 !important;
+        padding-bottom: 0 !important;
+        padding-left: .25rem !important;
+        padding-right: .25rem !important;
         max-width: 100% !important;
+    }
+
+    /* 4. สั่งทำลายปุ่ม ☰ ของ Streamlit และปุ่ม Custom ส้มที่ถูก inject เข้ามา */
+    [data-testid="collapsedControl"],
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarHeader"],
+    button[kind="header"],
+    button[kind="headerNoPadding"],
+   #cyber-sb-toggle,
+[id*="cyber-sb-toggle"],
+#custom-sidebar-toggle,
+.custom-toggle-btn {
+        display: none !important;
+        visibility: hidden !important;
+        width: 0 !important; height: 0 !important;
+        opacity: 0 !important; pointer-events: none !important;
+    }
+
+    /* 5. ยุบ Wrapper ภายนอกของ components.html ที่ไม่มีความสูง */
+    div[data-testid="stElementContainer"]:has(> iframe[height="0"]),
+    div[data-testid="stElementContainer"]:has(> .stCustomComponentV1),
+    div[data-testid="stElementContainer"]:has(> .stMarkdown style) {
+        display: none !important;
+        height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* 6. แถวแรกแนบชิดขอบและตัด gap สะสม */
+    [data-testid="stVerticalBlock"] { gap: 0 !important; }
+    [data-testid="stVerticalBlock"] > div:first-child {
+        margin-top: 0 !important; padding-top: 0 !important;
+    }
+    [data-testid="stHorizontalBlock"] { gap: 0 !important; }
+    div[data-testid="stElementContainer"] { margin-bottom: 0 !important; }
+    /* ── 7. ตกแต่งปุ่ม Timeframe สไตล์ Pill มน ── */
+    div[data-testid="stRadio"] > div[role="radiogroup"] {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 3px !important;
+    }
+
+    div[data-testid="stRadio"] > div[role="radiogroup"] label {
+        padding: 3px 6px !important;
+        margin: 0 !important;
+        border-radius: 4px !important;
+        cursor: pointer !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #9aa0a6 !important;
+        background: transparent !important;
+        border: none !important;
+        transition: all 0.15s ease !important;
+    }
+
+    /* ซ่อนวงกลม Radio เดิม */
+    div[data-testid="stRadio"] > div[role="radiogroup"] label > div:first-child {
+        display: none !important;
+    }
+
+    div[data-testid="stRadio"] > div[role="radiogroup"] label:hover {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    /* กล่องสีเทาเมื่อปุ่มนั้นถูกเลือก (Active แบบในภาพ) */
+    div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
+        color: #ffffff !important;
+        background-color: #2a2e39 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ────────────────────────── Event Listener for PostMessage ──────────────────────────
-# This component listens for messages from the sidebar's watchlist HTML component.
 selected_symbol_data = components.html("""
 <script>
 window.addEventListener("message", (event) => {
-    // Ensure the message is from our specific component
     if (event.data && event.data.source === 'watchlist_component') {
-        // Send the data back to the Streamlit Python backend
         Streamlit.setComponentValue(event.data);
     }
 }, false);
 </script>
-""", height=0)
+""", height=0, width=0)
 
-# If a symbol is selected from the watchlist, process it.
 if selected_symbol_data and isinstance(selected_symbol_data, dict):
     selected_symbol = selected_symbol_data.get('symbol')
     if selected_symbol and st.session_state.get('current_symbol') != selected_symbol:
-        
-        # This is a simplified version of update_active_tab_symbol from sidebar.py
-        # It directly updates the session state to trigger a rerun with the new symbol.
         st.session_state["current_symbol"] = selected_symbol
         st.session_state["app_mode"] = "chart"
-        
         active_id = st.session_state.get("active_tab_id")
         updated = False
         if active_id and "open_tabs" in st.session_state:
@@ -134,17 +209,11 @@ if selected_symbol_data and isinstance(selected_symbol_data, dict):
                     updated = True
                     break
         if not updated:
-            # Fallback or create new tab if necessary
-            import uuid
             new_id = uuid.uuid4().hex[:8]
             st.session_state.open_tabs = [{"id": new_id, "symbol": selected_symbol, "tf": st.session_state.get("selected_tf", "1h")}]
             st.session_state.active_tab_id = new_id
-
         st.rerun()
 
-
-
-# Handle postMessage from iframe
 components.html("""
 <script>
 window.addEventListener('message', function(event) {
@@ -153,8 +222,11 @@ window.addEventListener('message', function(event) {
     }
 });
 </script>
-""", height=0)
+""", height=0, width=0)
+
 # ────────────────────────── PANEL STATE MANAGEMENT ──────────────────────────
+if "sidebar_open" not in st.session_state:
+    st.session_state["sidebar_open"] = True
 if "panel_open" not in st.session_state:
     st.session_state["panel_open"] = True
 if "panel_size" not in st.session_state:
@@ -563,7 +635,6 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
     tk = {"price": 0.0, "change": 0.0, "pct": 0.0, "vol": 0.0, "high": 0.0, "low": 0.0, "bid": 0.0, "ask": 0.0}
     sym = (symbol or "").upper()
 
-    # 1. สินค้าเกษตร / ราคาข้าว
     if sym.startswith("RICE:") or sym.startswith("FOB:") or sym == "ZR=F (CBOT Rough Rice)":
         try:
             r_df = generate_rice_ohlcv(sym)
@@ -580,7 +651,6 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                 }
         except Exception: pass
 
-    # 2. คริปโตไทย (Bitkub)
     elif ("THB" in sym) or (exchange == "Bitkub"):
         try:
             r = HTTP_SESSION.get("https://api.bitkub.com/api/market/ticker", timeout=3.0)
@@ -602,7 +672,6 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                     }
         except Exception: pass
 
-    # 3. คริปโต Binance
     elif sym.endswith("USDT"):
         try:
             r = HTTP_SESSION.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={sym}", timeout=3.0)
@@ -620,7 +689,6 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                 }
         except Exception: pass
 
-    # 4. สินทรัพย์ต่างประเทศ / Yahoo Finance
     else:
         try:
             r = HTTP_SESSION.get(f"https://query1.finance.yahoo.com/v7/finance/quote?symbols={sym}", timeout=3.0)
@@ -640,7 +708,6 @@ def fetch_unified_ticker(market: str = "", exchange: str = "", symbol: str = "",
                     }
         except Exception: pass
 
-    # 5. กรณีดึงออนไลน์ไม่ผ่าน ใช้แท่งเทียนแท่งสุดท้าย (Fallback)
     try:
         if df is not None and not df.empty and "close" in df.columns:
             last_p = float(df["close"].iloc[-1])
@@ -669,16 +736,12 @@ def fetch_cached_tab_quote(sym: str) -> dict:
 def render_tradingview_clean_tabs():
     st.markdown("""
     <style>
-    /* 1. ล้างระยะห่างระหว่างแท็บกับปุ่มปิด X */
     div[data-testid="stHorizontalBlock"]:has(div[class*="st-key-tv_tab_"]) {
         gap: 0px !important;
         align-items: center !important;
-        margin-bottom: 4px !important;
+        margin-bottom: 2px !important;
     }
-
-    /* 2. สไตล์ปุ่มแท็บหลัก */
-    div[class*="st-key-tv_tab_"] button,
-    div[class*="st-key-tv_tab_"] button[data-testid*="BaseButton"] {
+    div[class*="st-key-tv_tab_"] button {
         height: 32px !important;
         min-height: 32px !important;
         border-top-right-radius: 0px !important;
@@ -690,13 +753,8 @@ def render_tradingview_clean_tabs():
         text-align: left !important;
         justify-content: flex-start !important;
         white-space: nowrap !important;
-        overflow: visible !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
-
-    /* 3. สไตล์ปุ่มปิด X */
-    div[class*="st-key-tv_close_"] button,
-    div[class*="st-key-tv_close_"] button[data-testid*="BaseButton"] {
+    div[class*="st-key-tv_close_"] button {
         height: 32px !important;
         min-height: 32px !important;
         border-top-left-radius: 0px !important;
@@ -705,114 +763,42 @@ def render_tradingview_clean_tabs():
         padding: 0 8px 0 2px !important;
         font-size: 11px !important;
         color: #787b86 !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
     }
-
-    /* 4. สถานะแท็บ Active */
-    div[class*="st-key-tv_tab_"] button[kind="primary"],
-    div[class*="st-key-tv_tab_"] button[data-testid="stBaseButton-primary"] {
+    div[class*="st-key-tv_tab_"] button[kind="primary"] {
         background: #1c202d !important;
-        background-color: #1c202d !important;
         border: 1px solid #00FFA3 !important;
         border-right: none !important;
         color: #ffffff !important;
-        box-shadow: -2px 0 8px rgba(0, 255, 163, 0.3), 0 -2px 8px rgba(0, 255, 163, 0.3), 0 2px 8px rgba(0, 255, 163, 0.3) !important;
+        box-shadow: -2px 0 8px rgba(0, 255, 163, 0.3) !important;
     }
-    div[class*="st-key-tv_close_"] button[kind="primary"],
-    div[class*="st-key-tv_close_"] button[data-testid="stBaseButton-primary"] {
+    div[class*="st-key-tv_close_"] button[kind="primary"] {
         background: #1c202d !important;
-        background-color: #1c202d !important;
         border: 1px solid #00FFA3 !important;
         border-left: none !important;
         color: #8f9cae !important;
-        box-shadow: 2px 0 8px rgba(0, 255, 163, 0.3), 0 -2px 8px rgba(0, 255, 163, 0.3), 0 2px 8px rgba(0, 255, 163, 0.3) !important;
+        box-shadow: 2px 0 8px rgba(0, 255, 163, 0.3) !important;
     }
-
-    /* 5. สถานะแท็บ Inactive */
-    div[class*="st-key-tv_tab_"] button[kind="secondary"],
-    div[class*="st-key-tv_tab_"] button[data-testid="stBaseButton-secondary"] {
+    div[class*="st-key-tv_tab_"] button[kind="secondary"] {
         background: #11141c !important;
-        background-color: #11141c !important;
         border: 1px solid rgba(0, 255, 163, 0.2) !important;
         border-right: none !important;
         color: #8f9cae !important;
     }
-    div[class*="st-key-tv_close_"] button[kind="secondary"],
-    div[class*="st-key-tv_close_"] button[data-testid="stBaseButton-secondary"] {
+    div[class*="st-key-tv_close_"] button[kind="secondary"] {
         background: #11141c !important;
-        background-color: #11141c !important;
         border: 1px solid rgba(0, 255, 163, 0.2) !important;
         border-left: none !important;
         color: #787b86 !important;
     }
-
-    /* 6. Hover แท็บ */
-    div[class*="st-key-tv_tab_"] button:hover {
-        background: rgba(0, 255, 163, 0.16) !important;
-        background-color: rgba(0, 255, 163, 0.16) !important;
-        border-color: #00FFA3 !important;
-        color: #ffffff !important;
-        box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
-    }
-    div[class*="st-key-tv_close_"] button:hover {
-        background: rgba(239, 83, 80, 0.2) !important;
-        background-color: rgba(239, 83, 80, 0.2) !important;
-        border-color: #ef5350 !important;
-        color: #ef5350 !important;
-        box-shadow: 0 0 10px rgba(239, 83, 80, 0.4) !important;
-    }
-
-    /* 7. ปุ่มเพิ่มแท็บ (+) */
-    div[class*="st-key-tv_add_btn"] button,
-    div[class*="st-key-tv_add_btn"] button[data-testid*="BaseButton"] {
+    div[class*="st-key-tv_add_btn"] button {
         height: 32px !important;
         min-height: 32px !important;
         width: 32px !important;
         background: #11141c !important;
-        background-color: #11141c !important;
         border: 1px solid rgba(0, 255, 163, 0.25) !important;
         border-radius: 4px !important;
         color: #787b86 !important;
-        font-size: 15px !important;
-        padding: 0 !important;
         margin-left: 6px !important;
-        transition: all 0.2s ease !important;
-    }
-    div[class*="st-key-tv_add_btn"] button:hover {
-        background: rgba(0, 255, 163, 0.16) !important;
-        background-color: rgba(0, 255, 163, 0.16) !important;
-        border-color: #00FFA3 !important;
-        color: #00FFA3 !important;
-        box-shadow: 0 0 10px rgba(0, 255, 163, 0.4) !important;
-    }
-
-    /* สไตล์ปุ่มชิปอินดิเคเตอร์ */
-    div[class*="st-key-chip_"] button {
-        border-radius: 6px !important;
-        font-size: 12px !important;
-        font-weight: 700 !important;
-        height: 38px !important;
-        padding: 0 6px !important;
-        transition: all .2s ease !important;
-    }
-    div[class*="st-key-chip_"] button[kind="primary"],
-    div[class*="st-key-chip_"] button[data-testid="stBaseButton-primary"] {
-        background: rgba(0, 255, 163, 0.15) !important;
-        border: 1px solid #00FFA3 !important;
-        color: #00FFA3 !important;
-        box-shadow: 0 0 8px rgba(0, 255, 163, 0.3) !important;
-    }
-    div[class*="st-key-chip_"] button[kind="secondary"],
-    div[class*="st-key-chip_"] button[data-testid="stBaseButton-secondary"] {
-        background: #11141c !important;
-        border: 1px solid rgba(0, 255, 163, 0.2) !important;
-        color: #8f9cae !important;
-        box-shadow: none !important;
-    }
-    div[class*="st-key-chip_"] button:hover {
-        border-color: #00FFA3 !important;
-        color: #ffffff !important;
-        box-shadow: 0 0 12px rgba(0, 255, 163, 0.45) !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -842,23 +828,14 @@ def render_tradingview_clean_tabs():
         sym = t["symbol"]
         is_active = (t_id == active_id)
 
-        if sym == "GC=F":
-            badge, name = "🟡", "GOLD"
-        elif sym == "CL=F":
-            badge, name = "🛢️", "OIL"
-        elif sym.startswith("RICE:"):
-            badge = "🌾"
-            name = sym.replace("RICE:", "").replace("ข้าวเปลือก", "").replace("ข้าวสาร", "").strip()[:8]
-        elif sym.startswith("FOB:"):
-            badge, name = "🚢", sym.replace("FOB:", "").strip()[:8]
-        elif sym.endswith("_THB"):
-            badge, name = "💠", sym.replace("_THB", "THB")
-        elif sym.endswith("USDT"):
-            badge, name = "🟡", sym
-        elif sym.endswith(".BK"):
-            badge, name = "🇹🇭", sym.replace(".BK", "")
-        else:
-            badge, name = "📈", sym[:8]
+        if sym == "GC=F": badge, name = "🟡", "GOLD"
+        elif sym == "CL=F": badge, name = "🛢️", "OIL"
+        elif sym.startswith("RICE:"): badge, name = "🌾", sym.replace("RICE:", "").strip()[:8]
+        elif sym.startswith("FOB:"): badge, name = "🚢", sym.replace("FOB:", "").strip()[:8]
+        elif sym.endswith("_THB"): badge, name = "💠", sym.replace("_THB", "THB")
+        elif sym.endswith("USDT"): badge, name = "🟡", sym
+        elif sym.endswith(".BK"): badge, name = "🇹🇭", sym.replace(".BK", "")
+        else: badge, name = "📈", sym[:8]
 
         q = fetch_cached_tab_quote(sym)
         p = q.get("price", 0.0)
@@ -866,12 +843,9 @@ def render_tradingview_clean_tabs():
 
         if p > 0:
             p_str = f"{p:.4f}" if p < 1 else (f"{p:,.2f}" if p < 10000 else f"{p:,.0f}")
-            if pct < 0:
-                label = f"{badge} {name}  :red[▼ {p_str} {pct:.2f}%]"
-            elif pct > 0:
-                label = f"{badge} {name}  :green[▲ {p_str} +{pct:.2f}%]"
-            else:
-                label = f"{badge} {name}  {p_str} 0.00%"
+            if pct < 0: label = f"{badge} {name}  :red[▼ {p_str} {pct:.2f}%]"
+            elif pct > 0: label = f"{badge} {name}  :green[▲ {p_str} +{pct:.2f}%]"
+            else: label = f"{badge} {name}  {p_str} 0.00%"
         else:
             label = f"{badge} {name}  --"
 
@@ -919,24 +893,7 @@ else:
             render_market_modal_content(tk, an, symbol, label_name, seasonality_html, gauges_html)
 
 # ──────────────────────────── TOP TOOLBAR ────────────────────────────
-def _toggle_state(key):
-    st.session_state[key] = not st.session_state.get(key, True)
-
-def _render_chip(col, state_key, on_label, off_label, key_btn, default=True):
-    with col:
-        active = bool(st.session_state.get(state_key, default))
-        st.button(
-            on_label if active else off_label,
-            key=key_btn,
-            use_container_width=True,
-            type="primary" if active else "secondary",
-            on_click=_toggle_state,
-            args=(state_key,)
-        )
-    return active
-
 def render_top_toolbar():
-    # กำหนดสถานะตั้งต้นสำหรับการปักหมุด
     st.session_state.setdefault("show_rsi_pane", True)
     st.session_state.setdefault("pin_rsi", True)
     st.session_state.setdefault("show_macd_pane", True)
@@ -944,20 +901,27 @@ def render_top_toolbar():
     st.session_state.setdefault("show_ema", True)
     st.session_state.setdefault("pin_ema", False)
 
-    # 1. จัดสรรสัดส่วนคอลัมน์ใหม่ (ชาร์ต/อินดิเคเตอร์ ซ้าย | ระบบ/โหลด ขวา) ลบช่องว่างตรงกลาง
-    (col_tf, col_slider, col_ind_menu, col_chips, col_space,
-     col_fill, col_auto, col_sec, col_load) = st.columns(
-        [1.2, 3.8, 1.8, 2.8, 0.4, 0.8, 0.8, 1.0, 1.2]
-    )
+   # เว้นคอลัมน์แรก 0.6 ให้ปุ่มส้มลอยอยู่ ไม่ให้ชนกับปุ่ม Timeframe
+    col_spacer, col_tf, col_slider, col_ind_menu, col_fill, col_auto, col_sec, col_load = st.columns([0.6, 4.8, 1.8, 1.4, 0.6, 0.6, 0.7, 0.9], gap="small")
 
+    # 1. เว้นพื้นที่ว่างสำหรับปุ่มส้ม
+    with col_spacer:
+        st.write("")
+
+    # 2. Timeframe ปุ่มแนวนอน 12 ตัวเลือก
     with col_tf:
-        tf = st.selectbox(
-            "TF", TF_OPTIONS,
-            index=TF_OPTIONS.index(st.session_state.get("selected_tf", "1h"))
-                  if st.session_state.get("selected_tf", "1h") in TF_OPTIONS else 0,
-            label_visibility="collapsed", key="toolbar_tf"
+        primary_tfs = ["5m", "15m", "30m", "1h", "2h", "3h", "4h", "D", "2D", "3D", "W", "M"]
+        cur_tf = st.session_state.get("selected_tf", "3h")
+        def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 5
+        tf = st.radio(
+            "TF", primary_tfs, index=def_idx, horizontal=True,
+            label_visibility="collapsed", key="toolbar_tf_horizontal"
         )
+        if tf != st.session_state.get("selected_tf"):
+            st.session_state["selected_tf"] = tf
+            st.rerun()
 
+    # 3. Slider แท่งเทียน
     with col_slider:
         bars = st.slider(
             "Bars", 300, 25000,
@@ -965,38 +929,13 @@ def render_top_toolbar():
             label_visibility="collapsed", key="toolbar_bars"
         )
 
-    # 2. เมนูดรอปดาวน์รวมอินดิเคเตอร์ (st.popover) พร้อมระบบติ๊ก ⭐ ปักหมุด
+    # 4. เมนูดรอปดาวน์รวม Indicators
     with col_ind_menu:
         with st.popover("📊 Indicators ▾", use_container_width=True):
-            st.markdown("<b style='font-size:13px; color:#00FFA3;'>📊 อินดิเคเตอร์ & ปักหมุดด่วน</b>", unsafe_allow_html=True)
-            st.caption("เปิด/ปิดการทำงาน และกด ⭐ เพื่อดึงปุ่มชิปไปไว้ที่แถบด่วน")
-
-            # ตัวเลือก RSI
-            c_rsi1, c_rsi2 = st.columns([3.5, 1.2])
-            with c_rsi1:
-                st.toggle("RSI (14)", key="show_rsi_pane")
-            with c_rsi2:
-                st.checkbox("⭐", key="pin_rsi", help="ปักหมุดบนแถบด่วน")
-
-            # ตัวเลือก MACD
-            c_macd1, c_macd2 = st.columns([3.5, 1.2])
-            with c_macd1:
-                st.toggle("MACD (12, 26, 9)", key="show_macd_pane")
-            with c_macd2:
-                st.checkbox("⭐", key="pin_macd", help="ปักหมุดบนแถบด่วน")
-
-            # ตัวเลือก EMA
-            c_ema1, c_ema2 = st.columns([3.5, 1.2])
-            with c_ema1:
-                st.toggle("EMA (7, 15, 45)", key="show_ema")
-            with c_ema2:
-                st.checkbox("⭐", key="pin_ema", help="ปักหมุดบนแถบด่วน")
-
-    # 3. เรนเดอร์ปุ่มชิปเฉพาะตัวที่ถูกติ๊กถูก ⭐ (ปิดการแสดงผลบนแถบด้านบน)
-        with col_chips:
-            pass
-    with col_space:
-        st.write("")
+            st.markdown("<b style='font-size:13px; color:#00FFA3;'>📊 อินดิเคเตอร์</b>", unsafe_allow_html=True)
+            st.toggle("RSI (14)", key="show_rsi_pane")
+            st.toggle("MACD (12, 26, 9)", key="show_macd_pane")
+            st.toggle("EMA (7, 15, 45)", key="show_ema")
 
     with col_fill:
         fill_gaps = st.checkbox("Fill", value=st.session_state.get("fill_gaps", False), key="toolbar_fill")
@@ -1183,12 +1122,11 @@ def render_watchlist_component(key_prefix: str = "desk"):
                                 st.session_state["star_watchlists"][cat_name].remove(s_item)
                                 st.rerun()
 
-# ──────────────────────────── LOAD SIDEBAR ────────────────────────────
-app_config = st.session_state.get("app_config", {})
-
 # ──────────────────────────── DASHBOARD (MAIN) ────────────────────────────
 def dashboard():
-    app_config = {"show_top_bar": True, "show_draw_toolbar": True}
+    # กำหนดค่าเริ่มต้นทันทีเพื่อป้องกัน UnboundLocalError 100%
+    app_config = st.session_state.get("app_config", {"show_top_bar": True, "show_draw_toolbar": True})
+    
     init_settings_state()
     if st.session_state.get("trigger_settings_modal"):
         st.session_state["trigger_settings_modal"] = False
@@ -1198,14 +1136,14 @@ def dashboard():
     bars = int(st.session_state.get("bars_count", 2500))
     fill_gaps = bool(st.session_state.get("fill_gaps", False))
 
-    # 1. แท็บสินทรัพย์ TradingView Pro
+    # 1. แถวที่ 1: แท็บสินทรัพย์ TradingView Pro แนวนอนชิดขอบบน 0px
     symbol = render_tradingview_clean_tabs()
 
     # 2. บังคับ Timeframe สำหรับสินค้าเกษตร/ข้าว
     if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
         tf = "1D"
 
-    # 3. แถบควบคุม Timeframe / Bars
+    # 3. แถวที่ 2: แถบควบคุม Timeframe แนวนอน และ Indicators
     if app_config.get("show_top_bar", True):
         tb_tf, tb_bars, tb_fill, auto, every, reload_btn = render_top_toolbar()
         bars = tb_bars
@@ -1218,7 +1156,7 @@ def dashboard():
     state_key = f"{r_market}_{r_exchange}_{symbol}_{tf}_{bars}_{fill_gaps}"
 
     if ("df_data" not in st.session_state) or (st.session_state.get("active_key") != state_key):
-        with st.spinner(f"กำลังโหลดประวัติ {symbol} ..."):
+        with st.spinner(f"กำลังโหลดข้อมูล {symbol} ..."):
             if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
                 df = generate_rice_ohlcv(symbol)
             else:
@@ -1237,7 +1175,6 @@ def dashboard():
         trend=st.session_state["trend_ema"], warn_pct=st.session_state["warn_pct"], danger_pct=st.session_state["danger_pct"]
     )
 
-    # คำนวณราคา Single Source of Truth จากแท่งเทียนแท่งล่าสุด
     last_close = float(df["close"].iloc[-1])
     prev_close = float(df["close"].iloc[-2]) if len(df) >= 2 else last_close
     chg_val = last_close - prev_close
@@ -1256,7 +1193,6 @@ def dashboard():
     gauges_html_compact = render_3_gauges_html(tech_data, compact=True)
     gauges_html_modal = render_3_gauges_html(tech_data, compact=False)
     
-    # ดึง Ticker และซิงก์ราคาให้ตรงกันทุกจุด
     tk_data = fetch_unified_ticker(r_market, r_exchange, symbol, df)
     tk_data["price"] = last_close
     tk_data["change"] = chg_val
@@ -1273,40 +1209,43 @@ def dashboard():
         st.session_state["trigger_market_modal"] = False
         open_market_dialog(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_modal)
 
-    display_title = CHINA_STOCK_NAMES.get(symbol, COMMODITY_NAMES.get(symbol, FOREX_NAMES.get(symbol, symbol)))
-    vol_val = float(df.iloc[-1].get("volume", 0.0))
-
-    # ตัดแถบ render_live_top_bar เดิมออกเพื่อให้กราฟขยับขึ้นชิดขอบบนทันที
-
     cur_main_h = int(st.session_state.get("main_h", 520))
     cur_rsi_h = int(st.session_state.get("rsi_h", 120))
     cur_macd_h = int(st.session_state.get("macd_h", 120))
 
     charts = build_charts(df, symbol, tf, cur_main_h, cur_rsi_h, cur_macd_h)
-    cur_size = st.session_state.get("panel_size", "M")
     chart_dyn_key = f"c_{symbol}_{tf}_{st.session_state.get('active_tab_id', '0')}"
     show_tb = app_config.get("show_draw_toolbar", True)
 
-    # 4. การจัดวางหน้าจอ (Chart vs Quote Panel)
-    panel_ratios = {"S": [4.25, 0.75], "M": [3.85, 1.15], "L": [3.40, 1.60]}
+    # 4. แถวที่ 3: จัดวาง 3 คอลัมน์ (เมนูซ้าย | กราฟหลัก | แผงวิเคราะห์ขวา) แนบชิดไร้รอยต่อ
+    sidebar_open = st.session_state.get("sidebar_open", True)
     p_open = st.session_state.get("panel_open", True)
     p_size = st.session_state.get("panel_size", "M")
-    if p_open:
-        # ปรับสัดส่วนคอลัมน์ซ้ายให้กระชับพอดีกับการ์ดเมนู และบีบร่องคอลัมน์ให้ชิดกัน
+
+    if sidebar_open and p_open:
         col_side, col_chart, col_quote = st.columns([0.85, 3.05, 1.10], gap="small")
         col_toggle = None
-    else:
+    elif sidebar_open and not p_open:
         col_side, col_chart, col_toggle = st.columns([0.85, 4.07, 0.08], gap="small")
         col_quote = None
+    elif not sidebar_open and p_open:
+        col_side = None
+        col_chart, col_quote = st.columns([3.90, 1.10], gap="small")
+        col_toggle = None
+    else:
+        col_side = None
+        col_chart, col_toggle = st.columns([4.92, 0.08], gap="small")
+        col_quote = None
 
-    # สั่งให้เรนเดอร์กรอบแดง (Sidebar) ลงในคอลัมน์ซ้ายตรงนี้
-    with col_side:
-        app_config = render_sidebar()
+    # คอลัมน์ที่ 1: เมนูฝั่งซ้าย (ทำงานใน Column ไม่ผ่าน st.sidebar ดั้งเดิม)
+    if col_side is not None:
+        with col_side:
+            app_config = render_sidebar()
 
+    # คอลัมน์ที่ 2: ชุดกราฟหลัก
     with col_chart:
         filtered_charts = []
         if charts:
-            # 1. กราฟแท่งเทียนหลัก (พร้อมกรองเส้น EMA เมื่อถูกปิด)
             if st.session_state.get("show_main_chart", True):
                 c0 = charts[0]
                 active_main_series = []
@@ -1327,25 +1266,20 @@ def dashboard():
                 c0["series"] = active_main_series
                 filtered_charts.append(c0)
 
-            # 2. หน้าต่างย่อย RSI & MACD
             for sub in charts[1:]:
                 txt = str(sub.get("chart", {}).get("watermark", {}).get("text", "")).upper()
                 series_titles = " ".join([str(s.get("title", "")).upper() for s in sub.get("series", [])])
                 full_info = txt + " " + series_titles
 
-                # ส่วนของ RSI
                 if "RSI" in full_info:
                     if not st.session_state.get("show_rsi_pane", True):
                         continue
-
                     active_rsi_series = []
                     for s in sub.get("series", []):
                         s.setdefault("options", {})
                         title = str(s.get("title", "")).upper()
-
                         if "RSI" in title and "MA" not in title:
-                            if not st.session_state.get("rsi_show_line", True):
-                                continue
+                            if not st.session_state.get("rsi_show_line", True): continue
                             s["options"]["color"] = st.session_state.get("rsi_line_color", "#00FFA3")
                             s["priceLines"] = [
                                 {"price": float(st.session_state.get("rsi_upper_band", 70)), "color": st.session_state.get("rsi_upper_color", "#787B86"), "lineWidth": 1, "lineStyle": 2, "axisLabelVisible": True, "title": "UB"},
@@ -1354,17 +1288,14 @@ def dashboard():
                             ]
                             active_rsi_series.append(s)
                         elif "MA" in title:
-                            if not st.session_state.get("rsi_show_ma", True):
-                                continue
+                            if not st.session_state.get("rsi_show_ma", True): continue
                             s["options"]["color"] = st.session_state.get("rsi_ma_color", "#FFEB3B")
                             active_rsi_series.append(s)
                         else:
                             active_rsi_series.append(s)
-
                     sub["series"] = active_rsi_series
                     filtered_charts.append(sub)
 
-                # ส่วนของ MACD
                 elif "MACD" in full_info:
                     if not st.session_state.get("show_macd_pane", True):
                         continue
@@ -1377,7 +1308,6 @@ def dashboard():
                             else:
                                 s["options"]["color"] = st.session_state.get("macd_line_color", "#00FFA3")
                     filtered_charts.append(sub)
-
                 else:
                     filtered_charts.append(sub)
 
@@ -1395,7 +1325,7 @@ def dashboard():
                 st.session_state["panel_open"] = True
                 st.rerun()
 
-    # 5. แผงควบคุมฝั่งขวา
+    # คอลัมน์ที่ 3: แผงควบคุมฝั่งขวา
     if p_open and col_quote:
         with col_quote:
             st.markdown("""
@@ -1453,18 +1383,15 @@ def dashboard():
                 </script>
                 """, height=0, width=0)
 
-           # ระบบ 2 แท็บของแผงควบคุมฝั่งขวา (Cockpit & Movers)
             tab_tech, tab_movers = st.tabs(["📊 เทคนิค 24h", "⭐ ตลาด & พอร์ต"])
 
             with tab_tech:
                 if st.button("🔍 ขยายดูบทวิเคราะห์ตลาด 24h (Pop-up)", key="btn_popup_market_desk", use_container_width=True):
                     st.session_state["trigger_market_modal"] = True
                     st.rerun()
-                # เรนเดอร์หน้าปัดเลขไมล์ (Technical Gauges), ช่วงราคา High/Low, และ Seasonality
                 render_tv_quote_card(tk_data, tech_data, symbol, label_display, seasonality_html, gauges_html_compact)
 
             with tab_movers:
-                # เรนเดอร์อันดับขาขึ้น-ลงแรง และกลุ่มดาวสีโปรด 5 สี
                 render_watchlist_component(key_prefix="desk")
 
 if st.session_state.get("app_mode") == "rice":

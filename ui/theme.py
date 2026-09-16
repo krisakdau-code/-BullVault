@@ -76,27 +76,14 @@ def apply_theme():
             max-width: 100% !important;
             width: 100% !important;
         }}
-/* ── Master Top Bar พาดผ่าน 100vw จากซ้ายสุดถึงขวาสุด ── */
-        .stApp::before {{
-            content: "";
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 40px;
-            background-color: {c['bg_sidebar']};
-            border-bottom: 1px solid {c['border_dim']};
-            z-index: 99999;
-            pointer-events: none;
-        }}
 
         /* ปรับ Sidebar ให้เริ่มต้นใต้ Top Bar 40px */
-        [data-testid="stSidebar"] {{
-            top: 40px !important;
-            height: calc(100vh - 40px) !important;
-            z-index: 99998 !important;
-        }}
-        
+       [data-testid="stSidebar"] {{
+        top: 0px !important;
+        height: 100vh !important;
+        z-index: 99998 !important;
+    }}
+
         /* ── 2) ยุบ header ทุกตัวให้เหลือ 0 ── */
         header[data-testid="stHeader"],
         .stAppHeader,
