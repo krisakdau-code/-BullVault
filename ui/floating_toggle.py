@@ -23,7 +23,7 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             return anchor ? anchor.closest('div[data-testid="stColumn"]') : null;
         }}
 
-        // แผ่นใสกันกราฟขโมยเมาส์ขณะลาก
+        // แผ่นใสดักจับพิกัดเมาส์ขณะลาก
         function setDragShield(active) {{
             let shield = doc.getElementById("cyber-drag-shield");
             if (active) {{
@@ -47,7 +47,6 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             }}
         }}
 
-        // ล็อกคอลัมน์เริ่มต้นให้แยกอิสระทันทีที่โหลดหน้า
         function lockLayoutPivots() {{
             const leftCol = getLeftCol();
             const centerCol = getCenterCol();
@@ -119,8 +118,6 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                         leftCol.style.setProperty("width", `${{newW}}px`, "important");
                         leftCol.style.setProperty("min-width", `${{newW}}px`, "important");
                         leftCol.style.setProperty("max-width", `${{newW}}px`, "important");
-
-                        // ให้กราฟกลางปรับตาม โดยไม่แตะต้องเมนูขวา
                         win.dispatchEvent(new Event("resize"));
                     }}
 
@@ -178,7 +175,7 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                     function onMouseMove(ev) {{
                         if (!win._is_dragging_right) return;
                         const dx = ev.clientX - startX;
-                        let newW = startWidth - dx; // ลากซ้าย = เพิ่มขนาดขวา
+                        let newW = startWidth - dx;
                         if (newW < 220) newW = 220;
                         if (newW > 550) newW = 550;
 
@@ -186,8 +183,6 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                         rightCol.style.setProperty("width", `${{newW}}px`, "important");
                         rightCol.style.setProperty("min-width", `${{newW}}px`, "important");
                         rightCol.style.setProperty("max-width", `${{newW}}px`, "important");
-
-                        // ให้กราฟกลางปรับตาม โดยไม่แตะต้องเมนูซ้าย
                         win.dispatchEvent(new Event("resize"));
                     }}
 
@@ -209,7 +204,7 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             }}
         }}
 
-        // 3. ปุ่มส้ม [ ☰ ] สลับพับ/เปิดเมนูซ้าย
+        // 3. ปุ่มส้มลอยฝั่งซ้าย [ ☰ ]
         const BTN_ID = "cyber-floating-toggle-btn";
         let btn = doc.getElementById(BTN_ID);
         if (!btn) {{
@@ -255,6 +250,80 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             doc.body.appendChild(btn);
             snapLeft();
             win.addEventListener("resize", snapLeft);
+        }}
+
+        // 4. ปุ่มลอยดึงเมนูขวากลับมา [ ◀ ] (แสดงเฉพาะตอนพับเก็บ)
+        const RESTORE_BTN_ID = "cyber-restore-right-btn";
+        let restoreBtn = doc.getElementById(RESTORE_BTN_ID);
+        if (!restoreBtn) {{
+            restoreBtn = doc.createElement("button");
+            restoreBtn.id = RESTORE_BTN_ID;
+            restoreBtn.title = "เปิดแสดงบทวิเคราะห์เทคนิค 24h";
+            restoreBtn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{neon}" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"></polyline></svg>`;
+            
+            Object.assign(restoreBtn.style, {{
+                position: "fixed",
+                top: "14px",
+                right: "12px",
+                width: "28px",
+                height: "28px",
+                backgroundColor: "#161b22",
+                border: "1px solid {neon}",
+                borderRadius: "5px",
+                cursor: "pointer",
+                display: "none",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: "9999999",
+                boxShadow: "0 2px 6px rgba(0,0,0,0.6)"
+            }});
+
+            restoreBtn.onclick = (e) => {{
+                e.preventDefault();
+                const rCol = getRightCol();
+                if (rCol) {{
+                    rCol.style.display = "";
+                    restoreBtn.style.display = "none";
+                    setTimeout(() => {{ win.dispatchEvent(new Event("resize")); }}, 150);
+                }}
+            }};
+
+            doc.body.appendChild(restoreBtn);
+        }}
+
+        // 5. ดักจับคลิกปุ่มแดง (พับเมนูขวา) และปุ่มเขียว (เต็มหน้าจอ) แบบคงทน
+        if (!win._cyber_delegation_bound) {{
+            win._cyber_delegation_bound = true;
+            doc.addEventListener("click", function (e) {{
+                // คลิกปุ่มแดง: พับเก็บเมนูขวา
+                const btnCollapse = e.target.closest("#btn-collapse-right");
+                if (btnCollapse) {{
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const rCol = getRightCol();
+                    if (rCol) {{
+                        rCol.style.display = "none";
+                        const rBtn = doc.getElementById(RESTORE_BTN_ID);
+                        if (rBtn) rBtn.style.display = "flex";
+                        setTimeout(() => {{ win.dispatchEvent(new Event("resize")); }}, 150);
+                    }}
+                    return;
+                }}
+
+                // คลิกปุ่มเขียว: สลับโหมดเต็มหน้าจอ (Fullscreen)
+                const btnFs = e.target.closest("#btn-fullscreen-app");
+                if (btnFs) {{
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!doc.fullscreenElement) {{
+                        doc.documentElement.requestFullscreen().catch(err => console.log(err));
+                    }} else {{
+                        if (doc.exitFullscreen) doc.exitFullscreen();
+                    }}
+                    setTimeout(() => {{ win.dispatchEvent(new Event("resize")); }}, 200);
+                    return;
+                }}
+            }});
         }}
 
         function setup() {{

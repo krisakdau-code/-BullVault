@@ -189,10 +189,16 @@ def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
     return pd.DataFrame({"time": times, "open": prices, "high": prices + 15, "low": prices - 15, "close": prices + 5, "volume": 1000.0})
 
 def render_top_toolbar():
-    col_spacer, col_tf, col_slider, col_ind_menu, col_fill, col_auto, col_sec, col_load = st.columns([0.6, 4.8, 1.8, 1.4, 0.6, 0.6, 0.7, 0.9], gap="small")
+    # ขยายสัดส่วน col_tf เป็น 5.5 ให้ปุ่ม Timeframe เรียงแนวนอนแบบไม่อึดอัด
+    col_spacer, col_tf, col_slider, col_ind_menu, col_fill, col_auto, col_sec, col_load = st.columns(
+        [0.35, 5.5, 1.5, 1.2, 0.45, 0.45, 0.55, 0.75], gap="small"
+    )
     with col_spacer:
-        st.markdown('<div id="toggle-btn-anchor" style="height:32px; width:68px;"></div>', unsafe_allow_html=True)
+        st.markdown('<div id="toggle-btn-anchor" style="height:24px; width:34px;"></div>', unsafe_allow_html=True)
+
     with col_tf:
+        # กำกับ translate="no" และ notranslate บล็อก Chrome Translate 100%
+        st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
         primary_tfs = ["5m", "15m", "30m", "1h", "2h", "3h", "4h", "D", "2D", "3D", "W", "M"]
         cur_tf = st.session_state.get("selected_tf", "1h")
         def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 3
@@ -200,6 +206,8 @@ def render_top_toolbar():
         if tf != st.session_state.get("selected_tf"):
             st.session_state["selected_tf"] = tf
             st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+
     with col_slider: bars = st.slider("Bars", 300, 25000, 2500, 500, label_visibility="collapsed", key="toolbar_bars")
     with col_ind_menu:
         with st.popover("📊 Indicators ▾", use_container_width=True):
@@ -211,7 +219,6 @@ def render_top_toolbar():
     with col_sec: every = st.number_input("Sec", 2, 60, 2, 1, label_visibility="collapsed", key="toolbar_sec")
     with col_load: reload_btn = st.button("🔄 โหลด", use_container_width=True, key="toolbar_reload_btn")
     return tf, bars, fill_gaps, auto, every, reload_btn
-
 def dashboard():
     # ตรวจจับคำสั่งล้างแคช & รีสตาร์ตจากเบราว์เซอร์
     if "clear_cache" in st.query_params:
@@ -230,12 +237,13 @@ def dashboard():
 
     symbol = st.session_state.get("current_symbol", "BTCUSDT")
 
-    # แถบแท็บด้านบน
+   # แถบแท็บด้านบน
     c_tab, c_add, c_empty = st.columns([2.0, 0.4, 12.0])
     with c_tab:
-        st.button(f"💎 {symbol}   +2.27%", type="primary", use_container_width=True)
+        st.markdown('<div id="custom-tabs-anchor"></div>', unsafe_allow_html=True)
+        st.button(f"💎 {symbol} +2.27%", type="primary", use_container_width=True)
     with c_add:
-        st.button("＋", key="add_t_btn")
+        st.button("+", key="add_t_btn")
 
     # แถบเครื่องมือ Top Toolbar
     if st.session_state.get("show_top_bar", True):
@@ -281,6 +289,7 @@ def dashboard():
         seasonality_html = ""
 
     # แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | บทวิเคราะห์เทคนิค 24h ขวา
+   # แบ่ง Layout 3 ส่วน
     col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
     with col_side:
@@ -288,11 +297,18 @@ def dashboard():
         render_sidebar()
 
     with col_chart:
-        render_drawing_chart(charts, height=520, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
-
-   with col_quote:
+        st.markdown('<div id="custom-center-chart-anchor"></div>', unsafe_allow_html=True)
+        render_drawing_chart(charts, height=535, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
+    with col_quote:
         st.markdown('<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True)
-        st.markdown("<b style='font-size:13px; color:#ffffff;'>🔴 🟡 🟢 บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>", unsafe_allow_html=True)
+        st.markdown("""
+            <div style="display:flex; align-items:center; margin-bottom:6px;">
+                <span id="btn-collapse-right" title="คลิกเพื่อพับเก็บเมนูขวา" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#FF3366; border-radius:50%; margin-right:6px; box-shadow:0 0 6px #FF3366; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
+                <span id="btn-fullscreen-app" title="คลิกเพื่อขยายเต็มจอ / ออกจากเต็มจอ" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#00FF66; border-radius:50%; margin-right:8px; box-shadow:0 0 6px #00FF66; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
+                <b style='font-size:13px; color:#ffffff;'>บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>
+            </div>
+        """, unsafe_allow_html=True)
         render_tv_quote_card(tk_data, tech_data, symbol, "Binance", seasonality_html, gauges_html_compact)
+
 
 dashboard()
