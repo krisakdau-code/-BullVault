@@ -1,6 +1,6 @@
 import streamlit as st
 import datetime
-from ui.symbol_modal import render_symbol_modal, get_current_trigger_label
+from ui.symbol_modal import render_symbol_modal
 from data.symbols import (
     get_full_binance_symbols,
     get_full_binance_th_symbols,
