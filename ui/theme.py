@@ -1,7 +1,7 @@
 import streamlit as st
 
 CYBER_COLORS = {
-    "bg": "#0d1117",
+    "bg": "#0b0e14",
     "surface": "#161b22",
     "panel": "#1f242d",
     "border": "#30363d",
@@ -16,7 +16,7 @@ def apply_theme():
     st.markdown(
         """
         <style>
-        /* 1. ปิดตาย Native Sidebar เดิมของ Streamlit */
+        /* 1. ปิด Native Sidebar ดั้งเดิมของ Streamlit */
         [data-testid="stSidebar"],
         [data-testid="stSidebarCollapsedControl"],
         [data-testid="stSidebarCollapseButton"] {
@@ -27,7 +27,7 @@ def apply_theme():
             pointer-events: none !important;
         }
 
-        /* 2. ดึงขอบหน้าจอชิด 0px ไม่ให้มีช่องว่างด้านบน */
+        /* 2. ดึงขอบหน้าจอชิดบน -65px */
         .stMainBlockContainer,
         div[data-testid="stMainBlockContainer"],
         section[data-testid="stMain"] .block-container,
@@ -56,20 +56,39 @@ def apply_theme():
             color: #e6edf3 !important;
         }
 
-        /* 5. Scrollbar */
-        ::-webkit-scrollbar {
-            width: 5px;
-            height: 5px;
+        /* 5. เมนูซ้าย: ขยับเนื้อหาขึ้นชิดแถบเครื่องมือบน และเลื่อน Scroll อิสระ */
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor) {
+            margin-top: -20px !important;
+            padding-top: 0px !important;
+            max-height: calc(100vh - 60px) !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            overscroll-behavior: contain !important;
+            padding-right: 0px !important;
         }
-        ::-webkit-scrollbar-track {
-            background: #0d1117;
+
+        /* ซ่อนเฉพาะกล่อง Anchor โดยไม่ให้กระทบเนื้อหาเมนู */
+        .element-container:has(#custom-left-menu-anchor),
+        div[data-testid="element-container"]:has(#custom-left-menu-anchor) {
+            display: none !important;
+            height: 0px !important;
+            margin: 0px !important;
+            padding: 0px !important;
         }
-        ::-webkit-scrollbar-thumb {
-            background: #30363d;
-            border-radius: 3px;
+
+        /* 6. แถบ Scrollbar */
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar {
+            width: 4px !important;
         }
-        ::-webkit-scrollbar-thumb:hover {
-            background: #FF7A1A;
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-track {
+            background: transparent !important;
+        }
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-thumb {
+            background: #21262d !important;
+            border-radius: 4px !important;
+        }
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-thumb:hover {
+            background: #FF7A1A !important;
         }
         </style>
         """,

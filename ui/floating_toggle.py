@@ -8,64 +8,39 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
         const doc = win.document;
         if (!doc) return;
 
-        // 1. ล็อกหน้าจอหลักทั้งหน้าให้อยู่กับที่ถาวร ไม่ให้ทั้งเว็บเลื่อนตาม
-        doc.documentElement.style.setProperty('overflow', 'hidden', 'important');
-        doc.body.style.setProperty('overflow', 'hidden', 'important');
-        
-        const appView = doc.querySelector('[data-testid="stAppViewContainer"]') || doc.querySelector('.main');
-        if (appView) {{
-            appView.style.setProperty('overflow', 'hidden', 'important');
-            appView.style.setProperty('height', '100vh', 'important');
-        }}
-
-        const block = doc.querySelector('.block-container') || doc.querySelector('[data-testid="stMainBlockContainer"]');
-        if (block) {{
-            block.style.setProperty('margin-top', '-65px', 'important');
-            block.style.setProperty('padding-top', '0px', 'important');
-            block.style.setProperty('padding-bottom', '0px', 'important');
-            block.style.setProperty('height', '100vh', 'important');
-            block.style.setProperty('overflow', 'hidden', 'important');
-        }}
-
+        // ดึงเฉพาะคอลัมน์ซ้ายที่มี ID ระบุไว้เท่านั้น (ห้ามเดาสุ่มเด็ดขาด)
         function getLeftCol() {{
             const anchor = doc.getElementById("custom-left-menu-anchor");
             if (anchor) return anchor.closest('div[data-testid="stColumn"]');
-            return doc.querySelector('div[data-testid="stColumn"]');
+            return null;
         }}
 
-        const leftCol = getLeftCol();
-        if (leftCol) {{
-            // 2. ให้เมนูซ้ายเลื่อนเมาส์ (Scroll) แยกอิสระเฉพาะภายในกรอบตัวเอง
-            leftCol.style.setProperty('position', 'relative', 'important');
-            leftCol.style.setProperty('height', 'calc(100vh - 65px)', 'important');
-            leftCol.style.setProperty('max-height', 'calc(100vh - 65px)', 'important');
-            leftCol.style.setProperty('overflow-y', 'auto', 'important');
-            leftCol.style.setProperty('overflow-x', 'hidden', 'important');
-            leftCol.style.setProperty('overscroll-behavior-y', 'contain', 'important');
-            leftCol.style.setProperty('padding-right', '8px', 'important');
+        // ติดตั้งแถบลากยืด-หดซ้ายขวา
+        function attachResizer() {{
+            const leftCol = getLeftCol();
+            if (!leftCol) return;
 
-            // 3. สร้างแถบจับลากยืด-หดซ้ายขวา (Drag Resizer Handle)
+            leftCol.style.setProperty('position', 'relative', 'important');
+
             const RESIZER_ID = "cyber-left-resizer";
-            let resizer = doc.getElementById(RESIZER_ID);
-            if (!resizer) {{
-                resizer = doc.createElement("div");
+            if (!doc.getElementById(RESIZER_ID)) {{
+                const resizer = doc.createElement("div");
                 resizer.id = RESIZER_ID;
-                resizer.title = "คลิกค้างแล้วลากเมาส์ซ้าย-ขวาเพื่อปรับขนาด";
+                resizer.title = "คลิกค้างแล้วลากเมาส์ซ้าย-ขวาเพื่อปรับขนาดเมนู";
                 Object.assign(resizer.style, {{
                     position: "absolute",
                     top: "0",
-                    right: "0",
-                    width: "5px",
+                    right: "-2px",
+                    width: "6px",
                     height: "100%",
                     cursor: "col-resize",
                     zIndex: "9999",
-                    backgroundColor: "transparent",
-                    transition: "background-color 0.2s, box-shadow 0.2s"
+                    backgroundColor: "transparent"
                 }});
 
                 resizer.onmouseenter = () => {{
                     resizer.style.backgroundColor = "{neon}";
-                    resizer.style.boxShadow = "0 0 8px {neon}";
+                    resizer.style.boxShadow = "0 0 6px {neon}";
                 }};
                 resizer.onmouseleave = () => {{
                     if (!win._is_dragging_resizer) {{
@@ -74,7 +49,6 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                     }}
                 }};
 
-                // ดักจับการลากเมาส์ยืดหด
                 resizer.addEventListener("mousedown", (e) => {{
                     win._is_dragging_resizer = true;
                     const startX = e.clientX;
@@ -86,8 +60,8 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                         if (!win._is_dragging_resizer) return;
                         const dx = ev.clientX - startX;
                         let newW = startWidth + dx;
-                        if (newW < 200) newW = 200; // ขนาดเล็กสุด
-                        if (newW > 480) newW = 480; // ขนาดกว้างสุด
+                        if (newW < 200) newW = 200;
+                        if (newW > 480) newW = 480;
 
                         leftCol.style.setProperty("flex", `0 0 ${{newW}}px`, "important");
                         leftCol.style.setProperty("width", `${{newW}}px`, "important");
@@ -118,7 +92,7 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             }}
         }}
 
-        // 4. ปุ่มส้มลอย [ ☰ ] สลับพับ/เปิดเมนูซ้าย
+        // ปุ่มส้ม [ ☰ ] สลับพับ/เปิดเมนูซ้าย
         const BTN_ID = "cyber-floating-toggle-btn";
         let btn = doc.getElementById(BTN_ID);
         if (!btn) {{
@@ -165,6 +139,9 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             snapLeft();
             win.addEventListener("resize", snapLeft);
         }}
+
+        setTimeout(attachResizer, 400);
+        setTimeout(attachResizer, 1200);
     }})();
     </script>
     """, height=0)

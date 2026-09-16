@@ -281,9 +281,10 @@ def dashboard():
         seasonality_html = ""
 
     # แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | บทวิเคราะห์เทคนิค 24h ขวา
-    col_side, col_chart, col_quote = st.columns([0.85, 4.0, 0.9], gap="small")
+    col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
     with col_side:
+        st.markdown('<div id="custom-left-menu-anchor"></div>', unsafe_allow_html=True)
         render_sidebar()
 
     with col_chart:
