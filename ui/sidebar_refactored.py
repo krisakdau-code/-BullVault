@@ -1,5 +1,21 @@
 import streamlit as st
 import datetime
+from data.symbols import (
+    get_full_binance_symbols,
+    get_full_binance_th_symbols,
+    get_full_bitkub_symbols,
+    get_full_okx_symbols,
+    get_full_bybit_symbols,
+    get_full_gate_symbols,
+    get_full_mexc_symbols,
+    get_full_kucoin_symbols,
+    get_full_commodities,
+    get_full_forex,
+    get_full_sp500_symbols,
+    get_full_china_stocks,
+    get_full_vietnam_symbols,
+    _load_json
+)
 
 def set_active_symbol(sym_code: str):
     st.session_state["current_symbol"] = sym_code
@@ -134,47 +150,50 @@ def render_sidebar():
             key="sb_asset_cat"
         )
 
-        # ขั้นที่ 2: เลือกระดับกระดาน / ประเทศ
+       # ขั้นที่ 2: เลือกระดับกระดาน / ประเทศ และดึงรายชื่อสินทรัพย์จริงจาก data/
         symbol_map = {}
+
         if "คริปโต" in cat:
             sub = st.radio("กระดาน", ["Binance Spot", "Binance TH", "Bitkub"], horizontal=True, label_visibility="collapsed", key="sb_sub_cr")
-            symbol_map = {
-                "BTCUSDT": {"price": "79,036.15", "chg": "+2.27%", "up": True, "tag": "BINANCE"},
-                "ETHUSDT": {"price": "2,645.80", "chg": "+3.14%", "up": True, "tag": "BINANCE"},
-                "SOLUSDT": {"price": "184.25", "chg": "+5.42%", "up": True, "tag": "BINANCE"},
-                "BNBUSDT": {"price": "588.50", "chg": "-0.85%", "up": False, "tag": "BINANCE"}
-            }
-        elif "หุ้น" in cat:
-            sub = st.radio("ตลาด", ["หุ้นไทย (SET)", "หุ้นนอก (US)"], horizontal=True, label_visibility="collapsed", key="sb_sub_st")
-            if "SET" in sub:
-                symbol_map = {
-                    "PTT.BK": {"price": "33.50", "chg": "+0.75%", "up": True, "tag": "SET"},
-                    "DELTA.BK": {"price": "88.50", "chg": "+1.14%", "up": True, "tag": "SET"},
-                    "AOT.BK": {"price": "61.25", "chg": "-0.40%", "up": False, "tag": "SET"}
-                }
+            if sub == "Bitkub":
+                raw_syms = get_full_bitkub_symbols() or ["BTC_THB", "ETH_THB"]
+                tag = "BITKUB"
+            elif sub == "Binance TH":
+                raw_syms = get_full_binance_th_symbols() or ["BTCUSDT", "ETHUSDT"]
+                tag = "BINANCE TH"
             else:
-                symbol_map = {
-                    "NVDA": {"price": "142.30", "chg": "-1.12%", "up": False, "tag": "NASDAQ"},
-                    "AAPL": {"price": "228.10", "chg": "+0.45%", "up": True, "tag": "NASDAQ"}
-                }
+                raw_syms = get_full_binance_symbols() or ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT"]
+                tag = "BINANCE"
+            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": tag} for s in raw_syms}
+
+        elif "หุ้น" in cat:
+            sub_st = st.radio("ตลาด", ["หุ้นไทย (SET)", "หุ้นสหรัฐฯ (US)", "หุ้นจีน (China)", "หุ้นเวียดนาม (VN)"], horizontal=True, label_visibility="collapsed", key="sb_sub_st")
+            if "ไทย" in sub_st:
+                raw_syms = _load_json("thai_stocks.json") or ["DELTA.BK", "PTT.BK", "AOT.BK"][cite: 1]
+                tag = "SET"
+            elif "สหรัฐ" in sub_st:
+                raw_syms = get_full_sp500_symbols() or ["NVDA", "AAPL", "TSLA", "MSFT"]
+                tag = "US"
+            elif "จีน" in sub_st:
+                raw_syms = get_full_china_stocks() or ["0700.HK", "9988.HK"]
+                tag = "CHINA"
+            else:
+                raw_syms = get_full_vietnam_symbols() or ["VNM.VN", "VIC.VN"]
+                tag = "VN"
+            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": tag} for s in raw_syms}
+
         elif "ฟอเร็กซ์" in cat:
-            sub = st.radio("ประเภท", ["คู่เงินหลัก", "ดัชนีเงินบาท"], horizontal=True, label_visibility="collapsed", key="sb_sub_fx")
-            symbol_map = {
-                "EURUSD=X": {"price": "1.0845", "chg": "+0.15%", "up": True, "tag": "FX"},
-                "USDTHB=X": {"price": "34.50", "chg": "+0.05%", "up": True, "tag": "FX"}
-            }
-        elif "โภคภัณฑ์" in cat:
-            sub = st.radio("กลุ่ม", ["โลหะมีค่า (ทองคำ)", "พลังงาน (น้ำมัน)"], horizontal=True, label_visibility="collapsed", key="sb_sub_cm")
-            symbol_map = {
-                "GC=F": {"price": "2,684.50", "chg": "+0.45%", "up": True, "tag": "GOLD"},
-                "CL=F": {"price": "71.30", "chg": "-1.05%", "up": False, "tag": "OIL"}
-            }
+            raw_syms = get_full_forex() or ["USDTHB=X", "EURUSD=X", "USDJPY=X"]
+            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": "FOREX"} for s in raw_syms}
+
+        elif "สินค้า" in cat or "โภคภัณฑ์" in cat:
+            raw_syms = get_full_commodities() or ["GC=F", "SI=F", "CL=F"]
+            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": "COMMODITY"} for s in raw_syms}
+
         else:
             sub = st.radio("หมวดข้าว", ["ข้าวไทย", "ตลาดโลก (CBOT)"], horizontal=True, label_visibility="collapsed", key="sb_sub_rc")
-            symbol_map = {
-                "RICE:ข้าวเปลือกหอมมะลิ": {"price": "15,200", "chg": "+0.50%", "up": True, "tag": "RICE"},
-                "ZR=F (CBOT Rough Rice)": {"price": "14.85", "chg": "+1.20%", "up": True, "tag": "CBOT"}
-            }
+            raw_syms = _load_json("rice_catalog.json") or ["RICE:ข้าวเปลือกหอมมะลิ", "ZR=F (CBOT Rough Rice)"]
+            symbol_map = {s: {"price": "--", "chg": "0.00%", "up": True, "tag": "RICE"} for s in raw_syms}
 
         # ขั้นที่ 3: ช่องค้นหา + Badge สีส้ม
         sym_list = list(symbol_map.keys())

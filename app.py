@@ -24,13 +24,23 @@ from requests.adapters import HTTPAdapter
 from streamlit_lightweight_charts_ntf import renderLightweightCharts
 from technicals import compute_full_technicals, diamond_armor, fetch_market_analytics
 from ui_components import (
+
     build_asset_icon_html,
     fetch_seasonality_svg,
     render_3_gauges_html,
     render_fibonacci_modal_content,
+
     render_market_modal_content,
     render_tv_quote_card,
     render_panel_controls,
+)
+from data.fetchers import fetch_ohlcv, fetch_ticker_24h
+from data.symbols import (
+    get_full_binance_symbols,
+    get_full_bitkub_symbols,
+    get_full_commodities,
+    get_full_forex,
+    get_full_sp500_symbols,
 )
 from urllib3.util.retry import Retry
 from utils import _has_data, fmt_chg, fmt_price, fmt_vol
@@ -178,16 +188,21 @@ def fetch_binance_raw(symbol: str, interval: str, bars: int) -> pd.DataFrame:
     return pd.DataFrame()
 
 def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
+    # 1. สินค้ากลุ่มข้าว ให้ดึงผ่านโมดูลข้าว
     if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
         return generate_rice_ohlcv(symbol)
-    df = fetch_binance_raw(symbol, tf, bars)
-    if not df.empty: return df
-    now_ts = int(time.time())
-    times = [now_ts - (i * 3600) for i in range(bars)][::-1]
-    base_p = 79036.15 if "BTC" in symbol else 100.0
-    prices = base_p + np.cumsum(np.random.randn(bars) * (base_p * 0.002))
-    return pd.DataFrame({"time": times, "open": prices, "high": prices + 15, "low": prices - 15, "close": prices + 5, "volume": 1000.0})
-
+    
+    # 2. สินทรัพย์จริงทุกตลาด (คริปโต, หุ้นไทย, ทองคำ, Forex) ดึงสดผ่าน data/fetchers.py
+    from data.fetchers import fetch_ohlcv as fetch_market_ohlcv
+    df = fetch_market_ohlcv(symbol=symbol, tf=tf, limit=bars)
+    
+    # 3. แปลง Timestamp ให้อยู่ในฟอร์แมต Unix Seconds สำหรับ Lightweight Charts
+    if not df.empty and "time" in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df["time"]):
+            df["time"] = (df["time"].astype("int64") // 10**9)
+        return df.dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
+        
+    return df
 def render_top_toolbar():
     # ขยายสัดส่วน col_tf เป็น 5.5 ให้ปุ่ม Timeframe เรียงแนวนอนแบบไม่อึดอัด
     col_spacer, col_tf, col_slider, col_ind_menu, col_fill, col_auto, col_sec, col_load = st.columns(
@@ -298,8 +313,8 @@ def dashboard():
 
     with col_chart:
         st.markdown('<div id="custom-center-chart-anchor"></div>', unsafe_allow_html=True)
-        render_drawing_chart(charts, height=560, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
-        
+        render_drawing_chart(charts, height=530, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
+
     with col_quote:
         st.markdown('<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True)
         st.markdown("""
