@@ -263,11 +263,25 @@ def dashboard():
         "high": float(df["high"].max()), "low": float(df["low"].min()),
         "vol": float(df["volume"].iloc[-1]), "bid": last_close, "ask": last_close
     }
-
     charts = build_charts(df, symbol, tf, 520, 120, 120)
 
+    try:
+        tech_data = compute_full_technicals(df)
+    except Exception:
+        tech_data = {}
+
+    try:
+        gauges_html_compact = render_3_gauges_html(tech_data)
+    except Exception:
+        gauges_html_compact = ""
+
+    try:
+        seasonality_html = fetch_seasonality_svg(symbol)
+    except Exception:
+        seasonality_html = ""
+
     # แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | บทวิเคราะห์เทคนิค 24h ขวา
-    col_side, col_chart, col_quote = st.columns([0.85, 4.5, 0.90], gap="small")
+    col_side, col_chart, col_quote = st.columns([1.25, 3.25, 1.25], gap="small")
 
     with col_side:
         render_sidebar()
@@ -275,9 +289,9 @@ def dashboard():
     with col_chart:
         render_drawing_chart(charts, height=520, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
 
-    # คอลัมน์ขวา: บทวิเคราะห์เทคนิค 24h ตามรูปตัวอย่าง
     with col_quote:
-        st.markdown("<b style='font-size:13px; color:#ffffff;'>🔴🟡🟢 บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:1px 4px; border-radius:3px; font-weight:800;'>PRO</span></b>", unsafe_allow_html=True)
+        st.markdown("<b style='font-size:13px; color:#ffffff;'>🔴 🟡 🟢 บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>", unsafe_allow_html=True)
         render_tv_quote_card(tk_data, tech_data, symbol, "Binance", seasonality_html, gauges_html_compact)
+
 
 dashboard()
