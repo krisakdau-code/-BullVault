@@ -8,25 +8,29 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
         const doc = win.document;
         if (!doc) return;
 
-        // ดึงเฉพาะคอลัมน์ซ้ายที่มี ID ระบุไว้เท่านั้น (ห้ามเดาสุ่มเด็ดขาด)
         function getLeftCol() {{
             const anchor = doc.getElementById("custom-left-menu-anchor");
-            if (anchor) return anchor.closest('div[data-testid="stColumn"]');
-            return null;
+            return anchor ? anchor.closest('div[data-testid="stColumn"]') : null;
         }}
 
-        // ติดตั้งแถบลากยืด-หดซ้ายขวา
-        function attachResizer() {{
+        function getRightCol() {{
+            const anchor = doc.getElementById("custom-right-menu-anchor");
+            return anchor ? anchor.closest('div[data-testid="stColumn"]') : null;
+        }}
+
+        // 1. แถบลากยืด-หด เมนูซ้าย
+        function initLeftResizer() {{
             const leftCol = getLeftCol();
             if (!leftCol) return;
 
-            leftCol.style.setProperty('position', 'relative', 'important');
+            leftCol.style.position = "relative";
 
             const RESIZER_ID = "cyber-left-resizer";
-            if (!doc.getElementById(RESIZER_ID)) {{
-                const resizer = doc.createElement("div");
+            let resizer = doc.getElementById(RESIZER_ID);
+            if (!resizer) {{
+                resizer = doc.createElement("div");
                 resizer.id = RESIZER_ID;
-                resizer.title = "คลิกค้างแล้วลากเมาส์ซ้าย-ขวาเพื่อปรับขนาดเมนู";
+                resizer.title = "คลิกค้างแล้วลากเมาส์เพื่อปรับขนาดเมนูซ้าย";
                 Object.assign(resizer.style, {{
                     position: "absolute",
                     top: "0",
@@ -35,33 +39,26 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                     height: "100%",
                     cursor: "col-resize",
                     zIndex: "9999",
-                    backgroundColor: "transparent"
+                    backgroundColor: "transparent",
+                    transition: "background 0.2s"
                 }});
 
-                resizer.onmouseenter = () => {{
-                    resizer.style.backgroundColor = "{neon}";
-                    resizer.style.boxShadow = "0 0 6px {neon}";
-                }};
-                resizer.onmouseleave = () => {{
-                    if (!win._is_dragging_resizer) {{
-                        resizer.style.backgroundColor = "transparent";
-                        resizer.style.boxShadow = "none";
-                    }}
-                }};
+                resizer.onmouseenter = () => {{ resizer.style.backgroundColor = "{neon}"; }};
+                resizer.onmouseleave = () => {{ if (!win._is_dragging_left) resizer.style.backgroundColor = "transparent"; }};
 
                 resizer.addEventListener("mousedown", (e) => {{
-                    win._is_dragging_resizer = true;
+                    win._is_dragging_left = true;
                     const startX = e.clientX;
                     const startWidth = leftCol.getBoundingClientRect().width;
                     doc.body.style.cursor = "col-resize";
                     doc.body.style.userSelect = "none";
 
                     function onMouseMove(ev) {{
-                        if (!win._is_dragging_resizer) return;
+                        if (!win._is_dragging_left) return;
                         const dx = ev.clientX - startX;
                         let newW = startWidth + dx;
-                        if (newW < 200) newW = 200;
-                        if (newW > 480) newW = 480;
+                        if (newW < 180) newW = 180;
+                        if (newW > 450) newW = 450;
 
                         leftCol.style.setProperty("flex", `0 0 ${{newW}}px`, "important");
                         leftCol.style.setProperty("width", `${{newW}}px`, "important");
@@ -72,11 +69,10 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                     }}
 
                     function onMouseUp() {{
-                        win._is_dragging_resizer = false;
+                        win._is_dragging_left = false;
                         doc.body.style.cursor = "";
                         doc.body.style.userSelect = "";
                         resizer.style.backgroundColor = "transparent";
-                        resizer.style.boxShadow = "none";
                         doc.removeEventListener("mousemove", onMouseMove);
                         doc.removeEventListener("mouseup", onMouseUp);
                         win.dispatchEvent(new Event("resize"));
@@ -92,7 +88,78 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             }}
         }}
 
-        // ปุ่มส้ม [ ☰ ] สลับพับ/เปิดเมนูซ้าย
+        // 2. แถบลากยืด-หด เมนูขวา (ติดตั้งที่ขอบซ้ายของเมนูขวา)
+        function initRightResizer() {{
+            const rightCol = getRightCol();
+            if (!rightCol) return;
+
+            rightCol.style.position = "relative";
+
+            const RESIZER_ID = "cyber-right-resizer";
+            let resizer = doc.getElementById(RESIZER_ID);
+            if (!resizer) {{
+                resizer = doc.createElement("div");
+                resizer.id = RESIZER_ID;
+                resizer.title = "คลิกค้างแล้วลากเมาส์เพื่อปรับขนาดเมนูขวา";
+                Object.assign(resizer.style, {{
+                    position: "absolute",
+                    top: "0",
+                    left: "-3px",
+                    width: "6px",
+                    height: "100%",
+                    cursor: "col-resize",
+                    zIndex: "9999",
+                    backgroundColor: "transparent",
+                    transition: "background 0.2s"
+                }});
+
+                resizer.onmouseenter = () => {{ resizer.style.backgroundColor = "{neon}"; }};
+                resizer.onmouseleave = () => {{ if (!win._is_dragging_right) resizer.style.backgroundColor = "transparent"; }};
+
+                resizer.addEventListener("mousedown", (e) => {{
+                    win._is_dragging_right = true;
+                    const startX = e.clientX;
+                    const startWidth = rightCol.getBoundingClientRect().width;
+                    doc.body.style.cursor = "col-resize";
+                    doc.body.style.userSelect = "none";
+
+                    function onMouseMove(ev) {{
+                        if (!win._is_dragging_right) return;
+                        // ลากไปซ้าย (dx ติดลบ) = เพิ่มความกว้าง
+                        const dx = ev.clientX - startX;
+                        let newW = startWidth - dx;
+                        if (newW < 240) newW = 240;
+                        if (newW > 520) newW = 520;
+
+                        rightCol.style.setProperty("flex", `0 0 ${{newW}}px`, "important");
+                        rightCol.style.setProperty("width", `${{newW}}px`, "important");
+                        rightCol.style.setProperty("min-width", `${{newW}}px`, "important");
+                        rightCol.style.setProperty("max-width", `${{newW}}px`, "important");
+
+                        win.dispatchEvent(new Event("resize"));
+                    }}
+
+                    function onMouseUp() {{
+                        win._is_dragging_right = false;
+                        doc.body.style.cursor = "";
+                        doc.body.style.userSelect = "";
+                        resizer.style.backgroundColor = "transparent";
+                        doc.removeEventListener("mousemove", onMouseMove);
+                        doc.removeEventListener("mouseup", onMouseUp);
+                        win.dispatchEvent(new Event("resize"));
+                    }}
+
+                    doc.addEventListener("mousemove", onMouseMove);
+                    doc.addEventListener("mouseup", onMouseUp);
+                    e.preventDefault();
+                    e.stopPropagation();
+                }});
+
+                rightCol.appendChild(resizer);
+            }}
+        }}
+
+        // 3. ปุ่มส้ม [ ☰ ] สลับพับ/เปิดเมนูซ้าย
         const BTN_ID = "cyber-floating-toggle-btn";
         let btn = doc.getElementById(BTN_ID);
         if (!btn) {{
@@ -140,8 +207,8 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             win.addEventListener("resize", snapLeft);
         }}
 
-        setTimeout(attachResizer, 400);
-        setTimeout(attachResizer, 1200);
+        setTimeout(() => {{ initLeftResizer(); initRightResizer(); }}, 400);
+        setTimeout(() => {{ initLeftResizer(); initRightResizer(); }}, 1200);
     }})();
     </script>
     """, height=0)

@@ -67,27 +67,44 @@ def apply_theme():
             padding-right: 0px !important;
         }
 
-        /* ซ่อนเฉพาะกล่อง Anchor โดยไม่ให้กระทบเนื้อหาเมนู */
+        /* 6. เมนูขวา: ขยับเนื้อหาขึ้น และเลื่อน Scroll อิสระภายในตัวเอง */
+        div[data-testid="stColumn"]:has(#custom-right-menu-anchor) {
+            margin-top: -20px !important;
+            padding-top: 0px !important;
+            max-height: calc(100vh - 60px) !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            overscroll-behavior: contain !important;
+            padding-left: 4px !important;
+        }
+
+        /* ซ่อนเฉพาะกล่อง Anchor ทั้งซ้ายและขวา ไม่ให้กินพื้นที่ */
         .element-container:has(#custom-left-menu-anchor),
-        div[data-testid="element-container"]:has(#custom-left-menu-anchor) {
+        div[data-testid="element-container"]:has(#custom-left-menu-anchor),
+        .element-container:has(#custom-right-menu-anchor),
+        div[data-testid="element-container"]:has(#custom-right-menu-anchor) {
             display: none !important;
             height: 0px !important;
             margin: 0px !important;
             padding: 0px !important;
         }
 
-        /* 6. แถบ Scrollbar */
-        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar {
+        /* 7. แถบ Scrollbar ขนาดบางเฉียบสำหรับเมนูซ้ายและขวา */
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar,
+        div[data-testid="stColumn"]:has(#custom-right-menu-anchor)::-webkit-scrollbar {
             width: 4px !important;
         }
-        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-track {
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-track,
+        div[data-testid="stColumn"]:has(#custom-right-menu-anchor)::-webkit-scrollbar-track {
             background: transparent !important;
         }
-        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-thumb {
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-thumb,
+        div[data-testid="stColumn"]:has(#custom-right-menu-anchor)::-webkit-scrollbar-thumb {
             background: #21262d !important;
             border-radius: 4px !important;
         }
-        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-thumb:hover {
+        div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar-thumb:hover,
+        div[data-testid="stColumn"]:has(#custom-right-menu-anchor)::-webkit-scrollbar-thumb:hover {
             background: #FF7A1A !important;
         }
         </style>

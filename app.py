@@ -291,6 +291,7 @@ def dashboard():
         render_drawing_chart(charts, height=520, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
 
     with col_quote:
+        st.markdown('<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True)
         st.markdown("<b style='font-size:13px; color:#ffffff;'>🔴 🟡 🟢 บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>", unsafe_allow_html=True)
         render_tv_quote_card(tk_data, tech_data, symbol, "Binance", seasonality_html, gauges_html_compact)
 
