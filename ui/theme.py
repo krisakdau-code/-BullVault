@@ -16,7 +16,7 @@ def apply_theme():
     st.markdown(
         """
         <style>
-        /* 1. ปิด Native Sidebar ดั้งเดิม */
+        /* 1. ปิด Native Sidebar ดั้งเดิมของ Streamlit */
         [data-testid="stSidebar"],
         [data-testid="stSidebarCollapsedControl"],
         [data-testid="stSidebarCollapseButton"] {
@@ -27,21 +27,7 @@ def apply_theme():
             pointer-events: none !important;
         }
 
-        /* 2. ดึงขอบหน้าจอชิดบนพอดี */
-        .stMainBlockContainer,
-        div[data-testid="stMainBlockContainer"],
-        section[data-testid="stMain"] .block-container,
-        .block-container {
-            padding-top: 4px !important;
-            margin-top: 0px !important;
-            padding-bottom: 0px !important;
-            padding-left: 0.3rem !important;
-            padding-right: 0.3rem !important;
-            max-width: 100% !important;
-            width: 100% !important;
-        }
-
-        /* 3. ซ่อน Header Streamlit */
+        /* 2. ซ่อน Header Streamlit */
         header[data-testid="stHeader"],
         [data-testid="stDecoration"],
         [data-testid="stToolbar"],
@@ -55,31 +41,68 @@ def apply_theme():
             color: #e6edf3 !important;
         }
 
-        /* ================= 4. แถบแท็บสลับเหรียญ (Row 1) ================= */
+        /* ================= จุดที่ 1: กำจัดช่องว่างบนสุด (ดึงแท็บเหรียญขึ้นชิดขอบจอ) ================= */
+        .stMainBlockContainer,
+        div[data-testid="stMainBlockContainer"],
+        section[data-testid="stMain"] .block-container,
+        .block-container {
+            padding-top: 0px !important;
+            margin-top: -32px !important; /* ดึงเนื้อหาขึ้นแตะขอบบนสุดพอดี ไม่ขาด ไม่แหว่ง */
+            padding-bottom: 0px !important;
+            padding-left: 0.3rem !important;
+            padding-right: 0.3rem !important;
+            max-width: 100% !important;
+            width: 100% !important;
+        }
+
+        /* ตัดระยะห่างระหว่างบล็อกแนวตั้งหลัก */
+        div[data-testid="stVerticalBlock"] {
+            gap: 0px !important;
+        }
+
+        /* ซ่อน Anchor ทุกตัว ไม่ให้กลายเป็นบรรทัดว่างคั่น */
+        #custom-tabs-anchor,
+        #toggle-btn-anchor,
+        #custom-left-menu-anchor,
+        #custom-center-chart-anchor,
+        #custom-right-menu-anchor {
+            display: none !important;
+        }
+        div[data-testid="element-container"]:has(#custom-tabs-anchor),
+        div[data-testid="element-container"]:has(#toggle-btn-anchor),
+        div[data-testid="element-container"]:has(#custom-left-menu-anchor),
+        div[data-testid="element-container"]:has(#custom-center-chart-anchor),
+        div[data-testid="element-container"]:has(#custom-right-menu-anchor) {
+            display: none !important;
+            margin: 0px !important;
+            padding: 0px !important;
+            height: 0px !important;
+        }
+
+        /* แถวที่ 1: แถบแท็บเหรียญ */
         div[data-testid="stHorizontalBlock"]:has(#custom-tabs-anchor) {
             margin-top: 0px !important;
-            margin-bottom: 2px !important;
+            margin-bottom: 0px !important;
             padding-bottom: 0px !important;
             align-items: center !important;
         }
         div[data-testid="stHorizontalBlock"]:has(#custom-tabs-anchor) button {
-            height: 27px !important;
-            min-height: 27px !important;
-            padding: 0px 10px !important;
+            height: 25px !important;
+            min-height: 25px !important;
+            padding: 0px 8px !important;
             font-size: 11px !important;
-            line-height: 1.2 !important;
+            line-height: 1.1 !important;
             border-radius: 4px 4px 0 0 !important;
         }
 
-        /* ================= 5. แถบเครื่องมือ Toolbar (Row 2) ================= */
+        /* ================= จุดที่ 2: ดึงแถบ Timeframe ขึ้นประกบชิดใต้แท็บเหรียญ ================= */
         div[data-testid="stHorizontalBlock"]:has(#toggle-btn-anchor) {
-            margin-top: 0px !important;
+            margin-top: -6px !important;  /* ดึงขึ้นประกบติดตูดแถบแท็บ */
             margin-bottom: 0px !important;
             padding: 0px !important;
             align-items: center !important;
             min-height: 28px !important;
         }
-
         div[data-testid="stHorizontalBlock"]:has(#toggle-btn-anchor) button,
         div[data-testid="stHorizontalBlock"]:has(#toggle-btn-anchor) div[data-testid="stPopover"] button {
             height: 25px !important;
@@ -95,7 +118,7 @@ def apply_theme():
             font-size: 11px !important;
         }
 
-        /* Timeframe: บรรทัดเดียว ล็อกภาษาอังกฤษ ไม่ซ้อนทับ */
+        /* Timeframe: แถวเดียว, ล็อกอังกฤษ, ไม่ทับซ้อน */
         div[data-testid="stRadio"] {
             translate: no !important;
         }
@@ -144,36 +167,35 @@ def apply_theme():
             line-height: 1.1 !important;
         }
 
-        /* ================= 6. พื้นที่ 3 ส่วนหลัก ================= */
+        /* ================= จุดที่ 3: ดึงกราฟและเมนูข้างขึ้นมาชนขอบล่างของ Toolbar ================= */
         div[data-testid="stHorizontalBlock"]:has(#custom-left-menu-anchor) {
             display: flex !important;
             flex-wrap: nowrap !important;
             align-items: stretch !important;
             width: 100% !important;
-            margin-top: 2px !important;
+            margin-top: -4px !important; /* ดึงขึ้นชนใต้ Toolbar ทันที */
         }
 
-        /* --- จุดแก้ที่ 1: เมนูซ้าย (คืนระยะห่างธรรมชาติ ไม่ให้ตัวหนังสือซ้อนทับ) --- */
+        /* เมนูซ้าย (เว้นระยะภายใน ป้องกันตัวหนังสือทับกัน) */
         div[data-testid="stColumn"]:has(#custom-left-menu-anchor) {
             flex: 0 0 auto !important;
             margin-top: 0px !important;
             padding-top: 0px !important;
-            max-height: calc(100vh - 78px) !important;
-            height: calc(100vh - 78px) !important;
+            max-height: calc(100vh - 60px) !important;
+            height: calc(100vh - 60px) !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
             overscroll-behavior: contain !important;
-            padding-right: 0px !important;
+            padding-right: 2px !important;
         }
-        /* คืนช่องไฟแนวตั้งเฉพาะภายในเมนูซ้าย ไม่ให้ปุ่มทับข้อความหัวข้อ */
         div[data-testid="stColumn"]:has(#custom-left-menu-anchor) div[data-testid="stVerticalBlock"] {
-            gap: 8px !important;
+            gap: 10px !important;
         }
         div[data-testid="stColumn"]:has(#custom-left-menu-anchor) div[data-testid="element-container"] {
-            margin-bottom: 3px !important;
+            margin-bottom: 4px !important;
         }
 
-        /* --- กราฟชาร์ตกลาง (คงเดิม: แนบชิดติดขอบ Toolbar) --- */
+        /* ชาร์ตกราฟกลาง (แนบชิด Toolbar) */
         div[data-testid="stColumn"]:has(#custom-center-chart-anchor) {
             flex: 1 1 0% !important;
             min-width: 300px !important;
@@ -187,13 +209,13 @@ def apply_theme():
             padding-top: 0px !important;
         }
 
-        /* --- จุดแก้ที่ 2: เมนูขวา (ดันลงมา 10px หลบปุ่มเครื่องมือด้านบน) --- */
+        /* เมนูขวา */
         div[data-testid="stColumn"]:has(#custom-right-menu-anchor) {
             flex: 0 0 auto !important;
             margin-top: 0px !important;
-            padding-top: 10px !important; /* เว้นระยะห่างด้านบน ไม่ให้หัวข้อชนปุ่มโหลด */
-            max-height: calc(100vh - 78px) !important;
-            height: calc(100vh - 78px) !important;
+            padding-top: 4px !important;
+            max-height: calc(100vh - 60px) !important;
+            height: calc(100vh - 60px) !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
             overscroll-behavior: contain !important;
@@ -201,34 +223,10 @@ def apply_theme():
             padding-right: 2px !important;
         }
         div[data-testid="stColumn"]:has(#custom-right-menu-anchor) div[data-testid="stVerticalBlock"] {
-            gap: 6px !important;
+            gap: 8px !important;
         }
 
-        /* ซ่อน Anchor ทั้งหมด */
-        #custom-tabs-anchor,
-        #custom-left-menu-anchor,
-        #custom-center-chart-anchor,
-        #custom-right-menu-anchor {
-            display: block !important;
-            height: 0px !important;
-            margin: 0px !important;
-            padding: 0px !important;
-            overflow: hidden !important;
-        }
-        .element-container:has(#custom-tabs-anchor),
-        div[data-testid="element-container"]:has(#custom-tabs-anchor),
-        .element-container:has(#custom-left-menu-anchor),
-        div[data-testid="element-container"]:has(#custom-left-menu-anchor),
-        .element-container:has(#custom-center-chart-anchor),
-        div[data-testid="element-container"]:has(#custom-center-chart-anchor),
-        .element-container:has(#custom-right-menu-anchor),
-        div[data-testid="element-container"]:has(#custom-right-menu-anchor) {
-            margin: 0px !important;
-            padding: 0px !important;
-            height: 0px !important;
-        }
-
-        /* Scrollbar 4px */
+        /* Scrollbars 4px */
         div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar,
         div[data-testid="stColumn"]:has(#custom-right-menu-anchor)::-webkit-scrollbar {
             width: 4px !important;

@@ -298,7 +298,8 @@ def dashboard():
 
     with col_chart:
         st.markdown('<div id="custom-center-chart-anchor"></div>', unsafe_allow_html=True)
-        render_drawing_chart(charts, height=535, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
+        render_drawing_chart(charts, height=560, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
+        
     with col_quote:
         st.markdown('<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True)
         st.markdown("""
