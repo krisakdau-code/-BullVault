@@ -13,16 +13,72 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             return anchor ? anchor.closest('div[data-testid="stColumn"]') : null;
         }}
 
+        function getCenterCol() {{
+            const anchor = doc.getElementById("custom-center-chart-anchor");
+            return anchor ? anchor.closest('div[data-testid="stColumn"]') : null;
+        }}
+
         function getRightCol() {{
             const anchor = doc.getElementById("custom-right-menu-anchor");
             return anchor ? anchor.closest('div[data-testid="stColumn"]') : null;
+        }}
+
+        // แผ่นใสกันกราฟขโมยเมาส์ขณะลาก
+        function setDragShield(active) {{
+            let shield = doc.getElementById("cyber-drag-shield");
+            if (active) {{
+                if (!shield) {{
+                    shield = doc.createElement("div");
+                    shield.id = "cyber-drag-shield";
+                    Object.assign(shield.style, {{
+                        position: "fixed",
+                        top: "0",
+                        left: "0",
+                        width: "100vw",
+                        height: "100vh",
+                        zIndex: "9999999",
+                        cursor: "col-resize",
+                        backgroundColor: "transparent"
+                    }});
+                    doc.body.appendChild(shield);
+                }}
+            }} else {{
+                if (shield) shield.remove();
+            }}
+        }}
+
+        // ล็อกคอลัมน์เริ่มต้นให้แยกอิสระทันทีที่โหลดหน้า
+        function lockLayoutPivots() {{
+            const leftCol = getLeftCol();
+            const centerCol = getCenterCol();
+            const rightCol = getRightCol();
+
+            if (leftCol && !leftCol.style.width) {{
+                const w = Math.round(leftCol.getBoundingClientRect().width);
+                if (w > 50) {{
+                    leftCol.style.setProperty("flex", `0 0 ${{w}}px`, "important");
+                    leftCol.style.setProperty("width", `${{w}}px`, "important");
+                }}
+            }}
+
+            if (rightCol && !rightCol.style.width) {{
+                const w = Math.round(rightCol.getBoundingClientRect().width);
+                if (w > 50) {{
+                    rightCol.style.setProperty("flex", `0 0 ${{w}}px`, "important");
+                    rightCol.style.setProperty("width", `${{w}}px`, "important");
+                }}
+            }}
+
+            if (centerCol) {{
+                centerCol.style.setProperty("flex", "1 1 0%", "important");
+                centerCol.style.setProperty("width", "auto", "important");
+            }}
         }}
 
         // 1. แถบลากยืด-หด เมนูซ้าย
         function initLeftResizer() {{
             const leftCol = getLeftCol();
             if (!leftCol) return;
-
             leftCol.style.position = "relative";
 
             const RESIZER_ID = "cyber-left-resizer";
@@ -34,13 +90,13 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                 Object.assign(resizer.style, {{
                     position: "absolute",
                     top: "0",
-                    right: "-2px",
-                    width: "6px",
+                    right: "-3px",
+                    width: "7px",
                     height: "100%",
                     cursor: "col-resize",
                     zIndex: "9999",
                     backgroundColor: "transparent",
-                    transition: "background 0.2s"
+                    transition: "background 0.15s"
                 }});
 
                 resizer.onmouseenter = () => {{ resizer.style.backgroundColor = "{neon}"; }};
@@ -48,10 +104,9 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
 
                 resizer.addEventListener("mousedown", (e) => {{
                     win._is_dragging_left = true;
+                    setDragShield(true);
                     const startX = e.clientX;
                     const startWidth = leftCol.getBoundingClientRect().width;
-                    doc.body.style.cursor = "col-resize";
-                    doc.body.style.userSelect = "none";
 
                     function onMouseMove(ev) {{
                         if (!win._is_dragging_left) return;
@@ -65,34 +120,32 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                         leftCol.style.setProperty("min-width", `${{newW}}px`, "important");
                         leftCol.style.setProperty("max-width", `${{newW}}px`, "important");
 
+                        // ให้กราฟกลางปรับตาม โดยไม่แตะต้องเมนูขวา
                         win.dispatchEvent(new Event("resize"));
                     }}
 
                     function onMouseUp() {{
                         win._is_dragging_left = false;
-                        doc.body.style.cursor = "";
-                        doc.body.style.userSelect = "";
+                        setDragShield(false);
                         resizer.style.backgroundColor = "transparent";
-                        doc.removeEventListener("mousemove", onMouseMove);
-                        doc.removeEventListener("mouseup", onMouseUp);
+                        win.removeEventListener("mousemove", onMouseMove);
+                        win.removeEventListener("mouseup", onMouseUp);
                         win.dispatchEvent(new Event("resize"));
                     }}
 
-                    doc.addEventListener("mousemove", onMouseMove);
-                    doc.addEventListener("mouseup", onMouseUp);
+                    win.addEventListener("mousemove", onMouseMove);
+                    win.addEventListener("mouseup", onMouseUp);
                     e.preventDefault();
-                    e.stopPropagation();
                 }});
 
                 leftCol.appendChild(resizer);
             }}
         }}
 
-        // 2. แถบลากยืด-หด เมนูขวา (ติดตั้งที่ขอบซ้ายของเมนูขวา)
+        // 2. แถบลากยืด-หด เมนูขวา
         function initRightResizer() {{
             const rightCol = getRightCol();
             if (!rightCol) return;
-
             rightCol.style.position = "relative";
 
             const RESIZER_ID = "cyber-right-resizer";
@@ -104,13 +157,13 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
                 Object.assign(resizer.style, {{
                     position: "absolute",
                     top: "0",
-                    left: "-3px",
-                    width: "6px",
+                    left: "-4px",
+                    width: "8px",
                     height: "100%",
                     cursor: "col-resize",
                     zIndex: "9999",
                     backgroundColor: "transparent",
-                    transition: "background 0.2s"
+                    transition: "background 0.15s"
                 }});
 
                 resizer.onmouseenter = () => {{ resizer.style.backgroundColor = "{neon}"; }};
@@ -118,41 +171,38 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
 
                 resizer.addEventListener("mousedown", (e) => {{
                     win._is_dragging_right = true;
+                    setDragShield(true);
                     const startX = e.clientX;
                     const startWidth = rightCol.getBoundingClientRect().width;
-                    doc.body.style.cursor = "col-resize";
-                    doc.body.style.userSelect = "none";
 
                     function onMouseMove(ev) {{
                         if (!win._is_dragging_right) return;
-                        // ลากไปซ้าย (dx ติดลบ) = เพิ่มความกว้าง
                         const dx = ev.clientX - startX;
-                        let newW = startWidth - dx;
-                        if (newW < 240) newW = 240;
-                        if (newW > 520) newW = 520;
+                        let newW = startWidth - dx; // ลากซ้าย = เพิ่มขนาดขวา
+                        if (newW < 220) newW = 220;
+                        if (newW > 550) newW = 550;
 
                         rightCol.style.setProperty("flex", `0 0 ${{newW}}px`, "important");
                         rightCol.style.setProperty("width", `${{newW}}px`, "important");
                         rightCol.style.setProperty("min-width", `${{newW}}px`, "important");
                         rightCol.style.setProperty("max-width", `${{newW}}px`, "important");
 
+                        // ให้กราฟกลางปรับตาม โดยไม่แตะต้องเมนูซ้าย
                         win.dispatchEvent(new Event("resize"));
                     }}
 
                     function onMouseUp() {{
                         win._is_dragging_right = false;
-                        doc.body.style.cursor = "";
-                        doc.body.style.userSelect = "";
+                        setDragShield(false);
                         resizer.style.backgroundColor = "transparent";
-                        doc.removeEventListener("mousemove", onMouseMove);
-                        doc.removeEventListener("mouseup", onMouseUp);
+                        win.removeEventListener("mousemove", onMouseMove);
+                        win.removeEventListener("mouseup", onMouseUp);
                         win.dispatchEvent(new Event("resize"));
                     }}
 
-                    doc.addEventListener("mousemove", onMouseMove);
-                    doc.addEventListener("mouseup", onMouseUp);
+                    win.addEventListener("mousemove", onMouseMove);
+                    win.addEventListener("mouseup", onMouseUp);
                     e.preventDefault();
-                    e.stopPropagation();
                 }});
 
                 rightCol.appendChild(resizer);
@@ -207,8 +257,15 @@ def render_floating_sidebar_toggle(neon: str = "#FF7A1A"):
             win.addEventListener("resize", snapLeft);
         }}
 
-        setTimeout(() => {{ initLeftResizer(); initRightResizer(); }}, 400);
-        setTimeout(() => {{ initLeftResizer(); initRightResizer(); }}, 1200);
+        function setup() {{
+            lockLayoutPivots();
+            initLeftResizer();
+            initRightResizer();
+        }}
+
+        setup();
+        setTimeout(setup, 400);
+        setTimeout(setup, 1200);
     }})();
     </script>
     """, height=0)

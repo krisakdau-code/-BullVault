@@ -41,7 +41,7 @@ def apply_theme():
             width: 100% !important;
         }
 
-        /* 3. ซ่อน Header Streamlit ดั้งเดิม */
+        /* 3. ซ่อน Header ดั้งเดิม */
         header[data-testid="stHeader"],
         [data-testid="stDecoration"],
         [data-testid="stToolbar"],
@@ -56,40 +56,71 @@ def apply_theme():
             color: #e6edf3 !important;
         }
 
-        /* 5. เมนูซ้าย: ขยับเนื้อหาขึ้นชิดแถบเครื่องมือบน และเลื่อน Scroll อิสระ */
+        /* 5. ล็อกแถวแนวนอนห้ามตกบรรทัดเด็ดขาด */
+        div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-wrap: nowrap !important;
+            align-items: stretch !important;
+            width: 100% !important;
+        }
+
+        /* 6. เมนูซ้าย: ล็อกความกว้างอิสระ (ห้ามยืด/หดตามเพื่อนบ้าน) + Scroll แยกเดี่ยว */
         div[data-testid="stColumn"]:has(#custom-left-menu-anchor) {
+            flex: 0 0 auto !important;
             margin-top: -20px !important;
             padding-top: 0px !important;
             max-height: calc(100vh - 60px) !important;
+            height: calc(100vh - 60px) !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
             overscroll-behavior: contain !important;
             padding-right: 0px !important;
         }
 
-        /* 6. เมนูขวา: ขยับเนื้อหาขึ้น และเลื่อน Scroll อิสระภายในตัวเอง */
+        /* 7. ชาร์ตกราฟตรงกลาง: ทำหน้าที่เป็นตัวยืด-หดรับขนาดเพียงตัวเดียว */
+        div[data-testid="stColumn"]:has(#custom-center-chart-anchor) {
+            flex: 1 1 0% !important;
+            min-width: 300px !important;
+            width: auto !important;
+            overflow: hidden !important;
+        }
+
+        /* 8. เมนูขวา: ล็อกความกว้างอิสระ (ห้ามยืด/หดตามเพื่อนบ้าน) + Scroll แยกเดี่ยว */
         div[data-testid="stColumn"]:has(#custom-right-menu-anchor) {
+            flex: 0 0 auto !important;
             margin-top: -20px !important;
             padding-top: 0px !important;
             max-height: calc(100vh - 60px) !important;
+            height: calc(100vh - 60px) !important;
             overflow-y: auto !important;
             overflow-x: hidden !important;
             overscroll-behavior: contain !important;
-            padding-left: 4px !important;
+            padding-left: 6px !important;
+            padding-right: 2px !important;
         }
 
-        /* ซ่อนเฉพาะกล่อง Anchor ทั้งซ้ายและขวา ไม่ให้กินพื้นที่ */
-        .element-container:has(#custom-left-menu-anchor),
-        div[data-testid="element-container"]:has(#custom-left-menu-anchor),
-        .element-container:has(#custom-right-menu-anchor),
-        div[data-testid="element-container"]:has(#custom-right-menu-anchor) {
-            display: none !important;
+        /* ซ่อน Anchor ทั้ง 3 จุด */
+        #custom-left-menu-anchor,
+        #custom-center-chart-anchor,
+        #custom-right-menu-anchor {
+            display: block !important;
             height: 0px !important;
             margin: 0px !important;
             padding: 0px !important;
+            overflow: hidden !important;
+        }
+        .element-container:has(#custom-left-menu-anchor),
+        div[data-testid="element-container"]:has(#custom-left-menu-anchor),
+        .element-container:has(#custom-center-chart-anchor),
+        div[data-testid="element-container"]:has(#custom-center-chart-anchor),
+        .element-container:has(#custom-right-menu-anchor),
+        div[data-testid="element-container"]:has(#custom-right-menu-anchor) {
+            margin: 0px !important;
+            padding: 0px !important;
+            height: 0px !important;
         }
 
-        /* 7. แถบ Scrollbar ขนาดบางเฉียบสำหรับเมนูซ้ายและขวา */
+        /* 9. Scrollbar ขนาด 4px สำหรับซ้ายและขวา */
         div[data-testid="stColumn"]:has(#custom-left-menu-anchor)::-webkit-scrollbar,
         div[data-testid="stColumn"]:has(#custom-right-menu-anchor)::-webkit-scrollbar {
             width: 4px !important;
