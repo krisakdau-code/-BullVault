@@ -17,87 +17,62 @@ from data.symbols import (
     get_full_vietnam_symbols,
     _load_json
 )
+from data.fetchers import resolve_market_info
+
+# นิยาม 5 กลุ่มสีหลัก
+COLOR_TAGS = {
+    "red": {"name": "แดง", "dot": "🔴", "hex": "#FF3366"},
+    "green": {"name": "เขียว", "dot": "🟢", "hex": "#00FF66"},
+    "orange": {"name": "ส้ม", "dot": "🟠", "hex": "#FF7A1A"},
+    "blue": {"name": "ฟ้า", "dot": "🔵", "hex": "#00E5FF"},
+    "white": {"name": "ขาว", "dot": "⚪", "hex": "#FFFFFF"},
+}
 
 def set_active_symbol(sym_code: str):
     st.session_state["current_symbol"] = sym_code
     st.session_state["selected_symbol"] = sym_code
+    
+    # ซิงค์กับ chart_tabs ของหน้าจอหลัก
+    if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
+        active_id = st.session_state.get("active_tab_id")
+        for t in st.session_state["chart_tabs"]:
+            if t.get("id") == active_id:
+                t["symbol"] = sym_code
+                break
+
     if "open_tabs" in st.session_state and st.session_state.open_tabs:
         active_id = st.session_state.get("active_tab_id")
         for t in st.session_state.open_tabs:
             if t.get("id") == active_id:
                 t["symbol"] = sym_code
                 break
+
     for k in ("active_key", "df_data", "last_fetch_ts"):
         st.session_state.pop(k, None)
 
 def render_sidebar():
-    # Anchor สำหรับปุ่มสไลด์ซ้าย
+    # Anchor สำหรับ Workspace Resizers
     st.markdown('<div id="custom-left-menu-anchor" style="display:none;"></div>', unsafe_allow_html=True)
 
     if "sidebar_active_tab" not in st.session_state:
         st.session_state["sidebar_active_tab"] = "market"
-    if "star_watchlists" not in st.session_state:
-        st.session_state["star_watchlists"] = {
-            "🔴 ดาวแดง": ["BTCUSDT"],
-            "🟡 ดาวเหลือง": ["ETHUSDT"],
-            "🟢 ดาวเขียว": ["DELTA.BK"],
-            "🔵 ดาวฟ้า": ["SOLUSDT"],
-            "🟣 ดาวม่วง": ["GC=F"]
+        
+    # ค่าเริ่มต้นสำหรับ 5 กลุ่มสี
+    if "color_watchlists" not in st.session_state:
+        st.session_state["color_watchlists"] = {
+            "red": ["BTCUSDT"],
+            "green": ["DELTA.BK"],
+            "orange": ["ETHUSDT"],
+            "blue": ["SOLUSDT"],
+            "white": ["GC=F"]
         }
+        
+    if "active_color_filter" not in st.session_state:
+        st.session_state["active_color_filter"] = "all"
 
-    # CSS แต่งการ์ดมืดและปุ่มสไตล์ TradingView ให้ตรงกับรูป
+    # CSS ตกแต่ง Cyberpunk UI
     st.markdown("""
     <style>
-    .tv-tab-header {
-        display: flex;
-        border-bottom: 1px solid #2a2e39;
-        margin-bottom: 10px;
-    }
-    .tv-tab-btn {
-        flex: 1;
-        text-align: center;
-        padding: 6px 0;
-        font-size: 13px;
-        font-weight: 700;
-        cursor: pointer;
-    }
-    .tv-tab-orange {
-        color: #FF7A1A;
-        border-bottom: 2px solid #FF7A1A;
-    }
-    .tv-tab-green {
-        color: #787b86;
-    }
-    .tv-card-deck {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        margin-top: 6px;
-    }
-    .tv-card-row {
-        background: #131722;
-        border: 1px solid #2a2e39;
-        border-radius: 6px;
-        padding: 8px 12px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        cursor: pointer;
-        transition: border-color 0.2s;
-    }
-    .tv-card-row:hover {
-        border-color: #FF7A1A;
-    }
-    .tv-card-sym {
-        font-size: 13px;
-        font-weight: 700;
-        color: #ffffff;
-    }
-    .tv-card-price {
-        font-size: 12px;
-        color: #8b949e;
-        font-family: monospace;
-    }
     .tv-pill-green {
         background: rgba(8, 153, 129, 0.2);
         color: #089981;
@@ -143,75 +118,62 @@ def render_sidebar():
     # แท็บ 1: ตลาด (ส้ม)
     # ══════════════════════════════════════════════════════
     if st.session_state["sidebar_active_tab"] == "market":
-        # ขั้นที่ 1: เลือกระดับกลุ่มสินทรัพย์ (5 กลุ่ม)
-        cat = st.selectbox(
+        # เลือกระดับกลุ่มสินทรัพย์
+        st.selectbox(
             "1. กลุ่มสินทรัพย์",
             ["1. คริปโต (Crypto)", "2. หุ้น (Stock)", "3. ฟอเร็กซ์ (Forex)", "4. สินทรัพย์/โภคภัณฑ์", "5. ข้าว (Rice)"],
             label_visibility="collapsed",
             key="sb_asset_cat"
         )
 
-      # ขั้นที่ 2: ปุ่มกดเปิดป๊อปอัปเลือกเหรียญ/หุ้น (Symbol Search Modal)
-        from ui.symbol_modal import render_symbol_modal
-        
         selected_sym = st.session_state.get("current_symbol", "BTCUSDT")
-        
-        c_btn1, c_btn2 = st.columns([3, 1])
-        with c_btn1:
-            if st.button(f"🔍 {selected_sym}", key="btn_open_modal_main", use_container_width=True, type="secondary"):
-                render_symbol_modal()
-        with c_btn2:
-            if st.button("เลือก", key="btn_open_modal_sub", use_container_width=True, type="primary"):
-                render_symbol_modal()
-
-        # กำหนด symbol_map รองรับการ์ดแสดงผลและรายการด้านล่าง
-        from data.fetchers import resolve_market_info
         meta = resolve_market_info(selected_sym)
         tag = meta.get("exchange", "BINANCE")
-        symbol_map = {
-            selected_sym: {"price": "--", "chg": "0.00%", "up": True, "tag": tag},
-            "BTCUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},
-            "ETHUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},
-            "SOLUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},
-            "BNBUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},
-            "GC=F": {"price": "--", "chg": "0.00%", "up": True, "tag": "COMMODITY"},
-            "DELTA.BK": {"price": "--", "chg": "0.00%", "up": True, "tag": "SET"},
-        }
-        # ขั้นที่ 4: กล่องแสดงเหรียญที่เลือก (Selected Asset Card) สไตล์ในรูป
-        cur_info = symbol_map.get(selected_sym, {"price": "---", "chg": "+0.00%", "up": True, "tag": "MARKET"})
-        p_badge = "tv-pill-green" if cur_info["up"] else "tv-pill-red"
-        st.markdown(f"""
-        <div style="background:#131722; border:1px solid #FF7A1A; border-radius:6px; padding:8px 12px; margin:6px 0; display:flex; justify-content:space-between; align-items:center;">
-            <div>
-                <div style="display:flex; align-items:center; gap:6px;">
-                    <span style="color:#ffffff; font-weight:700; font-size:14px;">🔍 {selected_sym}</span>
-                    <span style="background:rgba(255,122,26,0.15); color:#FF7A1A; border:1px solid #FF7A1A; border-radius:4px; font-size:10px; padding:1px 5px; font-weight:bold;">{cur_info['tag']}</span>
-                </div>
-                <div style="color:#ffffff; font-size:15px; font-weight:800; margin-top:2px;">{cur_info['price']}</div>
-            </div>
-            <div>
-                <span class="{p_badge}">{cur_info['chg']}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
 
-        # ขั้นที่ 5: ติ๊กเลือกส่งไปที่กลุ่มสีโปรด
-        st.caption("⭐ ส่งเข้ากลุ่มสีโปรด:")
-        c_cols = st.columns(5)
-        color_keys = ["🔴 ดาวแดง", "🟡 ดาวเหลือง", "🟢 ดาวเขียว", "🔵 ดาวฟ้า", "🟣 ดาวม่วง"]
-        for idx, k_col in enumerate(color_keys):
-            with c_cols[idx]:
-                has_it = selected_sym in st.session_state["star_watchlists"].get(k_col, [])
-                if st.button(f"✓" if has_it else k_col[0], key=f"fav_btn_{k_col}_{selected_sym}", use_container_width=True):
-                    if has_it:
-                        st.session_state["star_watchlists"][k_col].remove(selected_sym)
-                    else:
-                        st.session_state["star_watchlists"][k_col].append(selected_sym)
-                    st.rerun()
+        # 1. แถบค้นหาเหรียญแบบ Compact แถวเดียว (ตัดความซ้ำซ้อนออกทั้งหมด)
+        if st.button(f"🔍 {selected_sym}   [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary", help="คลิกเพื่อค้นหาและเปลี่ยนสินทรัพย์"):
+            render_symbol_modal()
 
-        # รายการสินทรัพย์เฝ้าดู 7 ตัวเป๊ะตามรูปตัวอย่าง
+        # 2. แถบกรอง 5 กลุ่มสี (แดง, เขียว, ส้ม, ฟ้า, ขาว)
+        st.markdown("<div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>", unsafe_allow_html=True)
+        f_cols = st.columns([1.4, 1, 1, 1, 1, 1])
+        cur_filter = st.session_state.get("active_color_filter", "all")
+        
+        with f_cols[0]:
+            if st.button("ทั้งหมด", key="filter_all", use_container_width=True, type="primary" if cur_filter == "all" else "secondary"):
+                st.session_state["active_color_filter"] = "all"
+                st.rerun()
+        with f_cols[1]:
+            if st.button("🔴", key="filter_red", use_container_width=True, type="primary" if cur_filter == "red" else "secondary", help="กลุ่มสีแดง"):
+                st.session_state["active_color_filter"] = "red"
+                st.rerun()
+        with f_cols[2]:
+            if st.button("🟢", key="filter_green", use_container_width=True, type="primary" if cur_filter == "green" else "secondary", help="กลุ่มสีเขียว"):
+                st.session_state["active_color_filter"] = "green"
+                st.rerun()
+        with f_cols[3]:
+            if st.button("🟠", key="filter_orange", use_container_width=True, type="primary" if cur_filter == "orange" else "secondary", help="กลุ่มสีส้ม"):
+                st.session_state["active_color_filter"] = "orange"
+                st.rerun()
+        with f_cols[4]:
+            if st.button("🔵", key="filter_blue", use_container_width=True, type="primary" if cur_filter == "blue" else "secondary", help="กลุ่มสีฟ้า"):
+                st.session_state["active_color_filter"] = "blue"
+                st.rerun()
+        with f_cols[5]:
+            if st.button("⚪", key="filter_white", use_container_width=True, type="primary" if cur_filter == "white" else "secondary", help="กลุ่มสีขาว"):
+                st.session_state["active_color_filter"] = "white"
+                st.rerun()
+
+        # 3. รายการสินทรัพย์เฝ้าดู (Watchlist)
         st.markdown("<div style='font-size:12px; color:#8b949e; margin:10px 0 4px 0;'>📋 รายการสินทรัพย์เฝ้าดู</div>", unsafe_allow_html=True)
-        watchlist_presets = [
+        
+        def get_sym_color_dot(sym):
+            for c_key, c_info in COLOR_TAGS.items():
+                if sym in st.session_state.get("color_watchlists", {}).get(c_key, []):
+                    return c_info["dot"]
+            return ""
+
+        base_watchlist = [
             ("BTCUSDT", "79,036.15", "+2.27%", True),
             ("ETHUSDT", "2,645.80", "+3.14%", True),
             ("SOLUSDT", "184.25", "+5.42%", True),
@@ -221,11 +183,28 @@ def render_sidebar():
             ("PTT.BK", "33.50", "+0.75%", True)
         ]
 
-        for sym, p_val, c_val, is_up in watchlist_presets:
+        # กรองรายการตามกลุ่มสีที่เลือก
+        if cur_filter == "all":
+            display_list = base_watchlist
+        else:
+            allowed_syms = set(st.session_state.get("color_watchlists", {}).get(cur_filter, []))
+            display_list = [item for item in base_watchlist if item[0] in allowed_syms]
+            # หากมีเหรียญอื่นถูกย้ายเข้ามา ให้ดึงมาแสดงด้วย
+            for sym in allowed_syms:
+                if not any(item[0] == sym for item in display_list):
+                    display_list.append((sym, "--", "0.00%", True))
+
+        if not display_list:
+            st.caption(f"ไม่มีเหรียญในกลุ่ม {COLOR_TAGS.get(cur_filter, {}).get('name', '')}")
+
+        for sym, p_val, c_val, is_up in display_list:
             p_class = "tv-pill-green" if is_up else "tv-pill-red"
+            c_dot = get_sym_color_dot(sym)
+            btn_title = f"{c_dot} {sym}".strip()
+
             c1, c2 = st.columns([2.2, 1.8])
             with c1:
-                if st.button(sym, key=f"wl_btn_{sym}", use_container_width=True):
+                if st.button(btn_title, key=f"wl_btn_{sym}_{cur_filter}", use_container_width=True):
                     set_active_symbol(sym)
                     st.rerun()
             with c2:

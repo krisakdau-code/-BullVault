@@ -224,13 +224,62 @@ st.markdown("""
 def inject_workspace_resizers():
     components.html("""
     <style>
-        /* ซ่อนแถบ Resizer ทั้งหมดเมื่อเปิดบนหน้าจอมือถือ (กว้างต่ำกว่า 768px) */
+        /* ซ่อนแถบ Resizer บนจอมือถือ */
         @media (max-width: 768px) {
             #resizer-left-bar,
             #resizer-right-bar,
-            #drag-shield-overlay {
+            #drag-shield-overlay,
+            #custom-color-context-menu {
                 display: none !important;
             }
+        }
+        /* เมนูลอยคลิกขวา Cyberpunk */
+        #custom-color-context-menu {
+            position: fixed;
+            z-index: 1000000;
+            background: #181b22;
+            border: 1px solid #2a2e39;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 10px rgba(255,122,26,0.2);
+            border-radius: 6px;
+            padding: 6px;
+            min-width: 140px;
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            font-size: 12px;
+            user-select: none;
+        }
+        .ctx-header {
+            color: #8b949e;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-bottom: 1px solid #2a2e39;
+            margin-bottom: 2px;
+        }
+        .ctx-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 8px;
+            border-radius: 4px;
+            color: #d1d4dc;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        .ctx-item:hover {
+            background: rgba(255, 122, 26, 0.15);
+            color: #ffffff;
+        }
+        .ctx-remove {
+            color: #f23645;
+            border-top: 1px solid #2a2e39;
+            margin-top: 2px;
+            padding-top: 5px;
+        }
+        .ctx-remove:hover {
+            background: rgba(242, 54, 69, 0.15);
+            color: #ff4d5a;
         }
     </style>
     <script>
@@ -261,8 +310,80 @@ def inject_workspace_resizers():
                 return el ? el.closest('[data-testid="stColumn"], [data-testid="column"], .stColumn') : null;
             }
 
+            // ระบบเมนูลอยคลิกขวาจัดการกลุ่มสี
+            let activeTargetSym = null;
+            let ctxMenu = doc.getElementById('custom-color-context-menu');
+            if (!ctxMenu) {
+                ctxMenu = doc.createElement('div');
+                ctxMenu.id = 'custom-color-context-menu';
+                ctxMenu.innerHTML = `
+                    <div class="ctx-header" id="ctx-symbol-title">จัดการกลุ่มสี</div>
+                    <div class="ctx-item" data-color="red"><span>🔴</span> แดง</div>
+                    <div class="ctx-item" data-color="green"><span>🟢</span> เขียว</div>
+                    <div class="ctx-item" data-color="orange"><span>🟠</span> ส้ม</div>
+                    <div class="ctx-item" data-color="blue"><span>🔵</span> ฟ้า</div>
+                    <div class="ctx-item" data-color="white"><span>⚪</span> ขาว</div>
+                    <div class="ctx-item ctx-remove" data-action="remove"><span>✖</span> ลบออกจากกลุ่ม</div>
+                `;
+                doc.body.appendChild(ctxMenu);
+
+                ctxMenu.querySelectorAll('.ctx-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        ctxMenu.style.display = 'none';
+                        const color = item.dataset.color;
+                        const action = item.dataset.action;
+                        if (!activeTargetSym) return;
+
+                        // ส่งคำสั่งผ่าน query params เพื่อให้อัปเดต state ใน Streamlit
+                        const url = new URL(window.parent.location.href);
+                        if (action === 'remove') {
+                            url.searchParams.set('remove_color_sym', activeTargetSym);
+                            url.searchParams.delete('set_color');
+                        } else if (color) {
+                            url.searchParams.set('set_color_sym', activeTargetSym);
+                            url.searchParams.set('set_color', color);
+                        }
+                        window.parent.location.search = url.search;
+                    });
+                });
+
+                doc.addEventListener('click', () => {
+                    if (ctxMenu) ctxMenu.style.display = 'none';
+                });
+            }
+
+            function setupWatchlistContextMenu() {
+                const sideCol = getCol('custom-left-menu-anchor');
+                if (!sideCol) return;
+
+                // ตรวจหาปุ่มเหรียญใน Watchlist ทั้งหมด
+                const buttons = sideCol.querySelectorAll('button');
+                buttons.forEach(btn => {
+                    const txt = (btn.innerText || '').trim();
+                    // ตรวจเฉพาะปุ่มที่เป็นชื่อเหรียญ (มี dot หรือเป็นคู่เหรียญ)
+                    if (!btn.dataset.ctxBound && (txt.includes('USDT') || txt.includes('=F') || txt.includes('.BK') || txt.includes('🔴') || txt.includes('🟢') || txt.includes('🟠') || txt.includes('🔵') || txt.includes('⚪'))) {
+                        btn.dataset.ctxBound = 'true';
+                        btn.addEventListener('contextmenu', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            // สกัดเฉพาะชื่อเหรียญ (ตัด dot สีออกถ้ามี)
+                            const cleanSym = txt.replace(/^[🔴🟢🟠🔵⚪]\s*/, '').trim();
+                            activeTargetSym = cleanSym;
+
+                            const titleEl = doc.getElementById('ctx-symbol-title');
+                            if (titleEl) titleEl.innerText = cleanSym;
+
+                            ctxMenu.style.left = e.clientX + 'px';
+                            ctxMenu.style.top = e.clientY + 'px';
+                            ctxMenu.style.display = 'flex';
+                        });
+                    }
+                });
+            }
+
             function attachResizers() {
-                // หากหน้าจอแคบกว่า 768px (มือถือ) ให้หยุดทำงาน ไม่ต้องแทรกแถบลาก
                 if (window.parent.innerWidth < 768) return;
 
                 const sideCol = getCol('custom-left-menu-anchor');
@@ -275,8 +396,9 @@ def inject_workspace_resizers():
                 }
 
                 const shield = createShield();
+                setupWatchlistContextMenu();
 
-                // 1. จัดการฝั่งซ้าย (รองรับทั้ง Mouse และ Touch)
+                // 1. จัดการฝั่งซ้าย
                 if (sideCol && !doc.getElementById('resizer-left-bar')) {
                     const resizerL = doc.createElement('div');
                     resizerL.id = 'resizer-left-bar';
@@ -321,7 +443,7 @@ def inject_workspace_resizers():
                     resizerL.ontouchstart = (e) => { if (e.touches[0]) startDragL(e.touches[0].clientX); };
                 }
 
-                // 2. จัดการฝั่งขวา (Position Absolute รองรับทั้ง Mouse และ Touch)
+                // 2. จัดการฝั่งขวา
                 if (rightCol) {
                     rightCol.style.position = 'relative';
 
@@ -408,7 +530,6 @@ def inject_workspace_resizers():
     })();
     </script>
     """, height=0, width=0)
-
 if "chart_tabs" not in st.session_state:
     st.session_state["chart_tabs"] = [
         {"id": "tab_1", "symbol": "BTCUSDT", "tf": "1h"}
@@ -445,6 +566,27 @@ def dashboard():
         st.cache_data.clear()
         st.cache_resource.clear()
         st.session_state.clear()
+        st.query_params.clear()
+        st.rerun()
+
+        # จัดการคำสั่งย้ายกลุ่มสี หรือลบออกจากกลุ่ม ที่ส่งมาจาก Context Menu
+    if "set_color_sym" in st.query_params and "set_color" in st.query_params:
+        target_sym = st.query_params["set_color_sym"]
+        target_color = st.query_params["set_color"]
+        if "color_watchlists" in st.session_state:
+            for c_list in st.session_state["color_watchlists"].values():
+                if target_sym in c_list:
+                    c_list.remove(target_sym)
+            st.session_state["color_watchlists"].setdefault(target_color, []).append(target_sym)
+        st.query_params.clear()
+        st.rerun()
+
+    if "remove_color_sym" in st.query_params:
+        target_sym = st.query_params["remove_color_sym"]
+        if "color_watchlists" in st.session_state:
+            for c_list in st.session_state["color_watchlists"].values():
+                if target_sym in c_list:
+                    c_list.remove(target_sym)
         st.query_params.clear()
         st.rerun()
 
