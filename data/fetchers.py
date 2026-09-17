@@ -5,24 +5,13 @@ import requests
 import pandas as pd
 import numpy as np
 import streamlit as st
-# สั่งให้ Background Worker ตรวจสอบและดึงประวัติศาสตร์ 5,000 แท่งในพื้นหลังทันที
-from data.history_sync import sync_deep_history_background
-sync_deep_history_background(clean_sym, tf, target_bars=5000)
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-}
 
-BINANCE_TF_MAP = {
-    "5m": "5m", "15m": "15m", "30m": "30m",
-    "1h": "1h", "2h": "2h", "3h": "2h", "4h": "4h",
-    "D": "1d", "2D": "1d", "3D": "3d", "W": "1w", "M": "1M"
-}
-
-BITKUB_TF_MAP = {
-    "5m": "5", "15m": "15", "30m": "30",
-    "1h": "60", "2h": "120", "3h": "180", "4h": "240",
-    "D": "1D", "2D": "1D", "3D": "1D", "W": "1W", "M": "1M"
-}
+# เรียกใช้งานโมดูลแคชและการซิงก์ประวัติศาสตร์ (ทิศทางเดียว ปราศจาก Circular Import)
+from data.history_sync import (
+    HEADERS, BINANCE_TF_MAP, BITKUB_TF_MAP,
+    _get_cache_path, _load_cached_df, _save_cached_df,
+    sync_deep_history_background
+)
 
 YF_TF_MAP = {
     "5m": "5m", "15m": "15m", "30m": "30m",
@@ -32,36 +21,6 @@ YF_TF_MAP = {
 
 def is_yahoo_symbol(symbol: str) -> bool:
     return any(suffix in symbol for suffix in [".BK", ".HK", ".SS", ".SZ", ".VN", "=F", "=X"])
-
-# ระบบแคชข้อมูลในเครื่อง (Local Parquet Cache)
-CACHE_DIR = os.path.join("data", "cache")
-os.makedirs(CACHE_DIR, exist_ok=True)
-
-def _get_cache_path(symbol: str, tf: str) -> str:
-    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', symbol)
-    return os.path.join(CACHE_DIR, f"{safe_name}_{tf}.parquet")
-
-def _load_cached_df(cache_path: str) -> pd.DataFrame:
-    if os.path.exists(cache_path):
-        try:
-            return pd.read_parquet(cache_path)
-        except Exception:
-            pkl_path = cache_path.replace(".parquet", ".pkl")
-            if os.path.exists(pkl_path):
-                try:
-                    return pd.read_pickle(pkl_path)
-                except Exception:
-                    pass
-    return pd.DataFrame()
-
-def _save_cached_df(df: pd.DataFrame, cache_path: str):
-    if df.empty:
-        return
-    try:
-        df.to_parquet(cache_path, index=False)
-    except Exception:
-        pkl_path = cache_path.replace(".parquet", ".pkl")
-        df.to_pickle(pkl_path)
 
 @st.cache_data(ttl=300, show_spinner=False)
 def get_usd_thb_rate() -> float:
@@ -81,9 +40,12 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
     cache_path = _get_cache_path(clean_sym, tf)
     cached_df = _load_cached_df(cache_path)
     
+    # สั่งให้ Background Worker ดึงประวัติศาสตร์ 5,000 แท่งในพื้นหลังทันที
+    sync_deep_history_background(clean_sym, tf, target_bars=5000)
+    
     last_timestamp = int(cached_df["time"].max()) if not cached_df.empty and "time" in cached_df.columns else 0
 
-    # 1. สินทรัพย์กลุ่มข้าว (Local Catalog & Synthetic OHLCV)
+    # 1. สินทรัพย์กลุ่มข้าว (Local Catalog)
     if clean_sym.startswith("RICE:") or clean_sym.startswith("FOB:"):
         try:
             from data.rice_ohlcv import get_rice_ohlcv
@@ -114,7 +76,7 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
         except Exception:
             pass
 
-    # 3. สินทรัพย์คริปโตกระดาน Bitkub (เหรียญที่ลงท้ายด้วย _THB)
+    # 3. สินทรัพย์คริปโตกระดาน Bitkub (เหรียญ _THB)
     if "_THB" in clean_sym or clean_sym.startswith("THB_"):
         coin = clean_sym.replace("_THB", "").replace("THB_", "")
         bk_symbol = f"THB_{coin}"
@@ -142,7 +104,7 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
         except Exception:
             pass
 
-        # Smart Failover: กรณี Bitkub ออฟไลน์
+        # Smart Failover: สำรองกรณี Bitkub ออฟไลน์
         try:
             binance_equiv = f"{coin}USDT"
             df_equiv = fetch_ohlcv(binance_equiv, tf=tf, limit=limit)
@@ -154,7 +116,7 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
         except Exception:
             pass
 
-    # 4. สินทรัพย์คริปโตสากล (Binance REST API) - Incremental Fetch
+    # 4. สินทรัพย์คริปโตสากล (Binance REST API)
     clean_crypto = clean_sym.replace("/", "").replace(" ", "")
     interval = BINANCE_TF_MAP.get(tf, "1h")
     url = "https://api.binance.com/api/v3/klines"

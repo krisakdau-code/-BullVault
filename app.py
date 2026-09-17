@@ -235,9 +235,12 @@ def render_top_toolbar():
 
     bars = 2000
     st.session_state["toolbar_bars"] = bars
-    # คืนค่าตัวแปรสำรองครบชุด ป้องกันจุดเรียกใช้ด้านล่างเกิด Error Unpack
+    # บรรทัดนี้อยู่ใน render_top_toolbar (มีย่อหน้า 4 ช่อง)
     return tf, bars, False, False, 2, False
-    # ตรวจจับคำสั่งล้างแคช & รีสตาร์ตจากเบราว์เซอร์
+
+
+def dashboard():
+    # บรรทัดนี้และบรรทัดถัดไป มีย่อหน้า 4 ช่องตามปกติ
     if "clear_cache" in st.query_params:
         st.cache_data.clear()
         st.cache_resource.clear()
@@ -245,9 +248,6 @@ def render_top_toolbar():
         st.query_params.clear()
         st.rerun()
 
-    apply_theme()
-    render_floating_sidebar_toggle()
-    init_settings_state()
     apply_theme()
     render_floating_sidebar_toggle()
     init_settings_state()
