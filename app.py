@@ -40,7 +40,6 @@ from ui.rice_tab import render_rice_tab, show_rice_dialog_modal
 from ui.right_panel import render_right_panel
 from ui.sidebar_refactored import render_sidebar
 from ui.theme import apply_theme
-from ui.top_toolbar import render_top_toolbar
 from ui_components import (
     build_asset_icon_html,
     fetch_seasonality_svg,
@@ -126,6 +125,40 @@ st.markdown("""
         width: 0px !important;
         height: 0px !important;
     }
+
+    /* 5. ปุ่ม Timeframe แนวนอนสไตล์เดิม (Clean Minimalist Pill) */
+    div[data-testid="stRadio"] > div[role="radiogroup"] {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 3px !important;
+    }
+
+    div[data-testid="stRadio"] > div[role="radiogroup"] label {
+        padding: 3px 6px !important;
+        margin: 0 !important;
+        border-radius: 4px !important;
+        cursor: pointer !important;
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        color: #9aa0a6 !important;
+        background: transparent !important;
+        border: none !important;
+    }
+
+    div[data-testid="stRadio"] > div[role="radiogroup"] label > div:first-child {
+        display: none !important;
+    }
+
+    div[data-testid="stRadio"] > div[role="radiogroup"] label:hover {
+        color: #ffffff !important;
+        background-color: rgba(255, 255, 255, 0.08) !important;
+    }
+
+    div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
+        color: #ffffff !important;
+        background-color: #2a2e39 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -175,19 +208,16 @@ def dashboard():
     init_settings_state()
 
     symbol = st.session_state.get("current_symbol", "BTCUSDT")
+    tf = st.session_state.get("selected_tf", "1h")
 
-    # 1. แสดง Clean Top Toolbar และรับค่า Timeframe ที่เลือก
-    tf = render_top_toolbar(current_symbol=symbol)
-    
-    # ดึงค่าความลึกของแท่งเทียนให้สัมพันธ์กับ Ultra-Deep TF_TARGET_BARS
+    # ปรับความลึกแท่งเทียนตามตาราง Ultra-Deep History อัตโนมัติ
     bars = TF_TARGET_BARS.get(tf, 25000)
 
-    # 2. เตรียมข้อมูลตลาดและอัตราแลกเปลี่ยน
+    # 1. เตรียมข้อมูลตลาดและคำนวณข้อมูลในหน่วยความจำ
     meta = resolve_market_info(symbol)
     fx_rate = get_usd_thb_rate()
     is_thb_mode = st.session_state.get("currency_mode_thb", False)
 
-    # 3. ดึงข้อมูลแท่งเทียน
     df = fetch_ohlcv(symbol, tf, bars)
     if not df.empty:
         df, stats = diamond_armor(df, fast=st.session_state["fast_ema"], slow=st.session_state["slow_ema"], trend=st.session_state["trend_ema"])
@@ -200,23 +230,38 @@ def dashboard():
         last_close = 0.0
         live_pct = 0.0
 
-    # 4. แสดงผลแถบสรุปสินทรัพย์
+    # 2. วาดแถบเครื่องมือด้านบนสุดแถวเดียว (Single-Row Top Toolbar แบบเดิม)
     pct_sign = "+" if live_pct >= 0 else ""
     pct_str = f"{pct_sign}{live_pct:.2f}%"
     display_title = meta["display_name"]
 
-    c_tab, c_add, c_empty = st.columns([2.5, 0.4, 11.5])
+    c_tab, c_add, c_tf, c_ind = st.columns([1.8, 0.35, 6.2, 1.4], gap="small")
     with c_tab:
         st.markdown('<div id="custom-tabs-anchor"></div>', unsafe_allow_html=True)
         st.button(f"💎 {display_title} {pct_str}", key="main_active_tab_btn", type="primary", use_container_width=True)
     with c_add:
         st.button("+", key="add_t_btn")
+    with c_tf:
+        st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
+        primary_tfs = ["5m", "15m", "30m", "1h", "2h", "3h", "4h", "D", "2D", "3D", "W", "M"]
+        cur_tf = st.session_state.get("selected_tf", "1h")
+        def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 3
+        new_tf = st.radio("TF", primary_tfs, index=def_idx, horizontal=True, label_visibility="collapsed", key="toolbar_tf_horizontal")
+        if new_tf != cur_tf:
+            st.session_state["selected_tf"] = new_tf
+            st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+    with c_ind:
+        with st.popover("📊 Indicators ▾", use_container_width=True):
+            st.toggle("RSI (14)", value=True, key="show_rsi_pane")
+            st.toggle("MACD (12, 26, 9)", value=True, key="show_macd_pane")
+            st.toggle("EMA Ribbon", value=True, key="show_ema")
 
-    # 5. คำนวณทางเทคนิคและสร้างกราฟ
+    # 3. คำนวณทางเทคนิคและสร้างกราฟ
     tech_data = compute_full_technicals(df)
     charts = build_charts(df, symbol, tf, 520, 120, 120)
 
-    # 6. แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | พาเนลขวา
+    # 4. แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | พาเนลขวา
     col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
     with col_side:
