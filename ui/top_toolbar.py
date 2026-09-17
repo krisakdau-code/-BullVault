@@ -24,7 +24,7 @@ def init_toolbar_state():
     if "favorite_tfs" not in st.session_state:
         st.session_state.favorite_tfs = DEFAULT_FAVORITES.copy()
 
-def render_top_toolbar(current_symbol: str = "BTCUSDT"):
+def render_top_toolbar(current_symbol: str = "BTCUSDT", **kwargs):
     init_toolbar_state()
     
     st.markdown("""

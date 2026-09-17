@@ -11,31 +11,19 @@ import pandas as pd
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
-from ui.theme import apply_theme
-from ui.sidebar_refactored import render_sidebar
-from ui.floating_toggle import render_floating_sidebar_toggle
-from ui.top_toolbar import render_top_toolbar
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
+
 from chart_builders import build_charts
 from config import *
-from data.rice_ohlcv import generate_rice_ohlcv
-from ui.rice_tab import show_rice_dialog_modal, render_rice_tab
-from ui.chart_settings_modal import show_chart_settings_dialog, init_settings_state
-from drawing_chart import render_drawing_chart
-from requests.adapters import HTTPAdapter
-from streamlit_lightweight_charts_ntf import renderLightweightCharts
-from technicals import compute_full_technicals, diamond_armor, fetch_market_analytics
-from ui_components import (
-
-    build_asset_icon_html,
-    fetch_seasonality_svg,
-    render_3_gauges_html,
-    render_fibonacci_modal_content,
-
-    render_market_modal_content,
-    render_tv_quote_card,
-    render_panel_controls,
+from data.fetchers import (
+    TF_TARGET_BARS,
+    fetch_ohlcv as fetch_market_ohlcv,
+    fetch_ticker_24h,
+    get_usd_thb_rate,
+    resolve_market_info,
 )
-from data.fetchers import fetch_ohlcv, fetch_ticker_24h
+from data.rice_ohlcv import generate_rice_ohlcv
 from data.symbols import (
     get_full_binance_symbols,
     get_full_bitkub_symbols,
@@ -43,10 +31,26 @@ from data.symbols import (
     get_full_forex,
     get_full_sp500_symbols,
 )
-from urllib3.util.retry import Retry
-from utils import _has_data, fmt_chg, fmt_price, fmt_vol
-from data.fetchers import get_usd_thb_rate, resolve_market_info
+from drawing_chart import render_drawing_chart
+from streamlit_lightweight_charts_ntf import renderLightweightCharts
+from technicals import compute_full_technicals, diamond_armor, fetch_market_analytics
+from ui.chart_settings_modal import init_settings_state, show_chart_settings_dialog
+from ui.floating_toggle import render_floating_sidebar_toggle
+from ui.rice_tab import render_rice_tab, show_rice_dialog_modal
 from ui.right_panel import render_right_panel
+from ui.sidebar_refactored import render_sidebar
+from ui.theme import apply_theme
+from ui.top_toolbar import render_top_toolbar
+from ui_components import (
+    build_asset_icon_html,
+    fetch_seasonality_svg,
+    render_3_gauges_html,
+    render_fibonacci_modal_content,
+    render_market_modal_content,
+    render_panel_controls,
+    render_tv_quote_card,
+)
+from utils import _has_data, fmt_chg, fmt_price, fmt_vol
 
 try:
     import yfinance as yf
@@ -83,7 +87,7 @@ st.markdown("""
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* 2. ตัดกล่องว่างและ Wrapper ซ่อนทั้งหมด (ลบพื้นที่สีเขียวทิ้ง 100%) */
+    /* 2. ตัดกล่องว่างและ Wrapper ซ่อนทั้งหมด */
     div[data-testid="stElementContainer"]:has(iframe[height="0"]),
     div[data-testid="stElementContainer"]:has(iframe[width="0"]),
     div[data-testid="stElementContainer"]:has(.stCustomComponentV1 > iframe[height="0"]),
@@ -96,14 +100,14 @@ st.markdown("""
         padding: 0px !important;
     }
 
-    /* 3. ดึงเนื้อหาหลักทั้งหมดขยับขึ้นแนบชิดขอบบน 0px ทันที */
+    /* 3. ดึงเนื้อหาหลักทั้งหมดขยับขึ้นแนบชิดขอบบน */
     .block-container,
     .stMainBlockContainer,
     [data-testid="stMainBlockContainer"],
     [data-testid="stAppViewBlockContainer"],
     section[data-testid="stMain"] .block-container {
         padding-top: 0rem !important;
-        margin-top: -24px !important; /* ปรับดึงทุกอย่างขึ้นชิดขอบบน */
+        margin-top: -24px !important;
         padding-bottom: 0rem !important;
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
@@ -121,40 +125,6 @@ st.markdown("""
         visibility: hidden !important;
         width: 0px !important;
         height: 0px !important;
-    }
-
-    /* 5. ปุ่ม Timeframe แนวนอนสไตล์ Pill มน */
-    div[data-testid="stRadio"] > div[role="radiogroup"] {
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        gap: 3px !important;
-    }
-
-    div[data-testid="stRadio"] > div[role="radiogroup"] label {
-        padding: 3px 6px !important;
-        margin: 0 !important;
-        border-radius: 4px !important;
-        cursor: pointer !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        color: #9aa0a6 !important;
-        background: transparent !important;
-        border: none !important;
-    }
-
-    div[data-testid="stRadio"] > div[role="radiogroup"] label > div:first-child {
-        display: none !important;
-    }
-
-    div[data-testid="stRadio"] > div[role="radiogroup"] label:hover {
-        color: #ffffff !important;
-        background-color: rgba(255, 255, 255, 0.08) !important;
-    }
-
-    div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
-        color: #ffffff !important;
-        background-color: #2a2e39 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -176,72 +146,23 @@ HTTP_SESSION.headers.update(BROWSER_HEADERS)
 retry_strategy = Retry(total=3, backoff_factor=0.8, status_forcelist=[429, 500, 502, 503, 504])
 HTTP_SESSION.mount("https://", HTTPAdapter(max_retries=retry_strategy))
 
-def fetch_binance_raw(symbol: str, interval: str, bars: int) -> pd.DataFrame:
-    iv_map = {"D": "1d", "2D": "1d", "3D": "1d", "W": "1w", "M": "1M"}
-    interval = iv_map.get(interval, interval)
-    try:
-        r = HTTP_SESSION.get("https://api.binance.com/api/v3/klines", params={"symbol": symbol, "interval": interval, "limit": min(bars, 1000)}, timeout=5)
-        if r.status_code == 200:
-            k = r.json()
-            df = pd.DataFrame(k, columns=["ot","open","high","low","close","volume","ct","qv","n","tb","tq","ig"])
-            df = df[["ot","open","high","low","close","volume"]].astype(float)
-            df["time"] = (df["ot"] // 1000).astype("int64")
-            return df.dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
-    except Exception: pass
-    return pd.DataFrame()
-
 def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
-    # 1. สินค้ากลุ่มข้าวไทย ข้าวส่งออกคู่แข่ง และ CBOT
+    # 1. สินค้ากลุ่มข้าวไทย และ CBOT
     if symbol.startswith("RICE:") or symbol.startswith("FOB:") or "ZR=F" in symbol:
-        from data.rice_ohlcv import generate_rice_ohlcv
         return generate_rice_ohlcv(symbol, bars=bars)
 
-    # 2. สินทรัพย์จริงทุกตลาด (คริปโต, หุ้นไทย, ทองคำ, Forex) ดึงสดผ่าน data/fetchers.py
-    from data.fetchers import fetch_ohlcv as fetch_market_ohlcv
+    # 2. สินทรัพย์จริงทุกตลาด ดึงสดผ่าน data/fetchers.py
     df = fetch_market_ohlcv(symbol=symbol, tf=tf, limit=bars)
 
-    # 3. แปลง Timestamp ให้อยู่ในฟอร์แมต Unix Seconds สำหรับ Lightweight Charts
+    # 3. จัดระเบียบ Timestamp ให้อยู่ในฟอร์แมต Unix Seconds สำหรับกราฟ
     if not df.empty and "time" in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df["time"]):
             df["time"] = (df["time"].astype("int64") // 10**9)
         return df.dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
 
     return df
-def render_top_toolbar():
-    # แถบควบคุมด้านบนสไตล์ TradingView คลีนเต็มจอ (Zero-Configuration)
-    col_spacer, col_tf, col_ind_menu = st.columns(
-        [0.35, 7.8, 1.8], gap="small"
-    )
-
-    with col_spacer:
-        st.markdown('<div id="toggle-btn-anchor" style="height:24px; width:34px;"></div>', unsafe_allow_html=True)
-
-    with col_tf:
-        # กำกับ translate="no" และ notranslate บล็อก Chrome Translate 100%
-        st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
-        primary_tfs = ["5m", "15m", "30m", "1h", "2h", "3h", "4h", "D", "2D", "3D", "W", "M"]
-        cur_tf = st.session_state.get("selected_tf", "1h")
-        def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 3
-        tf = st.radio("TF", primary_tfs, index=def_idx, horizontal=True, label_visibility="collapsed", key="toolbar_tf_horizontal")
-        if tf != st.session_state.get("selected_tf"):
-            st.session_state["selected_tf"] = tf
-            st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col_ind_menu:
-        with st.popover("📊 Indicators ▾", use_container_width=True):
-            st.toggle("RSI (14)", value=True, key="show_rsi_pane")
-            st.toggle("MACD (12, 26, 9)", value=True, key="show_macd_pane")
-            st.toggle("EMA Ribbon", value=True, key="show_ema")
-
-    bars = 2000
-    st.session_state["toolbar_bars"] = bars
-    # บรรทัดนี้อยู่ใน render_top_toolbar (มีย่อหน้า 4 ช่อง)
-    return tf, bars, False, False, 2, False
-
 
 def dashboard():
-    # บรรทัดนี้และบรรทัดถัดไป มีย่อหน้า 4 ช่องตามปกติ
     if "clear_cache" in st.query_params:
         st.cache_data.clear()
         st.cache_resource.clear()
@@ -255,16 +176,18 @@ def dashboard():
 
     symbol = st.session_state.get("current_symbol", "BTCUSDT")
 
-    # 1. กำหนดค่า Timeframe เริ่มต้น
-    tf = st.session_state.get("selected_tf", "1h")
-    bars = 2500
+    # 1. แสดง Clean Top Toolbar และรับค่า Timeframe ที่เลือก
+    tf = render_top_toolbar(current_symbol=symbol)
+    
+    # ดึงค่าความลึกของแท่งเทียนให้สัมพันธ์กับ Ultra-Deep TF_TARGET_BARS
+    bars = TF_TARGET_BARS.get(tf, 25000)
 
-    # 2. คำนวณข้อมูลในหน่วยความจำก่อน (Compute First - ยังไม่สั่งวาด UI)
-    from data.fetchers import get_usd_thb_rate, resolve_market_info
+    # 2. เตรียมข้อมูลตลาดและอัตราแลกเปลี่ยน
     meta = resolve_market_info(symbol)
     fx_rate = get_usd_thb_rate()
     is_thb_mode = st.session_state.get("currency_mode_thb", False)
 
+    # 3. ดึงข้อมูลแท่งเทียน
     df = fetch_ohlcv(symbol, tf, bars)
     if not df.empty:
         df, stats = diamond_armor(df, fast=st.session_state["fast_ema"], slow=st.session_state["slow_ema"], trend=st.session_state["trend_ema"])
@@ -277,7 +200,7 @@ def dashboard():
         last_close = 0.0
         live_pct = 0.0
 
-    # 3. บรรทัดที่ 1 (บนสุด): วาดแถบแท็บสินทรัพย์
+    # 4. แสดงผลแถบสรุปสินทรัพย์
     pct_sign = "+" if live_pct >= 0 else ""
     pct_str = f"{pct_sign}{live_pct:.2f}%"
     display_title = meta["display_name"]
@@ -289,39 +212,11 @@ def dashboard():
     with c_add:
         st.button("+", key="add_t_btn")
 
-    # 4. บรรทัดที่ 2 (ถัดลงมา): วาดแถบเครื่องมือ Top Toolbar
-    if st.session_state.get("show_top_bar", True):
-        tb_tf, tb_bars, tb_fill, auto, every, reload_btn = render_top_toolbar()
-        tf = tb_tf
-        bars = tb_bars
-   
+    # 5. คำนวณทางเทคนิคและสร้างกราฟ
     tech_data = compute_full_technicals(df)
-    seasonality_html = fetch_seasonality_svg(df)
-    gauges_html_compact = render_3_gauges_html(tech_data, compact=True)
-
-    tk_data = {
-        "price": last_close, "change": chg_val, "pct": live_pct,
-        "high": float(df["high"].max()), "low": float(df["low"].min()),
-        "vol": float(df["volume"].iloc[-1]), "bid": last_close, "ask": last_close
-    }
     charts = build_charts(df, symbol, tf, 520, 120, 120)
 
-    try:
-        tech_data = compute_full_technicals(df)
-    except Exception:
-        tech_data = {}
-
-    try:
-        gauges_html_compact = render_3_gauges_html(tech_data)
-    except Exception:
-        gauges_html_compact = ""
-
-    try:
-        seasonality_html = fetch_seasonality_svg(symbol)
-    except Exception:
-        seasonality_html = ""
-
-    # แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | บทวิเคราะห์เทคนิค 24h ขวา
+    # 6. แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | พาเนลขวา
     col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
     with col_side:
@@ -341,7 +236,6 @@ def dashboard():
                 <b style='font-size:13px; color:#ffffff;'>บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>
             </div>
         """, unsafe_allow_html=True)
-        from ui.right_panel import render_right_panel
         render_right_panel(df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate)
 
 dashboard()
