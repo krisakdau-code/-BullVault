@@ -190,16 +190,51 @@ st.markdown("""
         max-width: 100% !important;
         flex: 1 1 auto !important;
     }
+    /* 6. ปลดล็อกระบบปรับขนาดพาเนลซ้าย-ขวาด้วย CSS Variables */
+    :root {
+        --left-panel-width: 240px;
+        --right-panel-width: 320px;
+    }
+    div[data-testid="stHorizontalBlock"]:has(#custom-center-chart-anchor) {
+        display: flex !important;
+        flex-direction: row !important;
+        width: 100% !important;
+        align-items: stretch !important;
+    }
+    div[data-testid="column"]:has(#custom-left-menu-anchor) {
+        flex: 0 0 var(--left-panel-width) !important;
+        width: var(--left-panel-width) !important;
+        min-width: 160px !important;
+        max-width: 480px !important;
+    }
+    div[data-testid="column"]:has(#custom-center-chart-anchor) {
+        flex: 1 1 0% !important;
+        min-width: 300px !important;
+        width: 100% !important;
+    }
+    div[data-testid="column"]:has(#custom-right-menu-anchor) {
+        flex: 0 0 var(--right-panel-width) !important;
+        width: var(--right-panel-width) !important;
+        min-width: 200px !important;
+        max-width: 520px !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 def inject_workspace_resizers():
     components.html("""
     <script>
-    (function initObserver() {
+    (function initDraggableLayout() {
         const doc = window.parent.document;
 
-        function setupResizers() {
+        function notifyChartResize() {
+            window.parent.dispatchEvent(new Event('resize'));
+            doc.querySelectorAll('iframe').forEach(f => {
+                try { f.contentWindow.dispatchEvent(new Event('resize')); } catch(e) {}
+            });
+        }
+
+        function setupSplitters() {
             const sideAnchor = doc.getElementById('custom-left-menu-anchor');
             const chartAnchor = doc.getElementById('custom-center-chart-anchor');
             const rightAnchor = doc.getElementById('custom-right-menu-anchor');
@@ -212,15 +247,20 @@ def inject_workspace_resizers():
 
             if (!sideCol || !chartCol || !rightCol) return;
 
-            // 1. เส้นคั่นปรับขนาดฝั่งซ้าย (ระหว่างเมนูซ้ายกับกราฟ)
-            let resizerL = doc.getElementById('resizer-left-bar');
-            if (!resizerL || sideCol.nextElementSibling !== resizerL) {
-                if (resizerL) resizerL.remove();
-                resizerL = doc.createElement('div');
+            // 1. ปลดล็อกคอลัมน์กราฟตรงกลางให้ยืดหดตามได้อย่างอิสระ ไม่ค้ำคอลัมน์ขวา
+            chartCol.style.setProperty('flex', '1 1 0%', 'important');
+            chartCol.style.setProperty('min-width', '0px', 'important');
+            chartCol.style.setProperty('width', '100%', 'important');
+
+            // 2. แถบลากปรับขนาดฝั่งซ้าย
+            if (!doc.getElementById('resizer-left-bar')) {
+                const resizerL = doc.createElement('div');
                 resizerL.id = 'resizer-left-bar';
-                resizerL.title = 'คลิกค้างแล้วลากเพื่อปรับขนาดเมนูซ้าย';
-                resizerL.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 8px rgba(255,125,30,0.8);"></div>';
-                resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none; margin: 0 -5px;';
+                resizerL.title = 'คลิกลากเพื่อปรับขนาดเมนูซ้าย';
+                resizerL.innerHTML = '<div style="width:2px; height:45px; background:#ff7d1e; border-radius:1px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.8);"></div>';
+                resizerL.style.cssText = 'width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none; transition: background 0.15s;';
+                resizerL.onmouseenter = () => resizerL.style.background = 'rgba(255,125,30,0.2)';
+                resizerL.onmouseleave = () => resizerL.style.background = 'transparent';
 
                 sideCol.after(resizerL);
 
@@ -229,31 +269,39 @@ def inject_workspace_resizers():
                     const startX = e.clientX;
                     const startW = sideCol.getBoundingClientRect().width;
 
-                    const onMove = (ev) => {
+                    const shield = doc.createElement('div');
+                    shield.id = 'resizer-drag-shield';
+                    shield.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:999999; cursor:col-resize; background:transparent;';
+                    doc.body.appendChild(shield);
+
+                    function onMove(ev) {
                         const nw = Math.max(160, Math.min(480, startW + (ev.clientX - startX)));
-                        sideCol.style.width = nw + 'px';
-                        sideCol.style.flex = '0 0 ' + nw + 'px';
-                        window.parent.dispatchEvent(new Event('resize'));
-                    };
-                    const onUp = () => {
+                        sideCol.style.setProperty('width', nw + 'px', 'important');
+                        sideCol.style.setProperty('min-width', nw + 'px', 'important');
+                        sideCol.style.setProperty('max-width', nw + 'px', 'important');
+                        sideCol.style.setProperty('flex', '0 0 ' + nw + 'px', 'important');
+                        notifyChartResize();
+                    }
+                    function onUp() {
+                        shield.remove();
                         doc.removeEventListener('mousemove', onMove);
                         doc.removeEventListener('mouseup', onUp);
-                        window.parent.dispatchEvent(new Event('resize'));
-                    };
+                        notifyChartResize();
+                    }
                     doc.addEventListener('mousemove', onMove);
                     doc.addEventListener('mouseup', onUp);
                 };
             }
 
-            // 2. เส้นคั่นปรับขนาดฝั่งขวา (ระหว่างกราฟกับเมนูขวา)
-            let resizerR = doc.getElementById('resizer-right-bar');
-            if (!resizerR || rightCol.previousElementSibling !== resizerR) {
-                if (resizerR) resizerR.remove();
-                resizerR = doc.createElement('div');
+            // 3. แถบลากปรับขนาดฝั่งขวา (บังคับใช้ !important ทั้ง width, min-width, max-width)
+            if (!doc.getElementById('resizer-right-bar')) {
+                const resizerR = doc.createElement('div');
                 resizerR.id = 'resizer-right-bar';
-                resizerR.title = 'คลิกค้างแล้วลากเพื่อปรับขนาดเมนูขวา';
-                resizerR.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 8px rgba(255,125,30,0.8);"></div>';
-                resizerR.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none; margin: 0 -5px;';
+                resizerR.title = 'คลิกลากเพื่อปรับขนาดเมนูขวา';
+                resizerR.innerHTML = '<div style="width:2px; height:45px; background:#ff7d1e; border-radius:1px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.8);"></div>';
+                resizerR.style.cssText = 'width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none; transition: background 0.15s;';
+                resizerR.onmouseenter = () => resizerR.style.background = 'rgba(255,125,30,0.2)';
+                resizerR.onmouseleave = () => resizerR.style.background = 'transparent';
 
                 rightCol.before(resizerR);
 
@@ -262,47 +310,53 @@ def inject_workspace_resizers():
                     const startX = e.clientX;
                     const startW = rightCol.getBoundingClientRect().width;
 
-                    const onMove = (ev) => {
+                    const shield = doc.createElement('div');
+                    shield.id = 'resizer-drag-shield';
+                    shield.style.cssText = 'position:fixed; top:0; left:0; width:100vw; height:100vh; z-index:999999; cursor:col-resize; background:transparent;';
+                    doc.body.appendChild(shield);
+
+                    function onMove(ev) {
                         const nw = Math.max(200, Math.min(540, startW - (ev.clientX - startX)));
-                        rightCol.style.width = nw + 'px';
-                        rightCol.style.flex = '0 0 ' + nw + 'px';
-                        window.parent.dispatchEvent(new Event('resize'));
-                    };
-                    const onUp = () => {
+                        rightCol.style.setProperty('width', nw + 'px', 'important');
+                        rightCol.style.setProperty('min-width', nw + 'px', 'important');
+                        rightCol.style.setProperty('max-width', nw + 'px', 'important');
+                        rightCol.style.setProperty('flex', '0 0 ' + nw + 'px', 'important');
+                        notifyChartResize();
+                    }
+                    function onUp() {
+                        shield.remove();
                         doc.removeEventListener('mousemove', onMove);
                         doc.removeEventListener('mouseup', onUp);
-                        window.parent.dispatchEvent(new Event('resize'));
-                    };
+                        notifyChartResize();
+                    }
                     doc.addEventListener('mousemove', onMove);
                     doc.addEventListener('mouseup', onUp);
                 };
             }
 
-            // เชื่อมต่อปุ่มพับเก็บขวา
+            // 4. ผูกปุ่มพับขวา
             const btnRight = doc.getElementById('btn-collapse-right');
             if (btnRight && !btnRight.dataset.bound) {
                 btnRight.dataset.bound = 'true';
                 btnRight.onclick = function() {
                     const isHidden = (rightCol.style.display === 'none');
                     rightCol.style.display = isHidden ? 'block' : 'none';
-                    if (resizerR) resizerR.style.display = isHidden ? 'none' : 'flex';
-                    window.parent.dispatchEvent(new Event('resize'));
+                    const barR = doc.getElementById('resizer-right-bar');
+                    if (barR) barR.style.display = isHidden ? 'none' : 'flex';
+                    notifyChartResize();
                 };
             }
         }
 
-        // ตรวจจับ DOM อัตโนมัติเมื่อ Streamlit Rerender
         if (!window.parent._layoutObserver) {
-            const observer = new MutationObserver(() => {
-                setupResizers();
-            });
+            const observer = new MutationObserver(setupSplitters);
             observer.observe(doc.body, { childList: true, subtree: true });
             window.parent._layoutObserver = observer;
         }
 
-        setupResizers();
-        setTimeout(setupResizers, 300);
-        setTimeout(setupResizers, 800);
+        setupSplitters();
+        setTimeout(setupSplitters, 300);
+        setTimeout(setupSplitters, 800);
     })();
     </script>
     """, height=0, width=0)
