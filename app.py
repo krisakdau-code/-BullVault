@@ -203,16 +203,13 @@ def inject_workspace_resizers():
 
             if (!sideCol || !chartCol || !rightCol) return;
 
-            // 1. สร้าง/ตรวจสอบตัวเลื่อนฝั่งซ้าย
-            if (!doc.getElementById('resizer-left-bar') || sideCol.nextElementSibling?.id !== 'resizer-left-bar') {
-                const oldL = doc.getElementById('resizer-left-bar');
-                if (oldL) oldL.remove();
-
+            // 1. เส้นเลื่อนปรับขนาดฝั่งซ้าย (สีส้มเด่นชัด)
+            if (!doc.getElementById('resizer-left-bar')) {
                 const resizerL = doc.createElement('div');
                 resizerL.id = 'resizer-left-bar';
                 resizerL.title = 'คลิกค้างแล้วลากเพื่อปรับขนาดเมนูซ้าย';
-                resizerL.innerHTML = '<div style="width:2px; height:45px; background:#ff7d1e; border-radius:1px; margin:auto;"></div>';
-                resizerL.style.cssText = 'width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none;';
+                resizerL.innerHTML = '<div style="width:3px; height:55px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.8);"></div>';
+                resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none;';
                 
                 sideCol.after(resizerL);
 
@@ -234,18 +231,15 @@ def inject_workspace_resizers():
                 };
             }
 
-            // 2. สร้าง/ตรวจสอบตัวเลื่อนฝั่งขวา (ทำงานแยกอิสระ)
-            if (!doc.getElementById('resizer-right-bar') || chartCol.nextElementSibling?.id !== 'resizer-right-bar') {
-                const oldR = doc.getElementById('resizer-right-bar');
-                if (oldR) oldR.remove();
-
+            // 2. เส้นเลื่อนปรับขนาดฝั่งขวา (บังคับแทรกลงหน้าเมนูขวาทันที)
+            if (!doc.getElementById('resizer-right-bar')) {
                 const resizerR = doc.createElement('div');
                 resizerR.id = 'resizer-right-bar';
                 resizerR.title = 'คลิกค้างแล้วลากเพื่อปรับขนาดเมนูขวา';
-                resizerR.innerHTML = '<div style="width:2px; height:45px; background:#ff7d1e; border-radius:1px; margin:auto;"></div>';
-                resizerR.style.cssText = 'width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none;';
+                resizerR.innerHTML = '<div style="width:3px; height:55px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.8);"></div>';
+                resizerR.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none;';
 
-                chartCol.after(resizerR);
+                rightCol.before(resizerR);
 
                 resizerR.onmousedown = (e) => {
                     e.preventDefault();
@@ -265,19 +259,20 @@ def inject_workspace_resizers():
                 };
             }
 
-            // ปุ่มพับเก็บพาเนลขวา
+            // จัดการปุ่มพับเก็บขวา
             const btnRight = doc.getElementById('btn-collapse-right');
             if (btnRight) {
                 btnRight.onclick = function() {
                     const isHidden = (rightCol.style.display === 'none');
                     rightCol.style.display = isHidden ? 'block' : 'none';
                     const barR = doc.getElementById('resizer-right-bar');
-                    if (barR) barR.style.display = isHidden ? 'flex' : 'none';
+                    if (barR) barR.style.display = isHidden ? 'none' : 'flex';
                 };
             }
         }
-        setTimeout(run, 400);
-        setTimeout(run, 1200);
+        setTimeout(run, 300);
+        setTimeout(run, 800);
+        setTimeout(run, 1500);
     })();
     </script>
     """, height=0, width=0)
@@ -434,7 +429,29 @@ def dashboard():
     # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก (มี Draggable Splitters คั่นกลาง)
     # =========================================================================
     tech_data = compute_full_technicals(df)
-    charts = build_charts(df, symbol, tf, 520, 120, 120)
+    raw_charts = build_charts(df, symbol, tf, 520, 120, 120)
+
+    # กรองอินดิเคเตอร์ตามสวิตช์ Toggle
+    show_rsi = st.session_state.get("show_rsi_pane", True)
+    show_macd = st.session_state.get("show_macd_pane", True)
+    show_ema = st.session_state.get("show_ema", True)
+
+    filtered_charts = []
+    for idx, c in enumerate(raw_charts):
+        if idx == 0:
+            if not show_ema and "series" in c:
+                c_copy = dict(c)
+                c_copy["series"] = [
+                    s for s in c["series"]
+                    if not any(k in str(s.get("title", "")).lower() for k in ["ema", "ribbon", "trend"])
+                ]
+                filtered_charts.append(c_copy)
+            else:
+                filtered_charts.append(c)
+        elif idx == 1 and show_rsi:
+            filtered_charts.append(c)
+        elif idx == 2 and show_macd:
+            filtered_charts.append(c)
 
     col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
@@ -444,7 +461,7 @@ def dashboard():
 
     with col_chart:
         st.markdown('<div id="custom-center-chart-anchor"></div>', unsafe_allow_html=True)
-        render_drawing_chart(charts, height=530, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
+        render_drawing_chart(filtered_charts, height=530, key=f"c_{symbol}_{tf}", show_toolbar=st.session_state.get("show_draw_toolbar", True))
 
     with col_quote:
         st.markdown('<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True)
