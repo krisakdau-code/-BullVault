@@ -1,6 +1,8 @@
 import os
 import re
 import time
+import zipfile
+import urllib.request
 import requests
 import pandas as pd
 import numpy as np
@@ -8,10 +10,31 @@ import streamlit as st
 
 # เรียกใช้งานโมดูลแคชและการซิงก์ประวัติศาสตร์ (ทิศทางเดียว ปราศจาก Circular Import)
 from data.history_sync import (
-    HEADERS, BINANCE_TF_MAP, BITKUB_TF_MAP,
+    HEADERS, BINANCE_TF_MAP, BITKUB_TF_MAP, CACHE_DIR,
     _get_cache_path, _load_cached_df, _save_cached_df,
     sync_deep_history_background
 )
+
+# ลิงก์ดาวน์โหลดตรงจาก GitHub Release ของคุณ
+GITHUB_RELEASE_ZIP_URL = "https://github.com/krisakdau-code/Kating-diamond/releases/download/v1.0-data/market_history.zip.zip"
+
+def ensure_cache_hydrated():
+    """ดาวน์โหลดและแตกไฟล์ประวัติศาสตร์ย้อนหลังลง CACHE_DIR อัตโนมัติเมื่อรันบน Cloud หรือเมื่อไม่มีแคช"""
+    try:
+        os.makedirs(CACHE_DIR, exist_ok=True)
+        parquet_files = [f for f in os.listdir(CACHE_DIR) if f.endswith(".parquet")]
+        if not parquet_files and GITHUB_RELEASE_ZIP_URL:
+            zip_dest = os.path.join("data", "market_history.zip")
+            urllib.request.urlretrieve(GITHUB_RELEASE_ZIP_URL, zip_dest)
+            if os.path.exists(zip_dest):
+                with zipfile.ZipFile(zip_dest, "r") as zip_ref:
+                    zip_ref.extractall(CACHE_DIR)
+                os.remove(zip_dest)
+    except Exception:
+        pass
+
+# เรียกทำงานทันทีตอนโหลดโมดูล
+ensure_cache_hydrated()
 
 YF_TF_MAP = {
     "5m": "5m", "15m": "15m", "30m": "30m",
@@ -40,7 +63,7 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
     cache_path = _get_cache_path(clean_sym, tf)
     cached_df = _load_cached_df(cache_path)
     
-    # สั่งให้ Background Worker ดึงประวัติศาสตร์ 5,000 แท่งในพื้นหลังทันที
+    # สั่งให้ Background Worker เติมประวัติศาสตร์ลึก 5,000 แท่งในพื้นหลังแบบไม่บล็อก UI
     sync_deep_history_background(clean_sym, tf, target_bars=5000)
     
     last_timestamp = int(cached_df["time"].max()) if not cached_df.empty and "time" in cached_df.columns else 0
@@ -49,7 +72,7 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
     if clean_sym.startswith("RICE:") or clean_sym.startswith("FOB:"):
         try:
             from data.rice_ohlcv import get_rice_ohlcv
-            df_rice = get_rice_ohlcv(clean_sym, tf, limit=2000)
+            df_rice = get_rice_ohlcv(clean_sym, tf, limit=limit)
             if not df_rice.empty:
                 _save_cached_df(df_rice, cache_path)
                 return df_rice
@@ -61,14 +84,22 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
         try:
             import yfinance as yf
             interval = YF_TF_MAP.get(tf, "60m")
-            period = "max" if tf in ["D", "2D", "3D", "W", "M"] else "60d"
+            period = "max" if tf in ["D", "2D", "3D", "W", "M"] else "730d"
             ticker = yf.Ticker(clean_sym)
             df = ticker.history(period=period, interval=interval)
             if not df.empty:
+                if isinstance(df.columns, pd.MultiIndex):
+                    df.columns = [col[0].lower() for col in df.columns]
+                else:
+                    df.columns = [c.lower() for c in df.columns]
+
                 df = df.reset_index()
                 time_col = "Datetime" if "Datetime" in df.columns else "Date"
+                if time_col not in df.columns:
+                    time_col = df.columns[0]
+
                 df["time"] = (pd.to_datetime(df[time_col]).astype("int64") // 10**9)
-                df = df.rename(columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"})
+                df = df.rename(columns={"open": "open", "high": "high", "low": "low", "close": "close", "volume": "volume"})
                 df = df[["time", "open", "high", "low", "close", "volume"]].dropna()
                 merged = pd.concat([cached_df, df]).drop_duplicates(subset=["time"]).sort_values("time").reset_index(drop=True)
                 _save_cached_df(merged, cache_path)
@@ -79,14 +110,15 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
     # 3. สินทรัพย์คริปโตกระดาน Bitkub (เหรียญ _THB)
     if "_THB" in clean_sym or clean_sym.startswith("THB_"):
         coin = clean_sym.replace("_THB", "").replace("THB_", "")
-        bk_symbol = f"THB_{coin}"
+        bk_symbol = f"{coin}_THB"  # Bitkub TradingView History ต้องใช้ COIN_THB
         resolution = BITKUB_TF_MAP.get(tf, "60")
         tf_seconds = {"5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "2h": 7200, "4h": 14400, "D": 86400}.get(tf, 3600)
         
         to_ts = int(time.time())
         from_ts = last_timestamp if last_timestamp > 0 else (to_ts - (limit * tf_seconds))
 
-        url = f"https://api.bitkub.com/api/market/tradingview/history?symbol={bk_symbol}&resolution={resolution}&from={from_ts}&to={to_ts}"
+        # URL ที่ถูกต้อง: api.bitkub.com/tradingview/history
+        url = f"https://api.bitkub.com/tradingview/history?symbol={bk_symbol}&resolution={resolution}&from={from_ts}&to={to_ts}"
         try:
             res = requests.get(url, headers=HEADERS, timeout=6)
             if res.status_code == 200:
@@ -104,7 +136,7 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
         except Exception:
             pass
 
-        # Smart Failover: สำรองกรณี Bitkub ออฟไลน์
+        # Smart Failover: สำรองกรณี Bitkub ออฟไลน์ (นำ Binance แปลงเงินบาท)
         try:
             binance_equiv = f"{coin}USDT"
             df_equiv = fetch_ohlcv(binance_equiv, tf=tf, limit=limit)
