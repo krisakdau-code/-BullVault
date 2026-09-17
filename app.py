@@ -207,10 +207,11 @@ def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
 
     return df
 def render_top_toolbar():
-    # ขยายสัดส่วน col_tf เป็น 5.5 ให้ปุ่ม Timeframe เรียงแนวนอนแบบไม่อึดอัด
-    col_spacer, col_tf, col_slider, col_ind_menu, col_fill, col_auto, col_sec, col_load = st.columns(
-        [0.35, 5.5, 1.5, 1.2, 0.45, 0.45, 0.55, 0.75], gap="small"
+    # แถบควบคุมด้านบนสไตล์ TradingView คลีนเต็มจอ (Zero-Configuration)
+    col_spacer, col_tf, col_ind_menu = st.columns(
+        [0.35, 7.8, 1.8], gap="small"
     )
+
     with col_spacer:
         st.markdown('<div id="toggle-btn-anchor" style="height:24px; width:34px;"></div>', unsafe_allow_html=True)
 
@@ -226,18 +227,16 @@ def render_top_toolbar():
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    with col_slider: bars = st.slider("Bars", 300, 25000, 2500, 500, label_visibility="collapsed", key="toolbar_bars")
     with col_ind_menu:
         with st.popover("📊 Indicators ▾", use_container_width=True):
             st.toggle("RSI (14)", value=True, key="show_rsi_pane")
             st.toggle("MACD (12, 26, 9)", value=True, key="show_macd_pane")
             st.toggle("EMA Ribbon", value=True, key="show_ema")
-    with col_fill: fill_gaps = st.checkbox("Fill", value=False, key="toolbar_fill")
-    with col_auto: auto = st.checkbox("Auto", value=False, key="toolbar_auto")
-    with col_sec: every = st.number_input("Sec", 2, 60, 2, 1, label_visibility="collapsed", key="toolbar_sec")
-    with col_load: reload_btn = st.button("🔄 โหลด", use_container_width=True, key="toolbar_reload_btn")
-    return tf, bars, fill_gaps, auto, every, reload_btn
-def dashboard():
+
+    bars = 2000
+    st.session_state["toolbar_bars"] = bars
+    # คืนค่าตัวแปรสำรองครบชุด ป้องกันจุดเรียกใช้ด้านล่างเกิด Error Unpack
+    return tf, bars, False, False, 2, False
     # ตรวจจับคำสั่งล้างแคช & รีสตาร์ตจากเบราว์เซอร์
     if "clear_cache" in st.query_params:
         st.cache_data.clear()

@@ -1,3 +1,5 @@
+import os
+import re
 import time
 import requests
 import pandas as pd
@@ -29,6 +31,36 @@ YF_TF_MAP = {
 def is_yahoo_symbol(symbol: str) -> bool:
     return any(suffix in symbol for suffix in [".BK", ".HK", ".SS", ".SZ", ".VN", "=F", "=X"])
 
+# ระบบแคชข้อมูลในเครื่อง (Local Parquet Cache)
+CACHE_DIR = os.path.join("data", "cache")
+os.makedirs(CACHE_DIR, exist_ok=True)
+
+def _get_cache_path(symbol: str, tf: str) -> str:
+    safe_name = re.sub(r'[^a-zA-Z0-9_-]', '_', symbol)
+    return os.path.join(CACHE_DIR, f"{safe_name}_{tf}.parquet")
+
+def _load_cached_df(cache_path: str) -> pd.DataFrame:
+    if os.path.exists(cache_path):
+        try:
+            return pd.read_parquet(cache_path)
+        except Exception:
+            pkl_path = cache_path.replace(".parquet", ".pkl")
+            if os.path.exists(pkl_path):
+                try:
+                    return pd.read_pickle(pkl_path)
+                except Exception:
+                    pass
+    return pd.DataFrame()
+
+def _save_cached_df(df: pd.DataFrame, cache_path: str):
+    if df.empty:
+        return
+    try:
+        df.to_parquet(cache_path, index=False)
+    except Exception:
+        pkl_path = cache_path.replace(".parquet", ".pkl")
+        df.to_pickle(pkl_path)
+
 @st.cache_data(ttl=300, show_spinner=False)
 def get_usd_thb_rate() -> float:
     """ดึงอัตราแลกเปลี่ยน USD/THB ล่าสุด"""
@@ -42,16 +74,20 @@ def get_usd_thb_rate() -> float:
     return 35.0
 
 @st.cache_data(ttl=15, show_spinner=False)
-def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 500) -> pd.DataFrame:
+def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> pd.DataFrame:
     clean_sym = symbol.strip().upper()
-    limit = min(max(int(limit), 50), 1000)
+    cache_path = _get_cache_path(clean_sym, tf)
+    cached_df = _load_cached_df(cache_path)
+    
+    last_timestamp = int(cached_df["time"].max()) if not cached_df.empty and "time" in cached_df.columns else 0
 
     # 1. สินทรัพย์กลุ่มข้าว (Local Catalog & Synthetic OHLCV)
     if clean_sym.startswith("RICE:") or clean_sym.startswith("FOB:"):
         try:
             from data.rice_ohlcv import get_rice_ohlcv
-            df_rice = get_rice_ohlcv(clean_sym, tf, limit)
+            df_rice = get_rice_ohlcv(clean_sym, tf, limit=2000)
             if not df_rice.empty:
+                _save_cached_df(df_rice, cache_path)
                 return df_rice
         except Exception:
             pass
@@ -61,7 +97,7 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 500) -> pd
         try:
             import yfinance as yf
             interval = YF_TF_MAP.get(tf, "60m")
-            period = "1y" if tf in ["D", "2D", "3D", "W", "M"] else "60d"
+            period = "max" if tf in ["D", "2D", "3D", "W", "M"] else "60d"
             ticker = yf.Ticker(clean_sym)
             df = ticker.history(period=period, interval=interval)
             if not df.empty:
@@ -70,7 +106,9 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 500) -> pd
                 df["time"] = (pd.to_datetime(df[time_col]).astype("int64") // 10**9)
                 df = df.rename(columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"})
                 df = df[["time", "open", "high", "low", "close", "volume"]].dropna()
-                return df.drop_duplicates(subset=["time"]).sort_values("time").tail(limit).reset_index(drop=True)
+                merged = pd.concat([cached_df, df]).drop_duplicates(subset=["time"]).sort_values("time").reset_index(drop=True)
+                _save_cached_df(merged, cache_path)
+                return merged
         except Exception:
             pass
 
@@ -79,11 +117,10 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 500) -> pd
         coin = clean_sym.replace("_THB", "").replace("THB_", "")
         bk_symbol = f"THB_{coin}"
         resolution = BITKUB_TF_MAP.get(tf, "60")
-        
-        # คำนวณช่วงเวลาย้อนหลัง
         tf_seconds = {"5m": 300, "15m": 900, "30m": 1800, "1h": 3600, "2h": 7200, "4h": 14400, "D": 86400}.get(tf, 3600)
+        
         to_ts = int(time.time())
-        from_ts = to_ts - (limit * tf_seconds * 2)
+        from_ts = last_timestamp if last_timestamp > 0 else (to_ts - (limit * tf_seconds))
 
         url = f"https://api.bitkub.com/api/market/tradingview/history?symbol={bk_symbol}&resolution={resolution}&from={from_ts}&to={to_ts}"
         try:
@@ -91,21 +128,19 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 500) -> pd
             if res.status_code == 200:
                 data = res.json()
                 if data.get("s") == "ok" and "t" in data and len(data["t"]) > 0:
-                    df_bk = pd.DataFrame({
-                        "time": data["t"],
-                        "open": data["o"],
-                        "high": data["h"],
-                        "low": data["l"],
-                        "close": data["c"],
-                        "volume": data["v"]
+                    df_new = pd.DataFrame({
+                        "time": data["t"], "open": data["o"], "high": data["h"],
+                        "low": data["l"], "close": data["c"], "volume": data["v"]
                     })
                     for col in ["open", "high", "low", "close", "volume"]:
-                        df_bk[col] = df_bk[col].astype(float)
-                    return df_bk.drop_duplicates(subset=["time"]).sort_values("time").tail(limit).reset_index(drop=True)
+                        df_new[col] = df_new[col].astype(float)
+                    merged = pd.concat([cached_df, df_new]).drop_duplicates(subset=["time"]).sort_values("time").reset_index(drop=True)
+                    _save_cached_df(merged, cache_path)
+                    return merged
         except Exception:
             pass
 
-        # Fallback สำรองเฉพาะของ Bitkub: ดึงกราฟจริงจาก Binance แล้วแปลงค่าเป็นบาท (THB)
+        # Smart Failover: กรณี Bitkub ออฟไลน์
         try:
             binance_equiv = f"{coin}USDT"
             df_equiv = fetch_ohlcv(binance_equiv, tf=tf, limit=limit)
@@ -117,30 +152,38 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 500) -> pd
         except Exception:
             pass
 
-    # 4. สินทรัพย์คริปโตสากล (Binance REST API)
+    # 4. สินทรัพย์คริปโตสากล (Binance REST API) - Incremental Fetch
     clean_crypto = clean_sym.replace("/", "").replace(" ", "")
     interval = BINANCE_TF_MAP.get(tf, "1h")
     url = "https://api.binance.com/api/v3/klines"
-    params = {"symbol": clean_crypto, "interval": interval, "limit": limit}
+    params = {"symbol": clean_crypto, "interval": interval, "limit": 1000}
+    if last_timestamp > 0:
+        params["startTime"] = (last_timestamp + 1) * 1000
 
     try:
         res = requests.get(url, params=params, headers=HEADERS, timeout=6)
         if res.status_code == 200:
             k = res.json()
-            df = pd.DataFrame(k, columns=[
-                "open_time", "open", "high", "low", "close", "volume",
-                "close_time", "quote_volume", "count", "taker_buy_volume",
-                "taker_buy_quote_volume", "ignore"
-            ])
-            df["time"] = (df["open_time"].astype("int64") // 1000)
-            for col in ["open", "high", "low", "close", "volume"]:
-                df[col] = df[col].astype(float)
-            return df[["time", "open", "high", "low", "close", "volume"]].drop_duplicates(subset=["time"]).sort_values("time").tail(limit).reset_index(drop=True)
+            if len(k) > 0:
+                df_new = pd.DataFrame(k, columns=[
+                    "open_time", "open", "high", "low", "close", "volume",
+                    "close_time", "quote_volume", "count", "taker_buy_volume",
+                    "taker_buy_quote_volume", "ignore"
+                ])
+                df_new["time"] = (df_new["open_time"].astype("int64") // 1000)
+                for col in ["open", "high", "low", "close", "volume"]:
+                    df_new[col] = df_new[col].astype(float)
+                df_new = df_new[["time", "open", "high", "low", "close", "volume"]]
+                merged = pd.concat([cached_df, df_new]).drop_duplicates(subset=["time"]).sort_values("time").reset_index(drop=True)
+                _save_cached_df(merged, cache_path)
+                return merged
     except Exception:
         pass
 
-    # 5. Fallback ปลอดภัย (ไม่สร้างไส้เทียนซี่หวี)
-    return _generate_fallback_data(clean_sym, limit)
+    if not cached_df.empty:
+        return cached_df
+
+    return _generate_fallback_data(clean_sym, limit=1000)
 
 @st.cache_data(ttl=10, show_spinner=False)
 def fetch_ticker_24h(symbol: str = "BTCUSDT") -> dict:
@@ -206,7 +249,6 @@ def _generate_fallback_data(symbol: str, limit: int) -> pd.DataFrame:
     now = int(time.time())
     times = [now - (i * 3600) for i in range(limit)][::-1]
     
-    # กำหนดราคาฐานให้สอดคล้องกับความเป็นจริง
     if "BTC" in symbol: base = 2600000.0 if "_THB" in symbol else 78000.0
     elif "ETH" in symbol: base = 90000.0 if "_THB" in symbol else 2600.0
     elif "DOGE" in symbol: base = 4.2 if "_THB" in symbol else 0.12
@@ -216,7 +258,6 @@ def _generate_fallback_data(symbol: str, limit: int) -> pd.DataFrame:
     noise = np.random.normal(0, base * 0.003, limit).cumsum()
     close_p = np.maximum(base + noise, base * 0.5)
     
-    # ไส้เทียนคำนวณตามสัดส่วน % จริง (ไม่เกิน 0.5%) ป้องกันไส้ซี่หวี
     spread = close_p * 0.004
     open_p = close_p + np.random.uniform(-spread, spread, limit)
     high_p = np.maximum(open_p, close_p) + np.abs(np.random.normal(0, spread * 0.5, limit))
@@ -228,7 +269,6 @@ def _generate_fallback_data(symbol: str, limit: int) -> pd.DataFrame:
     })
 
 def resolve_market_info(symbol: str) -> dict:
-    """ฟังก์ชันกลางระบุข้อมูลสินทรัพย์ ป้องกันข้อมูลขัดแย้งกันข้ามหน้าจอ (Single Source of Truth)"""
     sym = symbol.strip()
     
     if sym.startswith("RICE:"):
