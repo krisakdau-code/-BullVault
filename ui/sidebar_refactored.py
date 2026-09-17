@@ -161,6 +161,9 @@ def render_sidebar():
         """, unsafe_allow_html=True)
 
         f_cols = st.columns([1.2, 1, 1, 1, 1, 1])
+        f_cols = st.columns([1.2, 1, 1, 1, 1, 1])
+        cur_filter = st.session_state.get("active_color_filter", "all")
+
         with f_cols[0]:
             st.markdown('<div id="color-filter-anchor" style="display:none;"></div>', unsafe_allow_html=True)
             if st.button("ALL" if cur_filter != "all" else "⭐", key="filter_all", use_container_width=True, help="ดูทั้งหมด"):
@@ -190,21 +193,18 @@ def render_sidebar():
         # 3. รายการสินทรัพย์เฝ้าดู (Watchlist)
         st.markdown("<div style='font-size:12px; color:#8b949e; margin:10px 0 4px 0;'>📋 รายการสินทรัพย์เฝ้าดู</div>", unsafe_allow_html=True)
         
+        # จัดเก็บ Watchlist ลง session_state เพื่อให้ลบเข้า-ลบออกได้
+        # จัดเก็บ Watchlist ลง session_state เพื่อให้ลบเข้า-ลบออกได้
+        if "custom_watchlist" not in st.session_state:
+            st.session_state["custom_watchlist"] = []
+
         def get_sym_color_dot(sym):
             for c_key, c_info in COLOR_TAGS.items():
                 if sym in st.session_state.get("color_watchlists", {}).get(c_key, []):
                     return c_info["dot"]
             return ""
 
-        base_watchlist = [
-            ("BTCUSDT", "79,036.15", "+2.27%", True),
-            ("ETHUSDT", "2,645.80", "+3.14%", True),
-            ("SOLUSDT", "184.25", "+5.42%", True),
-            ("BNBUSDT", "588.50", "-0.85%", False),
-            ("GC=F", "2,684.50", "+0.45%", True),
-            ("NVDA", "142.30", "-1.12%", False),
-            ("PTT.BK", "33.50", "+0.75%", True)
-        ]
+        base_watchlist = st.session_state["custom_watchlist"]
 
         # กรองรายการตามกลุ่มสีที่เลือก
         if cur_filter == "all":
@@ -212,10 +212,6 @@ def render_sidebar():
         else:
             allowed_syms = set(st.session_state.get("color_watchlists", {}).get(cur_filter, []))
             display_list = [item for item in base_watchlist if item[0] in allowed_syms]
-            # หากมีเหรียญอื่นถูกย้ายเข้ามา ให้ดึงมาแสดงด้วย
-            for sym in allowed_syms:
-                if not any(item[0] == sym for item in display_list):
-                    display_list.append((sym, "--", "0.00%", True))
 
         if not display_list:
             st.caption(f"ไม่มีเหรียญในกลุ่ม {COLOR_TAGS.get(cur_filter, {}).get('name', '')}")
@@ -227,7 +223,7 @@ def render_sidebar():
 
             c1, c2 = st.columns([2.2, 1.8])
             with c1:
-                if st.button(btn_title, key=f"wl_btn_{sym}_{cur_filter}", use_container_width=True):
+                if st.button(btn_title, key=f"wl_btn_{sym}", use_container_width=True):
                     set_active_symbol(sym)
                     st.rerun()
             with c2:

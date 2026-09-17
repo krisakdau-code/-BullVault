@@ -152,25 +152,38 @@ def render_symbol_modal():
     else:
         display_symbols = clean_symbols
 
-    # 5. แสดงผลปุ่มกดเลือกสินทรัพย์
+    # 5. แสดงผลปุ่มกดเลือกสินทรัพย์ (พร้อมปุ่ม + เพิ่มเข้า Watchlist แบบ TradingView)
     with st.container(height=380):
         if not display_symbols:
             st.warning(f"ไม่พบรายการสินทรัพย์ในหมวด {current_market_tag}")
         else:
-            cols_count = 4
+            # ตรวจสอบเหรียญที่มีอยู่ใน Watchlist แล้ว
+            wl_syms = set(item[0] for item in st.session_state.get("custom_watchlist", []))
+
+            cols_count = 2  # จัดเป็น 2 แถวคู่เพื่อให้มีพื้นที่กดปุ่ม + ชัดเจน
             for i in range(0, min(len(display_symbols), 400), cols_count):
                 row_cols = st.columns(cols_count)
                 for j in range(cols_count):
                     if i + j < len(display_symbols):
                         sym = display_symbols[i + j]
-                        if row_cols[j].button(sym, key=f"btn_m_{current_market_tag}_{sym}", use_container_width=True):
-                            st.session_state["current_symbol"] = sym
-                            st.session_state["selected_symbol"] = sym
-                            st.rerun()
-    def get_current_trigger_label():
-     sym = st.session_state.get("current_symbol", "BTCUSDT")
-    tag = "BINANCE"
-    if ".BK" in sym: tag = "SET"
-    elif "=" in sym: tag = "FX" if "X" in sym else "COMMODITY"
-    elif "_THB" in sym: tag = "BITKUB"
-    return f"🔍 {tag} | {sym}"                       
+                        in_wl = sym in wl_syms
+                        
+                        c_sym, c_add = row_cols[j].columns([3.5, 1])
+                        with c_sym:
+                            if st.button(sym, key=f"btn_m_{current_market_tag}_{sym}", use_container_width=True):
+                                st.session_state["current_symbol"] = sym
+                                st.session_state["selected_symbol"] = sym
+                                st.rerun()
+                        with c_add:
+                            add_icon = "✓" if in_wl else "➕"
+                            if st.button(add_icon, key=f"btn_wl_add_{current_market_tag}_{sym}", use_container_width=True, help="นำออกจาก Watchlist" if in_wl else "เพิ่มเข้า Watchlist"):
+                                if "custom_watchlist" not in st.session_state:
+                                    st.session_state["custom_watchlist"] = []
+                                
+                                if in_wl:
+                                    st.session_state["custom_watchlist"] = [
+                                        item for item in st.session_state["custom_watchlist"] if item[0] != sym
+                                    ]
+                                else:
+                                    st.session_state["custom_watchlist"].append((sym, "--", "0.00%", True))
+                                st.rerun()

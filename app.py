@@ -224,7 +224,6 @@ st.markdown("""
 def inject_workspace_resizers():
     components.html("""
     <style>
-        /* ซ่อนแถบ Resizer บนจอมือถือ */
         @media (max-width: 768px) {
             #resizer-left-bar,
             #resizer-right-bar,
@@ -233,19 +232,18 @@ def inject_workspace_resizers():
                 display: none !important;
             }
         }
-        /* เมนูลอยคลิกขวา Cyberpunk */
         #custom-color-context-menu {
             position: fixed;
             z-index: 1000000;
             background: #181b22;
             border: 1px solid #2a2e39;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.6), 0 0 10px rgba(255,122,26,0.2);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.7), 0 0 10px rgba(255,122,26,0.3);
             border-radius: 6px;
             padding: 6px;
-            min-width: 140px;
+            min-width: 160px;
             display: none;
             flex-direction: column;
-            gap: 4px;
+            gap: 3px;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: 12px;
             user-select: none;
@@ -253,9 +251,10 @@ def inject_workspace_resizers():
         .ctx-header {
             color: #8b949e;
             font-size: 11px;
-            padding: 2px 6px;
+            font-weight: bold;
+            padding: 4px 8px;
             border-bottom: 1px solid #2a2e39;
-            margin-bottom: 2px;
+            margin-bottom: 3px;
         }
         .ctx-item {
             display: flex;
@@ -268,17 +267,19 @@ def inject_workspace_resizers():
             transition: background 0.15s;
         }
         .ctx-item:hover {
-            background: rgba(255, 122, 26, 0.15);
+            background: rgba(255, 122, 26, 0.2);
             color: #ffffff;
         }
-        .ctx-remove {
-            color: #f23645;
-            border-top: 1px solid #2a2e39;
-            margin-top: 2px;
-            padding-top: 5px;
+        .ctx-divider {
+            height: 1px;
+            background: #2a2e39;
+            margin: 3px 0;
         }
-        .ctx-remove:hover {
-            background: rgba(242, 54, 69, 0.15);
+        .ctx-danger {
+            color: #f23645;
+        }
+        .ctx-danger:hover {
+            background: rgba(242, 54, 69, 0.2);
             color: #ff4d5a;
         }
     </style>
@@ -310,77 +311,94 @@ def inject_workspace_resizers():
                 return el ? el.closest('[data-testid="stColumn"], [data-testid="column"], .stColumn') : null;
             }
 
-            // ระบบเมนูลอยคลิกขวาจัดการกลุ่มสี
+            // สร้าง DOM เมนูลอยคลิกขวา
             let activeTargetSym = null;
             let ctxMenu = doc.getElementById('custom-color-context-menu');
             if (!ctxMenu) {
                 ctxMenu = doc.createElement('div');
                 ctxMenu.id = 'custom-color-context-menu';
+                ctxMenu.style.cssText = 'position:fixed !important; z-index:2147483647 !important; background:#181b22; border:1px solid #ff7d1e; box-shadow:0 8px 24px rgba(0,0,0,0.85); border-radius:6px; padding:6px; min-width:160px; display:none; flex-direction:column; gap:3px; font-family:sans-serif; font-size:12px; user-select:none;';
                 ctxMenu.innerHTML = `
-                    <div class="ctx-header" id="ctx-symbol-title">จัดการกลุ่มสี</div>
-                    <div class="ctx-item" data-color="red"><span>🔴</span> แดง</div>
-                    <div class="ctx-item" data-color="green"><span>🟢</span> เขียว</div>
-                    <div class="ctx-item" data-color="orange"><span>🟠</span> ส้ม</div>
-                    <div class="ctx-item" data-color="blue"><span>🔵</span> ฟ้า</div>
-                    <div class="ctx-item" data-color="white"><span>⚪</span> ขาว</div>
-                    <div class="ctx-item ctx-remove" data-action="remove"><span>✖</span> ลบออกจากกลุ่ม</div>
+                    <div class="ctx-header" id="ctx-symbol-title" style="color:#ff7d1e; font-size:11px; font-weight:bold; padding:4px 8px; border-bottom:1px solid #2a2e39; margin-bottom:3px;">จัดการเหรียญ</div>
+                    <div class="ctx-item" data-action="set_color" data-color="red" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>🔴</span> แดง</div>
+                    <div class="ctx-item" data-action="set_color" data-color="green" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>🟢</span> เขียว</div>
+                    <div class="ctx-item" data-action="set_color" data-color="orange" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>🟠</span> ส้ม</div>
+                    <div class="ctx-item" data-action="set_color" data-color="blue" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>🔵</span> ฟ้า</div>
+                    <div class="ctx-item" data-action="set_color" data-color="white" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>⚪</span> ขาว</div>
+                    <div style="height:1px; background:#2a2e39; margin:3px 0;"></div>
+                    <div class="ctx-item" data-action="remove_color" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>✖</span> ปลดออกจากกลุ่มสี</div>
+                    <div class="ctx-item" data-action="delete_watchlist" style="padding:6px 8px; cursor:pointer; color:#f23645;"><span>🗑️</span> ลบออกจากเฝ้าดู</div>
                 `;
                 doc.body.appendChild(ctxMenu);
 
-                ctxMenu.querySelectorAll('.ctx-item').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        ctxMenu.style.display = 'none';
-                        const color = item.dataset.color;
-                        const action = item.dataset.action;
-                        if (!activeTargetSym) return;
+                // ดักจับการเลือกเมนู
+                ctxMenu.addEventListener('click', (e) => {
+                    const item = e.target.closest('.ctx-item');
+                    if (!item || !activeTargetSym) return;
+                    e.stopPropagation();
+                    ctxMenu.style.display = 'none';
 
-                        // ส่งคำสั่งผ่าน query params เพื่อให้อัปเดต state ใน Streamlit
-                        const url = new URL(window.parent.location.href);
-                        if (action === 'remove') {
-                            url.searchParams.set('remove_color_sym', activeTargetSym);
-                            url.searchParams.delete('set_color');
-                        } else if (color) {
-                            url.searchParams.set('set_color_sym', activeTargetSym);
-                            url.searchParams.set('set_color', color);
-                        }
-                        window.parent.location.search = url.search;
-                    });
+                    const action = item.dataset.action;
+                    const color = item.dataset.color;
+                    const url = new URL(window.parent.location.href);
+
+                    if (action === 'set_color' && color) {
+                        url.searchParams.set('set_color_sym', activeTargetSym);
+                        url.searchParams.set('set_color', color);
+                        url.searchParams.delete('remove_color_sym');
+                        url.searchParams.delete('delete_watchlist_sym');
+                    } else if (action === 'remove_color') {
+                        url.searchParams.set('remove_color_sym', activeTargetSym);
+                        url.searchParams.delete('set_color');
+                        url.searchParams.delete('delete_watchlist_sym');
+                    } else if (action === 'delete_watchlist') {
+                        url.searchParams.set('delete_watchlist_sym', activeTargetSym);
+                        url.searchParams.delete('set_color');
+                        url.searchParams.delete('remove_color_sym');
+                    }
+                    window.parent.location.search = url.search;
                 });
 
-                doc.addEventListener('click', () => {
-                    if (ctxMenu) ctxMenu.style.display = 'none';
+                // ปิดเมื่อคลิกนอกเมนูเท่านั้น (ใช้ setTimeout ป้องกัน event ตีกันตอนคลิกขวา)
+                doc.addEventListener('click', (e) => {
+                    if (ctxMenu && !ctxMenu.contains(e.target)) {
+                        ctxMenu.style.display = 'none';
+                    }
                 });
             }
 
-            function setupWatchlistContextMenu() {
-                const sideCol = getCol('custom-left-menu-anchor');
-                if (!sideCol) return;
+            // ดักจับคลิกขวาที่ปุ่ม Watchlist
+            if (!doc._watchlistCtxBound) {
+                doc._watchlistCtxBound = true;
+                doc.addEventListener('contextmenu', (e) => {
+                    const btn = e.target.closest('button');
+                    if (!btn) return;
 
-                // ตรวจหาปุ่มเหรียญใน Watchlist ทั้งหมด
-                const buttons = sideCol.querySelectorAll('button');
-                buttons.forEach(btn => {
-                    const txt = (btn.innerText || '').trim();
-                    // ตรวจเฉพาะปุ่มที่เป็นชื่อเหรียญ (มี dot หรือเป็นคู่เหรียญ)
-                    if (!btn.dataset.ctxBound && (txt.includes('USDT') || txt.includes('=F') || txt.includes('.BK') || txt.includes('🔴') || txt.includes('🟢') || txt.includes('🟠') || txt.includes('🔵') || txt.includes('⚪'))) {
-                        btn.dataset.ctxBound = 'true';
-                        btn.addEventListener('contextmenu', (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
+                    const fullText = (btn.textContent || btn.innerText || '').trim();
+                    const cleanSym = fullText.replace(/^[🔴🟢🟠🔵⚪\s]+/, '').trim();
 
-                            // สกัดเฉพาะชื่อเหรียญ (ตัด dot สีออกถ้ามี)
-                            const cleanSym = txt.replace(/^[🔴🟢🟠🔵⚪]\s*/, '').trim();
-                            activeTargetSym = cleanSym;
+                    const isCryptoOrStock = /^[A-Z0-9_=\.]{2,15}$/.test(cleanSym) || 
+                                           cleanSym.includes('USDT') || 
+                                           cleanSym.includes('_THB') || 
+                                           cleanSym.includes('.BK') || 
+                                           cleanSym.includes('=F');
 
-                            const titleEl = doc.getElementById('ctx-symbol-title');
-                            if (titleEl) titleEl.innerText = cleanSym;
+                    if (isCryptoOrStock && !cleanSym.includes('ALL') && !cleanSym.includes('⭐')) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        activeTargetSym = cleanSym;
 
-                            ctxMenu.style.left = e.clientX + 'px';
-                            ctxMenu.style.top = e.clientY + 'px';
-                            ctxMenu.style.display = 'flex';
-                        });
+                        const titleEl = doc.getElementById('ctx-symbol-title');
+                        if (titleEl) titleEl.innerText = cleanSym;
+
+                        // กำหนดพิกัดและบังคับแสดงผลค้างไว้
+                        setTimeout(() => {
+                            ctxMenu.style.setProperty('left', Math.min(e.pageX || e.clientX, window.parent.innerWidth - 190) + 'px', 'important');
+                            ctxMenu.style.setProperty('top', Math.min(e.pageY || e.clientY, window.parent.innerHeight - 280) + 'px', 'important');
+                            ctxMenu.style.setProperty('display', 'flex', 'important');
+                        }, 50);
                     }
-                });
+                }, true);
             }
 
             function attachResizers() {
@@ -396,23 +414,20 @@ def inject_workspace_resizers():
                 }
 
                 const shield = createShield();
-                setupWatchlistContextMenu();
 
-                // 1. จัดการฝั่งซ้าย
+                // 1. ซ้าย
                 if (sideCol && !doc.getElementById('resizer-left-bar')) {
                     const resizerL = doc.createElement('div');
                     resizerL.id = 'resizer-left-bar';
                     resizerL.title = 'คลิกลากเพื่อปรับขนาดเมนูซ้าย';
                     resizerL.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.9);"></div>';
                     resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -5px; touch-action: none;';
-
                     sideCol.after(resizerL);
 
                     const startDragL = (clientX) => {
                         shield.style.display = 'block';
                         const startX = clientX;
                         const startW = sideCol.getBoundingClientRect().width;
-
                         const onMove = (x) => {
                             const nw = Math.max(160, Math.min(480, startW + (x - startX)));
                             sideCol.style.width = nw + 'px';
@@ -427,7 +442,6 @@ def inject_workspace_resizers():
                             doc.removeEventListener('touchend', onTouchEnd);
                             notifyResize();
                         };
-
                         const onMouseMove = (ev) => onMove(ev.clientX);
                         const onMouseUp = () => onEnd();
                         const onTouchMove = (ev) => { if (ev.touches[0]) onMove(ev.touches[0].clientX); };
@@ -438,19 +452,16 @@ def inject_workspace_resizers():
                         doc.addEventListener('touchmove', onTouchMove, { passive: false });
                         doc.addEventListener('touchend', onTouchEnd);
                     };
-
                     resizerL.onmousedown = (e) => { e.preventDefault(); startDragL(e.clientX); };
                     resizerL.ontouchstart = (e) => { if (e.touches[0]) startDragL(e.touches[0].clientX); };
                 }
 
-                // 2. จัดการฝั่งขวา
+                // 2. ขวา
                 if (rightCol) {
                     rightCol.style.position = 'relative';
-
                     let resizerR = doc.getElementById('resizer-right-bar');
                     if (!resizerR || resizerR.parentElement !== rightCol) {
                         if (resizerR) resizerR.remove();
-
                         resizerR = doc.createElement('div');
                         resizerR.id = 'resizer-right-bar';
                         resizerR.title = 'คลิกลากเพื่อปรับขนาดเมนูขวา';
@@ -458,14 +469,12 @@ def inject_workspace_resizers():
                         resizerR.style.cssText = 'position: absolute; left: -6px; top: 0; bottom: 0; width: 14px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 999999; user-select: none; transition: background 0.15s; touch-action: none;';
                         resizerR.onmouseenter = () => { resizerR.style.background = 'rgba(255,125,30,0.2)'; };
                         resizerR.onmouseleave = () => { resizerR.style.background = 'transparent'; };
-
                         rightCol.prepend(resizerR);
 
                         const startDragR = (clientX) => {
                             shield.style.display = 'block';
                             const startX = clientX;
                             const startW = rightCol.getBoundingClientRect().width;
-
                             const onMove = (x) => {
                                 const nw = Math.max(200, Math.min(540, startW + (startX - x)));
                                 rightCol.style.setProperty('width', nw + 'px', 'important');
@@ -482,7 +491,6 @@ def inject_workspace_resizers():
                                 doc.removeEventListener('touchend', onTouchEnd);
                                 notifyResize();
                             };
-
                             const onMouseMove = (ev) => onMove(ev.clientX);
                             const onMouseUp = () => onEnd();
                             const onTouchMove = (ev) => { if (ev.touches[0]) onMove(ev.touches[0].clientX); };
@@ -493,13 +501,12 @@ def inject_workspace_resizers():
                             doc.addEventListener('touchmove', onTouchMove, { passive: false });
                             doc.addEventListener('touchend', onTouchEnd);
                         };
-
                         resizerR.onmousedown = (e) => { e.preventDefault(); startDragR(e.clientX); };
                         resizerR.ontouchstart = (e) => { if (e.touches[0]) startDragR(e.touches[0].clientX); };
                     }
                 }
 
-                // 3. ปุ่มพับเมนูขวา
+                // 3. พับขวา
                 const btnRight = doc.getElementById('btn-collapse-right');
                 if (btnRight && !btnRight.dataset.bound) {
                     btnRight.dataset.bound = 'true';
@@ -569,7 +576,7 @@ def dashboard():
         st.query_params.clear()
         st.rerun()
 
-        # จัดการคำสั่งย้ายกลุ่มสี หรือลบออกจากกลุ่ม ที่ส่งมาจาก Context Menu
+       # จัดการคำสั่งย้ายกลุ่มสี / ปลดสี / ลบออกจาก Watchlist
     if "set_color_sym" in st.query_params and "set_color" in st.query_params:
         target_sym = st.query_params["set_color_sym"]
         target_color = st.query_params["set_color"]
@@ -587,6 +594,21 @@ def dashboard():
             for c_list in st.session_state["color_watchlists"].values():
                 if target_sym in c_list:
                     c_list.remove(target_sym)
+        st.query_params.clear()
+        st.rerun()
+
+    if "delete_watchlist_sym" in st.query_params:
+        target_sym = st.query_params["delete_watchlist_sym"]
+        # ลบออกจากกลุ่มสี
+        if "color_watchlists" in st.session_state:
+            for c_list in st.session_state["color_watchlists"].values():
+                if target_sym in c_list:
+                    c_list.remove(target_sym)
+        # ลบออกจาก Watchlist หลัก
+        if "custom_watchlist" in st.session_state:
+            st.session_state["custom_watchlist"] = [
+                item for item in st.session_state["custom_watchlist"] if item[0] != target_sym
+            ]
         st.query_params.clear()
         st.rerun()
 
