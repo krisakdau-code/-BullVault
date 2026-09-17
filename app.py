@@ -14,6 +14,7 @@ import streamlit.components.v1 as components
 from ui.theme import apply_theme
 from ui.sidebar_refactored import render_sidebar
 from ui.floating_toggle import render_floating_sidebar_toggle
+from ui.top_toolbar import render_top_toolbar
 from chart_builders import build_charts
 from config import *
 from data.rice_ohlcv import generate_rice_ohlcv
