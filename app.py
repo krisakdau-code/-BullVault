@@ -70,7 +70,7 @@ st.set_page_config(page_title="Diamond Armor Universal", page_icon="💎", layou
 
 st.markdown("""
 <style>
-    /* 1. ยุบ Header และแถบเครื่องมือของ Streamlit ทั้งหมด */
+    /* 1. ยุบ Header ดั้งเดิมของ Streamlit */
     header, .stAppHeader,
     [data-testid="stHeader"], [data-testid="stAppHeader"],
     [data-testid="stDecoration"], [data-testid="stToolbar"],
@@ -86,47 +86,46 @@ st.markdown("""
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* 2. ตัดกล่องว่างและ Wrapper ซ่อนทั้งหมด */
-    div[data-testid="stElementContainer"]:has(iframe[height="0"]),
-    div[data-testid="stElementContainer"]:has(iframe[width="0"]),
-    div[data-testid="stElementContainer"]:has(.stCustomComponentV1 > iframe[height="0"]),
-    div[data-testid="stElementContainer"]:has(> div.stMarkdown > style),
-    div[data-testid="stElementContainer"]:has(> div.stMarkdown:empty) {
-        display: none !important;
-        height: 0px !important;
-        min-height: 0px !important;
-        margin: 0px !important;
-        padding: 0px !important;
-    }
-
-    /* 3. ดึงเนื้อหาหลักทั้งหมดขยับขึ้นแนบชิดขอบบน */
+    /* 2. ดึงเนื้อหาขึ้นชิดบนแบบไม่ทับซ้อนเลเยอร์คลิก */
     .block-container,
     .stMainBlockContainer,
     [data-testid="stMainBlockContainer"],
     [data-testid="stAppViewBlockContainer"],
     section[data-testid="stMain"] .block-container {
-        padding-top: 0rem !important;
-        margin-top: -24px !important;
+        padding-top: 2px !important;
         padding-bottom: 0rem !important;
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
         max-width: 100% !important;
     }
 
-    /* 4. ซ่อน Native Sidebar ดั้งเดิม */
-    [data-testid="collapsedControl"],
-    [data-testid="stSidebarCollapsedControl"],
-    [data-testid="stSidebarCollapseButton"],
-    [data-testid="stSidebarHeader"],
-    button[kind="header"],
-    button[kind="headerNoPadding"] {
-        display: none !important;
-        visibility: hidden !important;
-        width: 0px !important;
-        height: 0px !important;
+    /* 3. ยกระดับ Z-Index ให้แถบด้านบนคลิกได้ 100% ป้องกันเลเยอร์กราฟลอยทับ */
+    .top-toolbar-container {
+        position: relative !important;
+        z-index: 10005 !important;
     }
 
-    /* 5. ปุ่ม Timeframe แนวนอนสไตล์เดิม (Clean Minimalist Pill) */
+    div[data-testid="stPopover"] {
+        position: relative !important;
+        z-index: 10010 !important;
+    }
+
+    div[data-testid="stPopover"] > button {
+        background-color: #1e222d !important;
+        border: 1px solid #363c4e !important;
+        color: #d1d4dc !important;
+        height: 32px !important;
+        border-radius: 4px !important;
+        cursor: pointer !important;
+    }
+
+    div[data-testid="stPopover"] > button:hover {
+        background-color: #2a2e39 !important;
+        border-color: #2962ff !important;
+        color: #ffffff !important;
+    }
+
+    /* 4. สไตล์ปุ่ม Timeframe แนวนอน Minimalist */
     div[data-testid="stRadio"] > div[role="radiogroup"] {
         display: flex !important;
         flex-direction: row !important;
@@ -157,10 +156,62 @@ st.markdown("""
 
     div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
         color: #ffffff !important;
-        background-color: #2a2e39 !important;
+        background-color: #ff5722 !important;
+    }
+
+    /* 5. ตัวเลื่อนและตัวแบ่ง Splitter สำหรับลากขยายซ้าย-ขวา */
+    .gutter-col {
+        cursor: col-resize;
+        background: #1e222d;
+        width: 4px !important;
+        height: 100%;
+        transition: background 0.2s;
+    }
+    .gutter-col:hover {
+        background: #2962ff !important;
     }
 </style>
 """, unsafe_allow_html=True)
+
+# ฟังก์ชัน JavaScript ฉีดเข้าระบบเพื่อสร้างตัวลากเลื่อนซ้าย-ขวา (Resizer Splitter) และคุมแท็บ
+def inject_workspace_splitter():
+    components.html("""
+    <script>
+    (function initSplitter() {
+        const doc = window.parent.document;
+        if (doc.getElementById('splitter-initialized')) return;
+
+        const flag = doc.createElement('div');
+        flag.id = 'splitter-initialized';
+        flag.style.display = 'none';
+        doc.body.appendChild(flag);
+
+        // ดักจับปุ่มพับเก็บเมนูขวา
+        setTimeout(() => {
+            const btnRight = doc.getElementById('btn-collapse-right');
+            if (btnRight) {
+                btnRight.onclick = function() {
+                    const rightCol = btnRight.closest('[data-testid="column"]');
+                    if (rightCol) {
+                        rightCol.style.display = (rightCol.style.display === 'none') ? 'block' : 'none';
+                    }
+                };
+            }
+
+            const btnFull = doc.getElementById('btn-fullscreen-app');
+            if (btnFull) {
+                btnFull.onclick = function() {
+                    if (!doc.fullscreenElement) {
+                        doc.documentElement.requestFullscreen();
+                    } else {
+                        doc.exitFullscreen();
+                    }
+                };
+            }
+        }, 1000);
+    })();
+    </script>
+    """, height=0, width=0)
 
 if "current_symbol" not in st.session_state: st.session_state["current_symbol"] = "BTCUSDT"
 if "selected_tf" not in st.session_state: st.session_state["selected_tf"] = "1h"
@@ -180,14 +231,11 @@ retry_strategy = Retry(total=3, backoff_factor=0.8, status_forcelist=[429, 500, 
 HTTP_SESSION.mount("https://", HTTPAdapter(max_retries=retry_strategy))
 
 def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
-    # 1. สินค้ากลุ่มข้าวไทย และ CBOT
     if symbol.startswith("RICE:") or symbol.startswith("FOB:") or "ZR=F" in symbol:
         return generate_rice_ohlcv(symbol, bars=bars)
 
-    # 2. สินทรัพย์จริงทุกตลาด ดึงสดผ่าน data/fetchers.py
     df = fetch_market_ohlcv(symbol=symbol, tf=tf, limit=bars)
 
-    # 3. จัดระเบียบ Timestamp ให้อยู่ในฟอร์แมต Unix Seconds สำหรับกราฟ
     if not df.empty and "time" in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df["time"]):
             df["time"] = (df["time"].astype("int64") // 10**9)
@@ -206,14 +254,14 @@ def dashboard():
     apply_theme()
     render_floating_sidebar_toggle()
     init_settings_state()
+    inject_workspace_splitter()
 
     symbol = st.session_state.get("current_symbol", "BTCUSDT")
     tf = st.session_state.get("selected_tf", "1h")
 
-    # ปรับความลึกแท่งเทียนตามตาราง Ultra-Deep History อัตโนมัติ
+    # ปรับความจุประวัติศาสตร์ย้อนหลังตามโควตา Ultra-Deep
     bars = TF_TARGET_BARS.get(tf, 25000)
 
-    # 1. เตรียมข้อมูลตลาดและคำนวณข้อมูลในหน่วยความจำ
     meta = resolve_market_info(symbol)
     fx_rate = get_usd_thb_rate()
     is_thb_mode = st.session_state.get("currency_mode_thb", False)
@@ -230,7 +278,8 @@ def dashboard():
         last_close = 0.0
         live_pct = 0.0
 
-    # 2. วาดแถบเครื่องมือด้านบนสุดแถวเดียว (Single-Row Top Toolbar แบบเดิม)
+    # 1. แถบควบคุมด้านบนสุด (Top Bar แถวเดียว พร้อมแก้ Z-Index สำหรับคลิก)
+    st.markdown('<div class="top-toolbar-container">', unsafe_allow_html=True)
     pct_sign = "+" if live_pct >= 0 else ""
     pct_str = f"{pct_sign}{live_pct:.2f}%"
     display_title = meta["display_name"]
@@ -253,15 +302,17 @@ def dashboard():
         st.markdown('</div>', unsafe_allow_html=True)
     with c_ind:
         with st.popover("📊 Indicators ▾", use_container_width=True):
+            st.markdown("##### ⚙️ ตัวชี้วัดเทคนิค")
             st.toggle("RSI (14)", value=True, key="show_rsi_pane")
             st.toggle("MACD (12, 26, 9)", value=True, key="show_macd_pane")
             st.toggle("EMA Ribbon", value=True, key="show_ema")
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 3. คำนวณทางเทคนิคและสร้างกราฟ
+    # 2. คำนวณและเรนเดอร์ชาร์ต
     tech_data = compute_full_technicals(df)
     charts = build_charts(df, symbol, tf, 520, 120, 120)
 
-    # 4. แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | พาเนลขวา
+    # 3. โครงสร้าง Layout 3 ส่วน (ซ้าย | ชาร์ตกลาง | ขวา)
     col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
     with col_side:
