@@ -223,6 +223,16 @@ st.markdown("""
 
 def inject_workspace_resizers():
     components.html("""
+    <style>
+        /* ซ่อนแถบ Resizer ทั้งหมดเมื่อเปิดบนหน้าจอมือถือ (กว้างต่ำกว่า 768px) */
+        @media (max-width: 768px) {
+            #resizer-left-bar,
+            #resizer-right-bar,
+            #drag-shield-overlay {
+                display: none !important;
+            }
+        }
+    </style>
     <script>
     (function() {
         try {
@@ -240,7 +250,7 @@ def inject_workspace_resizers():
                 if (!shield) {
                     shield = doc.createElement('div');
                     shield.id = 'drag-shield-overlay';
-                    shield.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999999;cursor:col-resize;background:transparent;display:none;';
+                    shield.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:999999;cursor:col-resize;background:transparent;display:none;touch-action:none;';
                     doc.body.appendChild(shield);
                 }
                 return shield;
@@ -252,6 +262,9 @@ def inject_workspace_resizers():
             }
 
             function attachResizers() {
+                // หากหน้าจอแคบกว่า 768px (มือถือ) ให้หยุดทำงาน ไม่ต้องแทรกแถบลาก
+                if (window.parent.innerWidth < 768) return;
+
                 const sideCol = getCol('custom-left-menu-anchor');
                 const chartCol = getCol('custom-center-chart-anchor');
                 const rightCol = getCol('custom-right-menu-anchor');
@@ -263,40 +276,52 @@ def inject_workspace_resizers():
 
                 const shield = createShield();
 
-                // 1. จัดการฝั่งซ้าย
+                // 1. จัดการฝั่งซ้าย (รองรับทั้ง Mouse และ Touch)
                 if (sideCol && !doc.getElementById('resizer-left-bar')) {
                     const resizerL = doc.createElement('div');
                     resizerL.id = 'resizer-left-bar';
                     resizerL.title = 'คลิกลากเพื่อปรับขนาดเมนูซ้าย';
                     resizerL.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.9);"></div>';
-                    resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -5px;';
+                    resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -5px; touch-action: none;';
 
                     sideCol.after(resizerL);
 
-                    resizerL.onmousedown = (e) => {
-                        e.preventDefault();
+                    const startDragL = (clientX) => {
                         shield.style.display = 'block';
-                        const startX = e.clientX;
+                        const startX = clientX;
                         const startW = sideCol.getBoundingClientRect().width;
 
-                        const onMove = (ev) => {
-                            const nw = Math.max(160, Math.min(480, startW + (ev.clientX - startX)));
+                        const onMove = (x) => {
+                            const nw = Math.max(160, Math.min(480, startW + (x - startX)));
                             sideCol.style.width = nw + 'px';
                             sideCol.style.flex = '0 0 ' + nw + 'px';
                             notifyResize();
                         };
-                        const onUp = () => {
+                        const onEnd = () => {
                             shield.style.display = 'none';
-                            doc.removeEventListener('mousemove', onMove);
-                            doc.removeEventListener('mouseup', onUp);
+                            doc.removeEventListener('mousemove', onMouseMove);
+                            doc.removeEventListener('mouseup', onMouseUp);
+                            doc.removeEventListener('touchmove', onTouchMove);
+                            doc.removeEventListener('touchend', onTouchEnd);
                             notifyResize();
                         };
-                        doc.addEventListener('mousemove', onMove);
-                        doc.addEventListener('mouseup', onUp);
+
+                        const onMouseMove = (ev) => onMove(ev.clientX);
+                        const onMouseUp = () => onEnd();
+                        const onTouchMove = (ev) => { if (ev.touches[0]) onMove(ev.touches[0].clientX); };
+                        const onTouchEnd = () => onEnd();
+
+                        doc.addEventListener('mousemove', onMouseMove);
+                        doc.addEventListener('mouseup', onMouseUp);
+                        doc.addEventListener('touchmove', onTouchMove, { passive: false });
+                        doc.addEventListener('touchend', onTouchEnd);
                     };
+
+                    resizerL.onmousedown = (e) => { e.preventDefault(); startDragL(e.clientX); };
+                    resizerL.ontouchstart = (e) => { if (e.touches[0]) startDragL(e.touches[0].clientX); };
                 }
 
-                // 2. จัดการฝั่งขวา (Position Absolute ยึดขอบซ้ายของ stColumn)
+                // 2. จัดการฝั่งขวา (Position Absolute รองรับทั้ง Mouse และ Touch)
                 if (rightCol) {
                     rightCol.style.position = 'relative';
 
@@ -308,35 +333,47 @@ def inject_workspace_resizers():
                         resizerR.id = 'resizer-right-bar';
                         resizerR.title = 'คลิกลากเพื่อปรับขนาดเมนูขวา';
                         resizerR.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 10px rgba(255,125,30,0.9);"></div>';
-                        resizerR.style.cssText = 'position: absolute; left: -6px; top: 0; bottom: 0; width: 14px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 999999; user-select: none; transition: background 0.15s;';
+                        resizerR.style.cssText = 'position: absolute; left: -6px; top: 0; bottom: 0; width: 14px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 999999; user-select: none; transition: background 0.15s; touch-action: none;';
                         resizerR.onmouseenter = () => { resizerR.style.background = 'rgba(255,125,30,0.2)'; };
                         resizerR.onmouseleave = () => { resizerR.style.background = 'transparent'; };
 
                         rightCol.prepend(resizerR);
 
-                        resizerR.onmousedown = (e) => {
-                            e.preventDefault();
+                        const startDragR = (clientX) => {
                             shield.style.display = 'block';
-                            const startX = e.clientX;
+                            const startX = clientX;
                             const startW = rightCol.getBoundingClientRect().width;
 
-                            const onMove = (ev) => {
-                                const nw = Math.max(200, Math.min(540, startW + (startX - ev.clientX)));
+                            const onMove = (x) => {
+                                const nw = Math.max(200, Math.min(540, startW + (startX - x)));
                                 rightCol.style.setProperty('width', nw + 'px', 'important');
                                 rightCol.style.setProperty('min-width', nw + 'px', 'important');
                                 rightCol.style.setProperty('max-width', nw + 'px', 'important');
                                 rightCol.style.setProperty('flex', '0 0 ' + nw + 'px', 'important');
                                 notifyResize();
                             };
-                            const onUp = () => {
+                            const onEnd = () => {
                                 shield.style.display = 'none';
-                                doc.removeEventListener('mousemove', onMove);
-                                doc.removeEventListener('mouseup', onUp);
+                                doc.removeEventListener('mousemove', onMouseMove);
+                                doc.removeEventListener('mouseup', onMouseUp);
+                                doc.removeEventListener('touchmove', onTouchMove);
+                                doc.removeEventListener('touchend', onTouchEnd);
                                 notifyResize();
                             };
-                            doc.addEventListener('mousemove', onMove);
-                            doc.addEventListener('mouseup', onUp);
+
+                            const onMouseMove = (ev) => onMove(ev.clientX);
+                            const onMouseUp = () => onEnd();
+                            const onTouchMove = (ev) => { if (ev.touches[0]) onMove(ev.touches[0].clientX); };
+                            const onTouchEnd = () => onEnd();
+
+                            doc.addEventListener('mousemove', onMouseMove);
+                            doc.addEventListener('mouseup', onMouseUp);
+                            doc.addEventListener('touchmove', onTouchMove, { passive: false });
+                            doc.addEventListener('touchend', onTouchEnd);
                         };
+
+                        resizerR.onmousedown = (e) => { e.preventDefault(); startDragR(e.clientX); };
+                        resizerR.ontouchstart = (e) => { if (e.touches[0]) startDragR(e.touches[0].clientX); };
                     }
                 }
 
@@ -420,9 +457,16 @@ def dashboard():
     active_id = st.session_state["active_tab_id"]
     active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
 
+    # ซิงค์ค่าเหรียญ: ตรวจสอบว่ามีการกดเลือกเหรียญใหม่จาก Sidebar หรือ Modal หรือไม่
+    incoming_sym = st.session_state.get("selected_symbol") or st.session_state.get("current_symbol")
+    if incoming_sym and incoming_sym != active_tab.get("symbol"):
+        active_tab["symbol"] = incoming_sym  # อัปเดตแท็บด้านบนให้เป็นเหรียญใหม่
+
     symbol = active_tab["symbol"]
-    tf = active_tab.get("tf", st.session_state.get("selected_tf", "1h"))
     st.session_state["current_symbol"] = symbol
+    st.session_state["selected_symbol"] = symbol
+
+    tf = active_tab.get("tf", st.session_state.get("selected_tf", "1h"))
     st.session_state["selected_tf"] = tf
 
     bars = TF_TARGET_BARS.get(tf, 25000)
