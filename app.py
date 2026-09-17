@@ -247,18 +247,18 @@ def inject_workspace_resizers():
 
             if (!sideCol || !chartCol || !rightCol) return;
 
-            // 1. ปลดล็อกคอลัมน์กราฟตรงกลางให้ยืดหดตามได้อย่างอิสระ ไม่ค้ำคอลัมน์ขวา
+            // ปลดล็อกคอลัมน์กราฟตรงกลางให้ยืดหดตามได้อย่างอิสระ
             chartCol.style.setProperty('flex', '1 1 0%', 'important');
             chartCol.style.setProperty('min-width', '0px', 'important');
             chartCol.style.setProperty('width', '100%', 'important');
 
-            // 2. แถบลากปรับขนาดฝั่งซ้าย
+            // 1. เส้นคั่นปรับขนาดฝั่งซ้าย (ต่อท้ายเมนูซ้าย)
             if (!doc.getElementById('resizer-left-bar')) {
                 const resizerL = doc.createElement('div');
                 resizerL.id = 'resizer-left-bar';
                 resizerL.title = 'คลิกลากเพื่อปรับขนาดเมนูซ้าย';
-                resizerL.innerHTML = '<div style="width:2px; height:45px; background:#ff7d1e; border-radius:1px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.8);"></div>';
-                resizerL.style.cssText = 'width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none; transition: background 0.15s;';
+                resizerL.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 8px rgba(255,125,30,0.8);"></div>';
+                resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -5px; transition: background 0.15s;';
                 resizerL.onmouseenter = () => resizerL.style.background = 'rgba(255,125,30,0.2)';
                 resizerL.onmouseleave = () => resizerL.style.background = 'transparent';
 
@@ -293,17 +293,17 @@ def inject_workspace_resizers():
                 };
             }
 
-            // 3. แถบลากปรับขนาดฝั่งขวา (บังคับใช้ !important ทั้ง width, min-width, max-width)
+            // 2. เส้นคั่นปรับขนาดฝั่งขวา (ต่อท้ายกราฟตรงกลางทันที — อยู่ตรงร่องคั่นกลาง 100%)
             if (!doc.getElementById('resizer-right-bar')) {
                 const resizerR = doc.createElement('div');
                 resizerR.id = 'resizer-right-bar';
                 resizerR.title = 'คลิกลากเพื่อปรับขนาดเมนูขวา';
-                resizerR.innerHTML = '<div style="width:2px; height:45px; background:#ff7d1e; border-radius:1px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.8);"></div>';
-                resizerR.style.cssText = 'width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none; transition: background 0.15s;';
+                resizerR.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 8px rgba(255,125,30,0.8);"></div>';
+                resizerR.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -5px; transition: background 0.15s;';
                 resizerR.onmouseenter = () => resizerR.style.background = 'rgba(255,125,30,0.2)';
                 resizerR.onmouseleave = () => resizerR.style.background = 'transparent';
 
-                rightCol.before(resizerR);
+                chartCol.after(resizerR);
 
                 resizerR.onmousedown = (e) => {
                     e.preventDefault();
@@ -334,7 +334,7 @@ def inject_workspace_resizers():
                 };
             }
 
-            // 4. ผูกปุ่มพับขวา
+            // 3. จัดการปุ่มพับขวา
             const btnRight = doc.getElementById('btn-collapse-right');
             if (btnRight && !btnRight.dataset.bound) {
                 btnRight.dataset.bound = 'true';
