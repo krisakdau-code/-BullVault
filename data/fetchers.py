@@ -5,7 +5,9 @@ import requests
 import pandas as pd
 import numpy as np
 import streamlit as st
-
+# สั่งให้ Background Worker ตรวจสอบและดึงประวัติศาสตร์ 5,000 แท่งในพื้นหลังทันที
+from data.history_sync import sync_deep_history_background
+sync_deep_history_background(clean_sym, tf, target_bars=5000)
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
 }
