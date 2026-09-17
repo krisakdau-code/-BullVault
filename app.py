@@ -70,7 +70,7 @@ st.set_page_config(page_title="Diamond Armor Universal", page_icon="💎", layou
 
 st.markdown("""
 <style>
-    /* 1. ยุบ Header ดั้งเดิมของ Streamlit */
+    /* 1. ยุบ Header ดั้งเดิมของ Streamlit ทั้งหมด */
     header, .stAppHeader,
     [data-testid="stHeader"], [data-testid="stAppHeader"],
     [data-testid="stDecoration"], [data-testid="stToolbar"],
@@ -86,7 +86,7 @@ st.markdown("""
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* 2. ดึงเนื้อหาขึ้นชิดบนแบบไม่ทับซ้อนเลเยอร์คลิก */
+    /* 2. ดึงเนื้อหาขึ้นชิดบนสุด */
     .block-container,
     .stMainBlockContainer,
     [data-testid="stMainBlockContainer"],
@@ -99,42 +99,39 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* 3. ยกระดับ Z-Index ให้แถบด้านบนคลิกได้ 100% ป้องกันเลเยอร์กราฟลอยทับ */
-    .top-toolbar-container {
-        position: relative !important;
-        z-index: 10005 !important;
-    }
-
-    div[data-testid="stPopover"] {
-        position: relative !important;
-        z-index: 10010 !important;
-    }
-
-    div[data-testid="stPopover"] > button {
-        background-color: #1e222d !important;
-        border: 1px solid #363c4e !important;
-        color: #d1d4dc !important;
+    /* 3. แถบแท็บด้านบนสุด (Top Tabs Bar) */
+    .top-tab-active button {
+        background: linear-gradient(135deg, #ff5722 0%, #e64a19 100%) !important;
+        color: #ffffff !important;
+        font-weight: 700 !important;
+        border: none !important;
+        border-radius: 4px 4px 0 0 !important;
         height: 32px !important;
-        border-radius: 4px !important;
-        cursor: pointer !important;
+        box-shadow: 0 -2px 8px rgba(255, 87, 34, 0.4) !important;
     }
 
-    div[data-testid="stPopover"] > button:hover {
-        background-color: #2a2e39 !important;
-        border-color: #2962ff !important;
+    .top-tab-inactive button {
+        background: #181b22 !important;
+        color: #8f96a3 !important;
+        border: 1px solid #2a2e39 !important;
+        border-radius: 4px 4px 0 0 !important;
+        height: 32px !important;
+    }
+    .top-tab-inactive button:hover {
+        background: #222631 !important;
         color: #ffffff !important;
     }
 
-    /* 4. สไตล์ปุ่ม Timeframe แนวนอน Minimalist */
+    /* 4. สไตล์ปุ่ม Timeframe Pills */
     div[data-testid="stRadio"] > div[role="radiogroup"] {
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
-        gap: 3px !important;
+        gap: 2px !important;
     }
 
     div[data-testid="stRadio"] > div[role="radiogroup"] label {
-        padding: 3px 6px !important;
+        padding: 2px 7px !important;
         margin: 0 !important;
         border-radius: 4px !important;
         cursor: pointer !important;
@@ -159,71 +156,151 @@ st.markdown("""
         background-color: #ff5722 !important;
     }
 
-    /* 5. ตัวเลื่อนและตัวแบ่ง Splitter สำหรับลากขยายซ้าย-ขวา */
-    .gutter-col {
-        cursor: col-resize;
-        background: #1e222d;
-        width: 4px !important;
-        height: 100%;
-        transition: background 0.2s;
+    /* 5. ปุ่ม Indicators Popover */
+    div[data-testid="stPopover"] {
+        position: relative !important;
+        z-index: 10010 !important;
     }
-    .gutter-col:hover {
-        background: #2962ff !important;
+    div[data-testid="stPopover"] > button {
+        background-color: #1e222d !important;
+        border: 1px solid #363c4e !important;
+        color: #d1d4dc !important;
+        height: 30px !important;
+        border-radius: 4px !important;
+    }
+    div[data-testid="stPopover"] > button:hover {
+        background-color: #2a2e39 !important;
+        border-color: #2962ff !important;
+        color: #ffffff !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ฟังก์ชัน JavaScript ฉีดเข้าระบบเพื่อสร้างตัวลากเลื่อนซ้าย-ขวา (Resizer Splitter) และคุมแท็บ
-def inject_workspace_splitter():
+# ระบบฉีด JavaScript เพื่อสร้างแท่งจับลากปรับขนาดซ้าย-ขวา (Draggable Resizers)
+def inject_workspace_resizers():
     components.html("""
     <script>
-    (function initSplitter() {
+    (function attachSplitters() {
         const doc = window.parent.document;
-        if (doc.getElementById('splitter-initialized')) return;
+        function run() {
+            const sideAnchor = doc.getElementById('custom-left-menu-anchor');
+            const chartAnchor = doc.getElementById('custom-center-chart-anchor');
+            const rightAnchor = doc.getElementById('custom-right-menu-anchor');
 
-        const flag = doc.createElement('div');
-        flag.id = 'splitter-initialized';
-        flag.style.display = 'none';
-        doc.body.appendChild(flag);
+            if (!sideAnchor || !chartAnchor || !rightAnchor) return;
 
-        // ดักจับปุ่มพับเก็บเมนูขวา
-        setTimeout(() => {
+            const sideCol = sideAnchor.closest('[data-testid="column"]');
+            const chartCol = chartAnchor.closest('[data-testid="column"]');
+            const rightCol = rightAnchor.closest('[data-testid="column"]');
+
+            if (!sideCol || !chartCol || !rightCol) return;
+            if (sideCol.nextElementSibling && sideCol.nextElementSibling.id === 'resizer-left-bar') return;
+
+            // ลบ Resizer เก่าถ้ามีตกค้าง
+            const oldL = doc.getElementById('resizer-left-bar');
+            if (oldL) oldL.remove();
+            const oldR = doc.getElementById('resizer-right-bar');
+            if (oldR) oldR.remove();
+
+            // 1. สร้างแถบเลื่อนฝั่งซ้าย (ระหว่างเมนูซ้ายกับกราฟ)
+            const resizerL = doc.createElement('div');
+            resizerL.id = 'resizer-left-bar';
+            resizerL.title = 'คลิกค้างแล้วลากเพื่อปรับขนาดเมนูซ้าย';
+            resizerL.innerHTML = '<div style="width:2px; height:40px; background:#4a5061; border-radius:1px; margin:auto;"></div>';
+            resizerL.style.cssText = `
+                width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center;
+                background: transparent; z-index: 9999; flex-shrink: 0; user-select: none; transition: background 0.15s;
+            `;
+            resizerL.onmouseenter = () => resizerL.style.background = 'rgba(255, 87, 34, 0.4)';
+            resizerL.onmouseleave = () => resizerL.style.background = 'transparent';
+
+            // 2. สร้างแถบเลื่อนฝั่งขวา (ระหว่างกราฟกับเมนูขวา)
+            const resizerR = doc.createElement('div');
+            resizerR.id = 'resizer-right-bar';
+            resizerR.title = 'คลิกค้างแล้วลากเพื่อปรับขนาดเมนูขวา';
+            resizerR.innerHTML = '<div style="width:2px; height:40px; background:#4a5061; border-radius:1px; margin:auto;"></div>';
+            resizerR.style.cssText = `
+                width: 8px; cursor: col-resize; display: flex; align-items: center; justify-content: center;
+                background: transparent; z-index: 9999; flex-shrink: 0; user-select: none; transition: background 0.15s;
+            `;
+            resizerR.onmouseenter = () => resizerR.style.background = 'rgba(255, 87, 34, 0.4)';
+            resizerR.onmouseleave = () => resizerR.style.background = 'transparent';
+
+            sideCol.after(resizerL);
+            chartCol.after(resizerR);
+
+            // Drag Handler สำหรับฝั่งซ้าย
+            resizerL.onmousedown = (e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startW = sideCol.getBoundingClientRect().width;
+                const onMouseMove = (ev) => {
+                    const nw = Math.max(160, Math.min(480, startW + (ev.clientX - startX)));
+                    sideCol.style.width = nw + 'px';
+                    sideCol.style.flex = '0 0 ' + nw + 'px';
+                };
+                const onMouseUp = () => {
+                    doc.removeEventListener('mousemove', onMouseMove);
+                    doc.removeEventListener('mouseup', onMouseUp);
+                };
+                doc.addEventListener('mousemove', onMouseMove);
+                doc.addEventListener('mouseup', onMouseUp);
+            };
+
+            // Drag Handler สำหรับฝั่งขวา
+            resizerR.onmousedown = (e) => {
+                e.preventDefault();
+                const startX = e.clientX;
+                const startW = rightCol.getBoundingClientRect().width;
+                const onMouseMove = (ev) => {
+                    const nw = Math.max(200, Math.min(520, startW - (ev.clientX - startX)));
+                    rightCol.style.width = nw + 'px';
+                    rightCol.style.flex = '0 0 ' + nw + 'px';
+                };
+                const onMouseUp = () => {
+                    doc.removeEventListener('mousemove', onMouseMove);
+                    doc.removeEventListener('mouseup', onMouseUp);
+                };
+                doc.addEventListener('mousemove', onMouseMove);
+                doc.addEventListener('mouseup', onMouseUp);
+            };
+
+            // เชื่อมต่อปุ่มพับขวาและขยายเต็มจอ
             const btnRight = doc.getElementById('btn-collapse-right');
             if (btnRight) {
                 btnRight.onclick = function() {
-                    const rightCol = btnRight.closest('[data-testid="column"]');
-                    if (rightCol) {
-                        rightCol.style.display = (rightCol.style.display === 'none') ? 'block' : 'none';
-                    }
+                    const isHidden = (rightCol.style.display === 'none');
+                    rightCol.style.display = isHidden ? 'block' : 'none';
+                    resizerR.style.display = isHidden ? 'flex' : 'none';
                 };
             }
-
             const btnFull = doc.getElementById('btn-fullscreen-app');
             if (btnFull) {
                 btnFull.onclick = function() {
-                    if (!doc.fullscreenElement) {
-                        doc.documentElement.requestFullscreen();
-                    } else {
-                        doc.exitFullscreen();
-                    }
+                    if (!doc.fullscreenElement) doc.documentElement.requestFullscreen();
+                    else doc.exitFullscreen();
                 };
             }
-        }, 1000);
+        }
+        setTimeout(run, 300);
+        setTimeout(run, 1000);
     })();
     </script>
     """, height=0, width=0)
+
+# กำหนดสถานะ Multi-Tabs ใน Session
+if "chart_tabs" not in st.session_state:
+    st.session_state["chart_tabs"] = [
+        {"id": "tab_1", "symbol": "BTCUSDT", "tf": "1h"}
+    ]
+if "active_tab_id" not in st.session_state:
+    st.session_state["active_tab_id"] = "tab_1"
 
 if "current_symbol" not in st.session_state: st.session_state["current_symbol"] = "BTCUSDT"
 if "selected_tf" not in st.session_state: st.session_state["selected_tf"] = "1h"
 if "fast_ema" not in st.session_state: st.session_state["fast_ema"] = 7
 if "slow_ema" not in st.session_state: st.session_state["slow_ema"] = 13
 if "trend_ema" not in st.session_state: st.session_state["trend_ema"] = 45
-if "warn_pct" not in st.session_state: st.session_state["warn_pct"] = 3.0
-if "danger_pct" not in st.session_state: st.session_state["danger_pct"] = 7.0
-if "fib_lookback" not in st.session_state: st.session_state["fib_lookback"] = 5
-if "fib_window" not in st.session_state: st.session_state["fib_window"] = 120
-if "fib_tp_level" not in st.session_state: st.session_state["fib_tp_level"] = 1.618
-if "min_tp" not in st.session_state: st.session_state["min_tp"] = 3.0
 
 HTTP_SESSION = requests.Session()
 HTTP_SESSION.headers.update(BROWSER_HEADERS)
@@ -254,14 +331,22 @@ def dashboard():
     apply_theme()
     render_floating_sidebar_toggle()
     init_settings_state()
-    inject_workspace_splitter()
+    inject_workspace_resizers()
 
-    symbol = st.session_state.get("current_symbol", "BTCUSDT")
-    tf = st.session_state.get("selected_tf", "1h")
+    # ซิงค์ข้อมูลแท็บที่เปิดอยู่
+    tabs = st.session_state["chart_tabs"]
+    active_id = st.session_state["active_tab_id"]
+    active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
 
-    # ปรับความจุประวัติศาสตร์ย้อนหลังตามโควตา Ultra-Deep
+    symbol = active_tab["symbol"]
+    tf = active_tab.get("tf", st.session_state.get("selected_tf", "1h"))
+    st.session_state["current_symbol"] = symbol
+    st.session_state["selected_tf"] = tf
+
+    # ปรับจำนวนแท่งตามโควตา Ultra-Deep
     bars = TF_TARGET_BARS.get(tf, 25000)
 
+    # คำนวณข้อมูลราคาและอินดิเคเตอร์
     meta = resolve_market_info(symbol)
     fx_rate = get_usd_thb_rate()
     is_thb_mode = st.session_state.get("currency_mode_thb", False)
@@ -278,41 +363,86 @@ def dashboard():
         last_close = 0.0
         live_pct = 0.0
 
-    # 1. แถบควบคุมด้านบนสุด (Top Bar แถวเดียว พร้อมแก้ Z-Index สำหรับคลิก)
-    st.markdown('<div class="top-toolbar-container">', unsafe_allow_html=True)
     pct_sign = "+" if live_pct >= 0 else ""
     pct_str = f"{pct_sign}{live_pct:.2f}%"
-    display_title = meta["display_name"]
 
-    c_tab, c_add, c_tf, c_ind = st.columns([1.8, 0.35, 6.2, 1.4], gap="small")
-    with c_tab:
-        st.markdown('<div id="custom-tabs-anchor"></div>', unsafe_allow_html=True)
-        st.button(f"💎 {display_title} {pct_str}", key="main_active_tab_btn", type="primary", use_container_width=True)
-    with c_add:
-        st.button("+", key="add_t_btn")
+    # =========================================================================
+    # แถวที่ 1 (บนสุด): แถบแท็บสินทรัพย์ (Multi-Tab Bar) แยกอิสระตามกรอบสีเขียว
+    # =========================================================================
+    tab_cols_widths = [0.35]
+    for _ in tabs:
+        tab_cols_widths.extend([1.6, 0.25])  # ช่องชื่อแท็บ + ช่องปุ่มปิด (x)
+    tab_cols_widths.extend([0.35, 8.0])      # ช่องปุ่มบวก (+) + พื้นที่ว่าง
+
+    t_cols = st.columns(tab_cols_widths, gap="small")
+    with t_cols[0]:
+        st.markdown('<div id="toggle-btn-anchor" style="height:30px; display:flex; align-items:center; font-size:16px; color:#9aa0a6;">☰</div>', unsafe_allow_html=True)
+
+    col_idx = 1
+    for t in tabs:
+        is_active = (t["id"] == active_id)
+        t_meta = resolve_market_info(t["symbol"])
+        t_label = f"💎 {t_meta['display_name']} {pct_str if is_active else ''}".strip()
+        css_class = "top-tab-active" if is_active else "top-tab-inactive"
+
+        with t_cols[col_idx]:
+            st.markdown(f'<div class="{css_class}">', unsafe_allow_html=True)
+            if st.button(t_label, key=f"t_btn_{t['id']}", use_container_width=True):
+                st.session_state["active_tab_id"] = t["id"]
+                st.session_state["current_symbol"] = t["symbol"]
+                st.session_state["selected_tf"] = t["tf"]
+                st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with t_cols[col_idx + 1]:
+            if len(tabs) > 1:
+                if st.button("✕", key=f"t_close_{t['id']}", help="ปิดแท็บนี้"):
+                    st.session_state["chart_tabs"] = [x for x in tabs if x["id"] != t["id"]]
+                    if t["id"] == active_id:
+                        st.session_state["active_tab_id"] = st.session_state["chart_tabs"][0]["id"]
+                        st.session_state["current_symbol"] = st.session_state["chart_tabs"][0]["symbol"]
+                    st.rerun()
+        col_idx += 2
+
+    # ปุ่มเครื่องหมายบวก (+) เพื่อเพิ่มแท็บใหม่
+    with t_cols[col_idx]:
+        if st.button("＋", key="btn_add_tab_global", help="เพิ่มแท็บกราฟใหม่"):
+            new_tab_id = f"tab_{int(time.time() * 1000)}"
+            new_sym = "ETHUSDT" if symbol == "BTCUSDT" else "BTCUSDT"
+            st.session_state["chart_tabs"].append({"id": new_tab_id, "symbol": new_sym, "tf": tf})
+            st.session_state["active_tab_id"] = new_tab_id
+            st.session_state["current_symbol"] = new_sym
+            st.rerun()
+
+    # =========================================================================
+    # แถวที่ 2: แถบเลือก Timeframe และ Indicators Popover
+    # =========================================================================
+    c_space, c_tf, c_ind = st.columns([0.35, 7.8, 1.6], gap="small")
     with c_tf:
         st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
         primary_tfs = ["5m", "15m", "30m", "1h", "2h", "3h", "4h", "D", "2D", "3D", "W", "M"]
-        cur_tf = st.session_state.get("selected_tf", "1h")
+        cur_tf = tf
         def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 3
         new_tf = st.radio("TF", primary_tfs, index=def_idx, horizontal=True, label_visibility="collapsed", key="toolbar_tf_horizontal")
         if new_tf != cur_tf:
+            active_tab["tf"] = new_tf
             st.session_state["selected_tf"] = new_tf
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
+
     with c_ind:
         with st.popover("📊 Indicators ▾", use_container_width=True):
             st.markdown("##### ⚙️ ตัวชี้วัดเทคนิค")
             st.toggle("RSI (14)", value=True, key="show_rsi_pane")
             st.toggle("MACD (12, 26, 9)", value=True, key="show_macd_pane")
             st.toggle("EMA Ribbon", value=True, key="show_ema")
-    st.markdown('</div>', unsafe_allow_html=True)
 
-    # 2. คำนวณและเรนเดอร์ชาร์ต
+    # =========================================================================
+    # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก (มี Draggable Splitters คั่นกลาง)
+    # =========================================================================
     tech_data = compute_full_technicals(df)
     charts = build_charts(df, symbol, tf, 520, 120, 120)
 
-    # 3. โครงสร้าง Layout 3 ส่วน (ซ้าย | ชาร์ตกลาง | ขวา)
     col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
     with col_side:
