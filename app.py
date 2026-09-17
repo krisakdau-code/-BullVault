@@ -44,6 +44,8 @@ from data.symbols import (
 )
 from urllib3.util.retry import Retry
 from utils import _has_data, fmt_chg, fmt_price, fmt_vol
+from data.fetchers import get_usd_thb_rate, resolve_market_info
+from ui.right_panel import render_right_panel
 
 try:
     import yfinance as yf
@@ -188,20 +190,21 @@ def fetch_binance_raw(symbol: str, interval: str, bars: int) -> pd.DataFrame:
     return pd.DataFrame()
 
 def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
-    # 1. สินค้ากลุ่มข้าว ให้ดึงผ่านโมดูลข้าว
-    if symbol.startswith("RICE:") or symbol.startswith("FOB:") or symbol == "ZR=F (CBOT Rough Rice)":
-        return generate_rice_ohlcv(symbol)
-    
+    # 1. สินค้ากลุ่มข้าวไทย ข้าวส่งออกคู่แข่ง และ CBOT
+    if symbol.startswith("RICE:") or symbol.startswith("FOB:") or "ZR=F" in symbol:
+        from data.rice_ohlcv import generate_rice_ohlcv
+        return generate_rice_ohlcv(symbol, bars=bars)
+
     # 2. สินทรัพย์จริงทุกตลาด (คริปโต, หุ้นไทย, ทองคำ, Forex) ดึงสดผ่าน data/fetchers.py
     from data.fetchers import fetch_ohlcv as fetch_market_ohlcv
     df = fetch_market_ohlcv(symbol=symbol, tf=tf, limit=bars)
-    
+
     # 3. แปลง Timestamp ให้อยู่ในฟอร์แมต Unix Seconds สำหรับ Lightweight Charts
     if not df.empty and "time" in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df["time"]):
             df["time"] = (df["time"].astype("int64") // 10**9)
         return df.dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
-        
+
     return df
 def render_top_toolbar():
     # ขยายสัดส่วน col_tf เป็น 5.5 ให้ปุ่ม Timeframe เรียงแนวนอนแบบไม่อึดอัด
@@ -252,15 +255,7 @@ def dashboard():
 
     symbol = st.session_state.get("current_symbol", "BTCUSDT")
 
-   # แถบแท็บด้านบน
-    c_tab, c_add, c_empty = st.columns([2.0, 0.4, 12.0])
-    with c_tab:
-        st.markdown('<div id="custom-tabs-anchor"></div>', unsafe_allow_html=True)
-        st.button(f"💎 {symbol} +2.27%", type="primary", use_container_width=True)
-    with c_add:
-        st.button("+", key="add_t_btn")
-
-    # แถบเครื่องมือ Top Toolbar
+    # 1. กำหนดค่า Timeframe และ Bars ล่วงหน้า
     if st.session_state.get("show_top_bar", True):
         tb_tf, tb_bars, tb_fill, auto, every, reload_btn = render_top_toolbar()
         tf = tb_tf
@@ -269,14 +264,36 @@ def dashboard():
         tf = st.session_state.get("selected_tf", "1h")
         bars = 2500
 
+    # 2. ดึงข้อมูลแท่งเทียนและคำนวณข้อมูลจริงก่อนเรนเดอร์ UI ด้านบน
+    from data.fetchers import get_usd_thb_rate, resolve_market_info
+    meta = resolve_market_info(symbol)
+    fx_rate = get_usd_thb_rate()
+    is_thb_mode = st.session_state.get("currency_mode_thb", False)
+
     df = fetch_ohlcv(symbol, tf, bars)
-    df, stats = diamond_armor(df, fast=st.session_state["fast_ema"], slow=st.session_state["slow_ema"], trend=st.session_state["trend_ema"])
+    if not df.empty:
+        df, stats = diamond_armor(df, fast=st.session_state["fast_ema"], slow=st.session_state["slow_ema"], trend=st.session_state["trend_ema"])
+        
+        mult = (fx_rate if (is_thb_mode and not meta["is_thb_native"]) else 1.0)
+        last_close = float(df["close"].iloc[-1]) * mult
+        prev_close = float(df["close"].iloc[-2]) * mult if len(df) >= 2 else last_close
+        chg_val = last_close - prev_close
+        live_pct = (chg_val / prev_close * 100.0) if prev_close != 0 else 0.0
+    else:
+        last_close = 0.0
+        live_pct = 0.0
 
-    last_close = float(df["close"].iloc[-1])
-    prev_close = float(df["close"].iloc[-2]) if len(df) >= 2 else last_close
-    chg_val = last_close - prev_close
-    live_pct = (chg_val / prev_close * 100.0) if prev_close != 0 else 0.0
+    # 3. แถบแท็บด้านบน (ดึงชื่อจริงและเปอร์เซ็นต์ที่คำนวณได้สด)
+    pct_sign = "+" if live_pct >= 0 else ""
+    pct_str = f"{pct_sign}{live_pct:.2f}%"
+    display_title = meta["display_name"]
 
+    c_tab, c_add, c_empty = st.columns([2.5, 0.4, 11.5])
+    with c_tab:
+        st.markdown('<div id="custom-tabs-anchor"></div>', unsafe_allow_html=True)
+        st.button(f"💎 {display_title} {pct_str}", key="main_active_tab_btn", type="primary", use_container_width=True)
+    with c_add:
+        st.button("+", key="add_t_btn")
     tech_data = compute_full_technicals(df)
     seasonality_html = fetch_seasonality_svg(df)
     gauges_html_compact = render_3_gauges_html(tech_data, compact=True)
@@ -304,7 +321,6 @@ def dashboard():
         seasonality_html = ""
 
     # แบ่ง Layout 3 ส่วน: เมนูซ้าย | ชาร์ตกลาง | บทวิเคราะห์เทคนิค 24h ขวา
-   # แบ่ง Layout 3 ส่วน
     col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
     with col_side:
@@ -324,7 +340,7 @@ def dashboard():
                 <b style='font-size:13px; color:#ffffff;'>บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>
             </div>
         """, unsafe_allow_html=True)
-        render_tv_quote_card(tk_data, tech_data, symbol, "Binance", seasonality_html, gauges_html_compact)
-
+        from ui.right_panel import render_right_panel
+        render_right_panel(df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate)
 
 dashboard()

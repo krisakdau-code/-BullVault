@@ -1,72 +1,40 @@
 {
-  "TH_PADDY": {
-    "HOM_MALI_105": {
-      "name": "ข้าวเปลือกหอมมะลิ 105 (นาปี)",
-      "short": "หอมมะลิ 105",
-      "season": "นาปี",
-      "photoperiod": "ไวแสง",
-      "moisture_levels": ["15", "25"],
-      "tier": 1
-    },
-    "PATHUM_1": {
-      "name": "ข้าวเปลือกหอมปทุมธานี 1",
-      "short": "ปทุม 1",
-      "season": "นาปี/นาปรัง",
-      "photoperiod": "ไม่ไวแสง",
-      "moisture_levels": ["15", "25"],
-      "tier": 2
-    },
-    "JAO_5": {
-      "name": "ข้าวเปลือกเจ้า 5%",
-      "short": "เจ้า 5%",
-      "moisture_levels": ["15", "25"],
-      "tier": 3
-    },
-    "JAO_15": {
-      "name": "ข้าวเปลือกเจ้า 15%",
-      "short": "เจ้า 15%",
-      "moisture_levels": ["15", "25"],
-      "tier": 3
-    },
-    "JAO_25": {
-      "name": "ข้าวเปลือกเจ้า 25%",
-      "short": "เจ้า 25%",
-      "moisture_levels": ["15", "25"],
-      "tier": 3
-    },
-    "NIEW_LONG": {
-      "name": "ข้าวเปลือกเหนียวเมล็ดยาว",
-      "short": "เหนียวเมล็ดยาว",
-      "moisture_levels": ["15", "25"],
-      "tier": 2
-    },
-    "NIEW_SHORT": {
-      "name": "ข้าวเปลือกเหนียวเมล็ดสั้น",
-      "short": "เหนียวเมล็ดสั้น",
-      "moisture_levels": ["15", "25"],
-      "tier": 3
-    },
-    "PATHUM": {
-      "name": "ข้าวเปลือกปทุมธานี",
-      "short": "ปทุมธานี",
-      "moisture_levels": ["15", "25"],
-      "tier": 3
-    },
-    "NAPRANG": {
-      "name": "ข้าวเปลือกนาปรัง",
-      "short": "นาปรัง",
-      "season": "นาปรัง",
-      "moisture_levels": ["15", "25"],
-      "tier": 4
-    }
+  "TH_FARMGATE": {
+    "RICE:ข้าวเปลือกหอมมะลิ": "ข้าวเปลือกหอมมะลิ หน้าโรงสี (บาท/ตัน)",
+    "RICE:ข้าวเปลือกเจ้า5%": "ข้าวเปลือกเจ้า 5% ความชื้น 15% (บาท/ตัน)",
+    "RICE:ข้าวเปลือกปทุมธานี1": "ข้าวเปลือกหอมปทุมธานี 1 (บาท/ตัน)",
+    "RICE:ข้าวเปลือกเหนียว": "ข้าวเปลือกเหนียว เมล็ดกึ่งแห้ง (บาท/ตัน)"
   },
-  "WORLD_FOB": {
-    "THAI_WR5": { "name": "Thai White Rice 5% broken", "unit": "USD/MT" },
-    "THAI_WR25": { "name": "Thai White Rice 25% broken", "unit": "USD/MT" },
-    "THAI_HOMMALI": { "name": "Thai Hom Mali 100%", "unit": "USD/MT" },
-    "THAI_GLUT": { "name": "Thai Glutinous Rice 10%", "unit": "USD/MT" },
-    "VN_WR5": { "name": "Vietnam White Rice 5%", "unit": "USD/MT" },
-    "IN_WR5": { "name": "India White Rice 5%", "unit": "USD/MT" },
-    "PK_WR5": { "name": "Pakistan White Rice 5%", "unit": "USD/MT" }
+  "TH_FOB": {
+    "FOB:TH_HOM_MALI": "ข้าวหอมมะลิไทย 100% เกรด B (USD/ตัน)",
+    "FOB:TH_WHITE_5%": "ข้าวขาวไทย 5% FOB กรุงเทพฯ (USD/ตัน)",
+    "FOB:TH_WHITE_25%": "ข้าวขาวไทย 25% (USD/ตัน)",
+    "FOB:TH_PARBOILED": "ข้าวนึ่งไทย 100% (USD/ตัน)",
+    "FOB:TH_BROKEN_A1": "ข้าวหักไทย A1 เลิศ (USD/ตัน)"
+  },
+  "VN_FOB": {
+    "FOB:VN_ST25": "ข้าวหอมเวียดนาม ST25 พรีเมียม (USD/ตัน)",
+    "FOB:VN_JASMINE85": "ข้าวหอมเวียดนาม Jasmine 85 (USD/ตัน)",
+    "FOB:VN_DT8": "ข้าวหอมเวียดนาม Đài Thơm 8 (USD/ตัน)",
+    "FOB:VN_WHITE_5%": "ข้าวขาวเวียดนาม 5% (USD/ตัน)",
+    "FOB:VN_WHITE_25%": "ข้าวขาวเวียดนาม 25% (USD/ตัน)",
+    "FOB:VN_BROKEN_100%": "ข้าวหักเวียดนาม 100% (USD/ตัน)"
+  },
+  "IN_FOB": {
+    "FOB:IN_BASMATI_1121": "ข้าวบาสมาติอินเดีย 1121 (USD/ตัน)",
+    "FOB:IN_WHITE_5%": "ข้าวขาวอินเดีย Non-Basmati 5% (USD/ตัน)",
+    "FOB:IN_WHITE_25%": "ข้าวขาวอินเดีย 25% (USD/ตัน)",
+    "FOB:IN_PARBOILED_5%": "ข้าวนึ่งอินเดีย 5% (USD/ตัน)",
+    "FOB:IN_BROKEN_100%": "ข้าวหักอินเดีย 100% (USD/ตัน)"
+  },
+  "PK_OTHER_FOB": {
+    "FOB:PK_BASMATI_SUPER": "ข้าวบาสมาติปากีสถาน Super (USD/ตัน)",
+    "FOB:PK_WHITE_5%": "ข้าวขาวปากีสถาน 5% (USD/ตัน)",
+    "FOB:PK_WHITE_25%": "ข้าวขาวปากีสถาน 25% (USD/ตัน)",
+    "FOB:KH_PHKA_RUMDUOL": "ข้าวหอมผกาลำดวน กัมพูชา (USD/ตัน)",
+    "FOB:MM_EMATA_5%": "ข้าวขาวเมียนมา Emata 5% (USD/ตัน)"
+  },
+  "WORLD_FUTURES": {
+    "ZR=F": "CBOT Rough Rice Futures ชิคาโก (เซนต์/บุชเชล)"
   }
 }

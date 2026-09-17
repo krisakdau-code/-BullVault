@@ -60,14 +60,74 @@ def render_symbol_modal():
         symbol_list = _load_json("forex.json") or DEFAULT_FOREX
 
     elif "โภคภัณฑ์" in market_category:
-        sub_other = st.radio("กลุ่มสินค้า", ["สินค้าโภคภัณฑ์ (ทองคำ/น้ำมัน)", "ตลาดข้าวไทยและโลก"], horizontal=True, key="modal_sub_other_choice")
-        if "ข้าว" in sub_other:
-            current_market_tag = "RICE"
-            symbol_list = _load_json("rice_catalog.json") or DEFAULT_RICE
+        # เปลี่ยนเป็น Selectbox เพื่อป้องกันปัญหาตัวอักษรล้นขอบจอ
+        sub_other = st.selectbox(
+            "เลือกกลุ่มสินค้า / ประเทศคู่แข่ง",
+            [
+                "🌾 ข้าวไทย (หน้าโรงสี)",
+                "🇹🇭 ข้าวไทยส่งออก (FOB)",
+                "🇻🇳 ข้าวเวียดนาม (FOB)",
+                "🇮🇳 ข้าวอินเดีย (FOB)",
+                "🇵🇰 ข้าวปากีสถาน / กัมพูชา / เมียนมา (FOB)",
+                "🌐 ตลาดอนุพันธ์โลก (CBOT)",
+                "🛢️ โภคภัณฑ์สากล (ทองคำ/น้ำมัน)"
+            ],
+            index=0,
+            key="modal_sub_other_select"
+        )
+        
+        # กำหนดสัญลักษณ์โดยตรงเพื่อป้องกัน Error จากไฟล์ JSON
+        if "ข้าวไทย (หน้าโรงสี)" in sub_other:
+            current_market_tag = "RICE_TH"
+            symbol_list = [
+                "RICE:ข้าวเปลือกหอมมะลิ",
+                "RICE:ข้าวเปลือกเจ้า5%",
+                "RICE:ข้าวเปลือกปทุมธานี1",
+                "RICE:ข้าวเปลือกเหนียว"
+            ]
+        elif "ข้าวไทยส่งออก" in sub_other:
+            current_market_tag = "FOB_TH"
+            symbol_list = [
+                "FOB:TH_HOM_MALI",
+                "FOB:TH_WHITE_5%",
+                "FOB:TH_WHITE_25%",
+                "FOB:TH_PARBOILED",
+                "FOB:TH_BROKEN_A1"
+            ]
+        elif "ข้าวเวียดนาม" in sub_other:
+            current_market_tag = "FOB_VN"
+            symbol_list = [
+                "FOB:VN_ST25",
+                "FOB:VN_JASMINE85",
+                "FOB:VN_DT8",
+                "FOB:VN_WHITE_5%",
+                "FOB:VN_WHITE_25%",
+                "FOB:VN_BROKEN_100%"
+            ]
+        elif "ข้าวอินเดีย" in sub_other:
+            current_market_tag = "FOB_IN"
+            symbol_list = [
+                "FOB:IN_BASMATI_1121",
+                "FOB:IN_WHITE_5%",
+                "FOB:IN_WHITE_25%",
+                "FOB:IN_PARBOILED_5%",
+                "FOB:IN_BROKEN_100%"
+            ]
+        elif "ข้าวปากีสถาน" in sub_other:
+            current_market_tag = "FOB_OTHER"
+            symbol_list = [
+                "FOB:PK_BASMATI_SUPER",
+                "FOB:PK_WHITE_5%",
+                "FOB:PK_WHITE_25%",
+                "FOB:KH_PHKA_RUMDUOL",
+                "FOB:MM_EMATA_5%"
+            ]
+        elif "ตลาดอนุพันธ์โลก" in sub_other:
+            current_market_tag = "CBOT"
+            symbol_list = ["ZR=F"]
         else:
             current_market_tag = "COMMODITY"
             symbol_list = _load_json("commodities.json") or DEFAULT_COMMODITIES
-
     # 3. จัดการโครงสร้างข้อมูลกรณีเป็น Dict หรือ List
     if isinstance(symbol_list, dict):
         clean_symbols = list(symbol_list.keys())

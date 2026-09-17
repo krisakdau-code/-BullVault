@@ -119,3 +119,63 @@ def _generate_fallback_data(symbol: str, limit: int) -> pd.DataFrame:
         "time": times, "open": close_p - 10, "high": close_p + 25,
         "low": close_p - 25, "close": close_p, "volume": np.random.uniform(100, 1000, limit)
     })
+@st.cache_data(ttl=300, show_spinner=False)
+def get_usd_thb_rate() -> float:
+    """ดึงอัตราแลกเปลี่ยน USD/THB ล่าสุด"""
+    try:
+        import yfinance as yf
+        fx = yf.Ticker("USDTHB=X").fast_info.last_price
+        if fx and fx > 20:
+            return float(fx)
+    except Exception:
+        pass
+    return 35.0  # ค่าเฉลี่ยมาตรฐาน
+
+def resolve_market_info(symbol: str) -> dict:
+    """ฟังก์ชันกลางระบุข้อมูลสินทรัพย์ ป้องกันข้อมูลขัดแย้งกันข้ามหน้าจอ (Single Source of Truth)"""
+    sym = symbol.strip()
+    
+    if sym.startswith("RICE:"):
+        name_th = sym.replace("RICE:", "")
+        return {
+            "symbol": sym, "display_name": name_th, "exchange": "ไทย (หน้าโรงสี)",
+            "category": "สินค้าเกษตร", "currency": "THB", "unit": "บาท/ตัน", "is_thb_native": True
+        }
+    elif sym.startswith("FOB:"):
+        name_th = sym.replace("FOB:", "")
+        return {
+            "symbol": sym, "display_name": f"{name_th} (ส่งออก)", "exchange": "ตลาดส่งออกโลก",
+            "category": "ข้าวส่งออก (FOB)", "currency": "USD", "unit": "USD/ตัน", "is_thb_native": False
+        }
+    elif "ZR=F" in sym:
+        return {
+            "symbol": "ZR=F", "display_name": "ข้าวเปลือกชิคาโก (CBOT)", "exchange": "CBOT",
+            "category": "สัญญาอนุพันธ์ล่วงหน้า", "currency": "USD", "unit": "USd/bu", "is_thb_native": False
+        }
+    elif sym.endswith(".BK"):
+        return {
+            "symbol": sym, "display_name": sym.replace(".BK", ""), "exchange": "SET",
+            "category": "ตลาดหลักทรัพย์ไทย", "currency": "THB", "unit": "บาท/หุ้น", "is_thb_native": True
+        }
+    elif sym in ["GC=F", "CL=F", "SI=F", "BZ=F", "NG=F"]:
+        names = {"GC=F": "ทองคำโลก (Gold)", "CL=F": "น้ำมันดิบ WTI", "SI=F": "โลหะเงิน"}
+        return {
+            "symbol": sym, "display_name": names.get(sym, sym), "exchange": "COMEX / NYMEX",
+            "category": "สินค้าโภคภัณฑ์", "currency": "USD", "unit": "USD", "is_thb_native": False
+        }
+    elif "=X" in sym:
+        return {
+            "symbol": sym, "display_name": sym.replace("=X", ""), "exchange": "FOREX",
+            "category": "อัตราแลกเปลี่ยนเงินตรา", "currency": "USD", "unit": "", "is_thb_native": False
+        }
+    elif "_THB" in sym:
+        return {
+            "symbol": sym, "display_name": sym.replace("_THB", ""), "exchange": "BITKUB",
+            "category": "คริปโตเคอร์เรนซี", "currency": "THB", "unit": "THB", "is_thb_native": True
+        }
+    else:
+        # คริปโต USDT / หุ้น US
+        return {
+            "symbol": sym, "display_name": sym.replace("USDT", ""), "exchange": "BINANCE",
+            "category": "คริปโตเคอร์เรนซี", "currency": "USDT", "unit": "USDT", "is_thb_native": False
+        }

@@ -1,87 +1,108 @@
-# data/rice_ohlcv.py
 import os
 import json
+import time
 import numpy as np
 import pandas as pd
-from datetime import datetime, timedelta
 
-RICE_SYMBOLS = {
-    "RICE: ข้าวเปลือกหอมมะลิ 105": {"base": 15000, "vol": 70, "min_p": 10500, "max_p": 21000},
-    "RICE: ข้าวเปลือกหอมปทุมธานี 1": {"base": 11500, "vol": 50, "min_p": 8000, "max_p": 15000},
-    "RICE: ข้าวเปลือกเจ้า 5%": {"base": 10000, "vol": 40, "min_p": 6800, "max_p": 13500},
-    "RICE: ข้าวเปลือกเจ้า 15%": {"base": 9600, "vol": 40, "min_p": 6500, "max_p": 13000},
-    "RICE: ข้าวเปลือกเจ้า 25%": {"base": 9200, "vol": 35, "min_p": 6200, "max_p": 12500},
-    "RICE: ข้าวเปลือกเหนียวเมล็ดยาว": {"base": 12500, "vol": 60, "min_p": 8500, "max_p": 17000},
-    "RICE: ข้าวเปลือกเหนียวเมล็ดสั้น": {"base": 12000, "vol": 55, "min_p": 8000, "max_p": 16000},
-    "RICE: ข้าวเปลือกนาปรัง": {"base": 9400, "vol": 40, "min_p": 6500, "max_p": 12800},
-    "FOB: ข้าวขาว 5% (ไทย)": {"base": 420, "vol": 2.5, "min_p": 320, "max_p": 650},
-    "FOB: ข้าวขาว 5% (เวียดนาม)": {"base": 390, "vol": 2.2, "min_p": 300, "max_p": 620},
-    "FOB: ข้าวขาว 5% (อินเดีย)": {"base": 365, "vol": 2.0, "min_p": 270, "max_p": 550},
-    "ZR=F (CBOT Rough Rice)": {"source": "yfinance"}
+RICE_SPECS = {
+    # ข้าวไทยหน้าโรงสี (บาท/ตัน)
+    "RICE:ข้าวเปลือกหอมมะลิ": {"base": 15200.0, "vol": 180.0},
+    "RICE:ข้าวเปลือกเจ้า5%": {"base": 11400.0, "vol": 140.0},
+    "RICE:ข้าวเปลือกปทุมธานี1": {"base": 12600.0, "vol": 150.0},
+    "RICE:ข้าวเปลือกเหนียว": {"base": 13300.0, "vol": 160.0},
+
+    # ข้าวไทยส่งออก FOB (USD/ตัน)
+    "FOB:TH_HOM_MALI": {"base": 885.0, "vol": 12.0},
+    "FOB:TH_WHITE_5%": {"base": 575.0, "vol": 8.0},
+    "FOB:TH_WHITE_25%": {"base": 535.0, "vol": 7.0},
+    "FOB:TH_PARBOILED": {"base": 570.0, "vol": 8.0},
+    "FOB:TH_BROKEN_A1": {"base": 450.0, "vol": 6.0},
+
+    # ข้าวเวียดนามส่งออก FOB (USD/ตัน)
+    "FOB:VN_ST25": {"base": 795.0, "vol": 11.0},
+    "FOB:VN_JASMINE85": {"base": 640.0, "vol": 9.0},
+    "FOB:VN_DT8": {"base": 615.0, "vol": 8.0},
+    "FOB:VN_WHITE_5%": {"base": 545.0, "vol": 8.0},
+    "FOB:VN_WHITE_25%": {"base": 518.0, "vol": 7.0},
+    "FOB:VN_BROKEN_100%": {"base": 435.0, "vol": 6.0},
+
+    # ข้าวอินเดียส่งออก FOB (USD/ตัน)
+    "FOB:IN_BASMATI_1121": {"base": 1050.0, "vol": 15.0},
+    "FOB:IN_WHITE_5%": {"base": 490.0, "vol": 10.0},
+    "FOB:IN_WHITE_25%": {"base": 465.0, "vol": 9.0},
+    "FOB:IN_PARBOILED_5%": {"base": 525.0, "vol": 8.0},
+    "FOB:IN_BROKEN_100%": {"base": 410.0, "vol": 6.0},
+
+    # ปากีสถาน / กัมพูชา / เมียนมา (USD/ตัน)
+    "FOB:PK_BASMATI_SUPER": {"base": 920.0, "vol": 14.0},
+    "FOB:PK_WHITE_5%": {"base": 510.0, "vol": 8.0},
+    "FOB:PK_WHITE_25%": {"base": 475.0, "vol": 7.0},
+    "FOB:KH_PHKA_RUMDUOL": {"base": 820.0, "vol": 11.0},
+    "FOB:MM_EMATA_5%": {"base": 495.0, "vol": 8.0},
 }
 
-def get_rice_symbols_list():
-    return list(RICE_SYMBOLS.keys())
+def generate_rice_ohlcv(symbol: str, bars: int = 600) -> pd.DataFrame:
+    clean_sym = symbol.strip()
 
-def generate_rice_ohlcv(symbol_name: str, days: int = 5400) -> pd.DataFrame:
-    # 1. กรณี CBOT Rough Rice ดึงจาก Yahoo Finance ย้อนหลังสูงสุดเท่าที่มี (period="max")
-    if symbol_name == "ZR=F (CBOT Rough Rice)":
+    # 1. ตลาดล่วงหน้าชิคาโก CBOT (ดึงสดผ่าน Yahoo Finance)
+    if "ZR=F" in clean_sym:
         try:
             import yfinance as yf
-            df = yf.download("ZR=F", period="max", interval="1d", progress=False)
+            df = yf.Ticker("ZR=F").history(period="2y", interval="1d")
             if not df.empty:
                 df = df.reset_index()
-                if isinstance(df.columns, pd.MultiIndex):
-                    df.columns = [c[0] for c in df.columns]
-                df.rename(columns={
-                    "Date": "time", "Open": "open", "High": "high",
-                    "Low": "low", "Close": "close", "Volume": "volume"
-                }, inplace=True)
-                df["time"] = pd.to_datetime(df["time"]).dt.strftime("%Y-%m-%d")
-                df = df.dropna().sort_values("time").reset_index(drop=True)
-                return df[["time", "open", "high", "low", "close", "volume"]]
+                time_col = "Datetime" if "Datetime" in df.columns else "Date"
+                df["time"] = (pd.to_datetime(df[time_col]).astype("int64") // 10**9)
+                df = df.rename(columns={"Open": "open", "High": "high", "Low": "low", "Close": "close", "Volume": "volume"})
+                return df[["time", "open", "high", "low", "close", "volume"]].dropna().tail(bars).reset_index(drop=True)
         except Exception:
             pass
 
-    # 2. ข้าวเปลือกไทย และ FOB จำลองย้อนหลัง 15 ปี (อิงตามรอบวัฏจักรราคาจริง)
-    cfg = RICE_SYMBOLS.get(symbol_name, {"base": 10000, "vol": 50, "min_p": 7000, "max_p": 16000})
-    np.random.seed(abs(hash(symbol_name)) % 100000)
+    # 2. กรณีมีไฟล์บันทึกราคาจริงในเครื่อง
+    json_path = os.path.join(os.path.dirname(__file__), "rice_price_th.json")
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if clean_sym in data and len(data[clean_sym]) > 10:
+                    df = pd.DataFrame(data[clean_sym])
+                    df["time"] = (pd.to_datetime(df["date"]).astype("int64") // 10**9)
+                    return df[["time", "open", "high", "low", "close", "volume"]].sort_values("time").tail(bars).reset_index(drop=True)
+        except Exception:
+            pass
 
-    end_date = datetime.now()
-    dates = [(end_date - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days)][::-1]
+    # 3. คำนวณแท่งเทียนจำลองอิงตามราคาฐานสถิติจริง (Daily OHLCV)
+    spec = RICE_SPECS.get(clean_sym, {"base": 550.0, "vol": 8.0})
+    base_price = spec["base"]
+    vol = spec["vol"]
 
-    # จำลอง Cycle ฤดูกาล และเหตุการณ์ประวัติศาสตร์ (เช่น ช่วงจำนำข้าว, ภัยแล้ง, อินเดียงดส่งออก)
-    t = np.linspace(0, 15, days)
-    cycle = np.sin(2 * np.pi * t) * 0.08 + np.sin(2 * np.pi * t / 4.5) * 0.15
-    trend = (t / 15.0) * 0.12
+    now_ts = int(time.time())
+    day_seconds = 86400
+    times = []
+    curr = now_ts
+    while len(times) < bars:
+        weekday = pd.to_datetime(curr, unit='s').weekday()
+        if weekday < 5:
+            times.append(curr)
+        curr -= day_seconds
+    times = sorted(times)
 
-    base_val = cfg["base"]
-    vol = cfg.get("vol", 40)
-    
-    close_prices = []
-    curr = base_val * 0.85
-    for i in range(days):
-        macro_mult = 1.0 + cycle[i] + trend[i]
-        target = base_val * macro_mult
-        pull = (target - curr) * 0.015
-        noise = np.random.normal(0, vol)
-        curr = curr + pull + noise
-        curr = max(cfg["min_p"], min(cfg["max_p"], curr))
-        close_prices.append(curr)
+    np.random.seed(abs(hash(clean_sym)) % (10**8))
+    trend = np.sin(np.linspace(0, 4 * np.pi, bars)) * (base_price * 0.07)
+    daily_noise = np.cumsum(np.random.normal(0, vol * 0.4, bars))
+    close_prices = np.round(base_price + trend + daily_noise, 2)
 
-    records = []
-    for d, c in zip(dates, close_prices):
-        o = c + np.random.uniform(-vol * 0.6, vol * 0.6)
-        h = max(o, c) + abs(np.random.uniform(0, vol * 0.9))
-        l = min(o, c) - abs(np.random.uniform(0, vol * 0.9))
-        v = int(np.random.uniform(3000, 15000))
-        records.append({
-            "time": d,
-            "open": round(float(o), 2),
-            "high": round(float(h), 2),
-            "low": round(float(l), 2),
-            "close": round(float(c), 2),
-            "volume": v
-        })
+    opens = np.roll(close_prices, 1)
+    opens[0] = close_prices[0]
+    highs = np.round(np.maximum(opens, close_prices) + np.abs(np.random.normal(vol * 0.45, vol * 0.25, bars)), 2)
+    lows = np.round(np.minimum(opens, close_prices) - np.abs(np.random.normal(vol * 0.45, vol * 0.25, bars)), 2)
+    volumes = np.random.randint(400, 3500, size=bars)
 
-    return pd.DataFrame(records)
+    return pd.DataFrame({
+        "time": times,
+        "open": opens,
+        "high": highs,
+        "low": lows,
+        "close": close_prices,
+        "volume": volumes.astype(float)
+    })
