@@ -134,13 +134,36 @@ def render_sidebar():
         if st.button(f"🔍 {selected_sym}   [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary", help="คลิกเพื่อค้นหาและเปลี่ยนสินทรัพย์"):
             render_symbol_modal()
 
-        # 2. แถบกรอง 5 กลุ่มสี (แดง, เขียว, ส้ม, ฟ้า, ขาว)
-        st.markdown("<div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>", unsafe_allow_html=True)
-        f_cols = st.columns([1.4, 1, 1, 1, 1, 1])
-        cur_filter = st.session_state.get("active_color_filter", "all")
-        
+        # 2. แถบกรอง 5 กลุ่มสี (Marker Wrapper ไร้กรอบ 100%)
+        st.markdown("""
+        <style>
+        #color-filter-bar-marker + div button,
+        div[data-testid="stHorizontalBlock"]:has(#color-filter-anchor) button {
+            background: transparent !important;
+            background-color: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            padding: 0 !important;
+            min-height: 24px !important;
+            height: 24px !important;
+            min-width: 0 !important;
+            font-size: 15px !important;
+            line-height: 1 !important;
+        }
+        #color-filter-bar-marker + div button:hover,
+        div[data-testid="stHorizontalBlock"]:has(#color-filter-anchor) button:hover {
+            background: transparent !important;
+            transform: scale(1.3);
+        }
+        </style>
+        <div id="color-filter-bar-marker" style="display:none;"></div>
+        <div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>
+        """, unsafe_allow_html=True)
+
+        f_cols = st.columns([1.2, 1, 1, 1, 1, 1])
         with f_cols[0]:
-            if st.button("ทั้งหมด", key="filter_all", use_container_width=True, type="primary" if cur_filter == "all" else "secondary"):
+            st.markdown('<div id="color-filter-anchor" style="display:none;"></div>', unsafe_allow_html=True)
+            if st.button("ALL" if cur_filter != "all" else "⭐", key="filter_all", use_container_width=True, help="ดูทั้งหมด"):
                 st.session_state["active_color_filter"] = "all"
                 st.rerun()
         with f_cols[1]:
