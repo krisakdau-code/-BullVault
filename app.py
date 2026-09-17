@@ -182,15 +182,24 @@ st.markdown("""
         border-color: #2962ff !important;
         color: #ffffff !important;
     }
+    /* ปลดล็อกคอนเทนเนอร์และ Iframe ของกราฟให้ยืดหดตามความกว้างคอลัมน์อัตโนมัติ */
+    div[data-testid="column"]:has(#custom-center-chart-anchor),
+    div[data-testid="column"]:has(#custom-center-chart-anchor) iframe,
+    div[data-testid="column"]:has(#custom-center-chart-anchor) div[data-testid="stCustomComponentV1"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 auto !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 def inject_workspace_resizers():
     components.html("""
     <script>
-    (function attachSplitters() {
+    (function initObserver() {
         const doc = window.parent.document;
-        function run() {
+
+        function setupResizers() {
             const sideAnchor = doc.getElementById('custom-left-menu-anchor');
             const chartAnchor = doc.getElementById('custom-center-chart-anchor');
             const rightAnchor = doc.getElementById('custom-right-menu-anchor');
@@ -203,41 +212,48 @@ def inject_workspace_resizers():
 
             if (!sideCol || !chartCol || !rightCol) return;
 
-            // 1. เส้นเลื่อนปรับขนาดฝั่งซ้าย (สีส้มเด่นชัด)
-            if (!doc.getElementById('resizer-left-bar')) {
-                const resizerL = doc.createElement('div');
+            // 1. เส้นคั่นปรับขนาดฝั่งซ้าย (ระหว่างเมนูซ้ายกับกราฟ)
+            let resizerL = doc.getElementById('resizer-left-bar');
+            if (!resizerL || sideCol.nextElementSibling !== resizerL) {
+                if (resizerL) resizerL.remove();
+                resizerL = doc.createElement('div');
                 resizerL.id = 'resizer-left-bar';
                 resizerL.title = 'คลิกค้างแล้วลากเพื่อปรับขนาดเมนูซ้าย';
-                resizerL.innerHTML = '<div style="width:3px; height:55px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.8);"></div>';
-                resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none;';
-                
+                resizerL.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 8px rgba(255,125,30,0.8);"></div>';
+                resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none; margin: 0 -5px;';
+
                 sideCol.after(resizerL);
 
                 resizerL.onmousedown = (e) => {
                     e.preventDefault();
                     const startX = e.clientX;
                     const startW = sideCol.getBoundingClientRect().width;
+
                     const onMove = (ev) => {
                         const nw = Math.max(160, Math.min(480, startW + (ev.clientX - startX)));
                         sideCol.style.width = nw + 'px';
                         sideCol.style.flex = '0 0 ' + nw + 'px';
+                        window.parent.dispatchEvent(new Event('resize'));
                     };
                     const onUp = () => {
                         doc.removeEventListener('mousemove', onMove);
                         doc.removeEventListener('mouseup', onUp);
+                        window.parent.dispatchEvent(new Event('resize'));
                     };
                     doc.addEventListener('mousemove', onMove);
                     doc.addEventListener('mouseup', onUp);
                 };
             }
 
-            // 2. เส้นเลื่อนปรับขนาดฝั่งขวา (บังคับแทรกลงหน้าเมนูขวาทันที)
-            if (!doc.getElementById('resizer-right-bar')) {
-                const resizerR = doc.createElement('div');
+            // 2. เส้นคั่นปรับขนาดฝั่งขวา (ระหว่างกราฟกับเมนูขวา)
+            let resizerR = doc.getElementById('resizer-right-bar');
+            if (!resizerR || rightCol.previousElementSibling !== resizerR) {
+                if (resizerR) resizerR.remove();
+                resizerR = doc.createElement('div');
                 resizerR.id = 'resizer-right-bar';
                 resizerR.title = 'คลิกค้างแล้วลากเพื่อปรับขนาดเมนูขวา';
-                resizerR.innerHTML = '<div style="width:3px; height:55px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.8);"></div>';
-                resizerR.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none;';
+                resizerR.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 8px rgba(255,125,30,0.8);"></div>';
+                resizerR.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 9999; flex-shrink: 0; user-select: none; margin: 0 -5px;';
 
                 rightCol.before(resizerR);
 
@@ -245,34 +261,48 @@ def inject_workspace_resizers():
                     e.preventDefault();
                     const startX = e.clientX;
                     const startW = rightCol.getBoundingClientRect().width;
+
                     const onMove = (ev) => {
                         const nw = Math.max(200, Math.min(540, startW - (ev.clientX - startX)));
                         rightCol.style.width = nw + 'px';
                         rightCol.style.flex = '0 0 ' + nw + 'px';
+                        window.parent.dispatchEvent(new Event('resize'));
                     };
                     const onUp = () => {
                         doc.removeEventListener('mousemove', onMove);
                         doc.removeEventListener('mouseup', onUp);
+                        window.parent.dispatchEvent(new Event('resize'));
                     };
                     doc.addEventListener('mousemove', onMove);
                     doc.addEventListener('mouseup', onUp);
                 };
             }
 
-            // จัดการปุ่มพับเก็บขวา
+            // เชื่อมต่อปุ่มพับเก็บขวา
             const btnRight = doc.getElementById('btn-collapse-right');
-            if (btnRight) {
+            if (btnRight && !btnRight.dataset.bound) {
+                btnRight.dataset.bound = 'true';
                 btnRight.onclick = function() {
                     const isHidden = (rightCol.style.display === 'none');
                     rightCol.style.display = isHidden ? 'block' : 'none';
-                    const barR = doc.getElementById('resizer-right-bar');
-                    if (barR) barR.style.display = isHidden ? 'none' : 'flex';
+                    if (resizerR) resizerR.style.display = isHidden ? 'none' : 'flex';
+                    window.parent.dispatchEvent(new Event('resize'));
                 };
             }
         }
-        setTimeout(run, 300);
-        setTimeout(run, 800);
-        setTimeout(run, 1500);
+
+        // ตรวจจับ DOM อัตโนมัติเมื่อ Streamlit Rerender
+        if (!window.parent._layoutObserver) {
+            const observer = new MutationObserver(() => {
+                setupResizers();
+            });
+            observer.observe(doc.body, { childList: true, subtree: true });
+            window.parent._layoutObserver = observer;
+        }
+
+        setupResizers();
+        setTimeout(setupResizers, 300);
+        setTimeout(setupResizers, 800);
     })();
     </script>
     """, height=0, width=0)
