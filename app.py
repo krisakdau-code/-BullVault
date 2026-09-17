@@ -255,16 +255,11 @@ def dashboard():
 
     symbol = st.session_state.get("current_symbol", "BTCUSDT")
 
-    # 1. กำหนดค่า Timeframe และ Bars ล่วงหน้า
-    if st.session_state.get("show_top_bar", True):
-        tb_tf, tb_bars, tb_fill, auto, every, reload_btn = render_top_toolbar()
-        tf = tb_tf
-        bars = tb_bars
-    else:
-        tf = st.session_state.get("selected_tf", "1h")
-        bars = 2500
+    # 1. กำหนดค่า Timeframe เริ่มต้น
+    tf = st.session_state.get("selected_tf", "1h")
+    bars = 2500
 
-    # 2. ดึงข้อมูลแท่งเทียนและคำนวณข้อมูลจริงก่อนเรนเดอร์ UI ด้านบน
+    # 2. คำนวณข้อมูลในหน่วยความจำก่อน (Compute First - ยังไม่สั่งวาด UI)
     from data.fetchers import get_usd_thb_rate, resolve_market_info
     meta = resolve_market_info(symbol)
     fx_rate = get_usd_thb_rate()
@@ -273,7 +268,6 @@ def dashboard():
     df = fetch_ohlcv(symbol, tf, bars)
     if not df.empty:
         df, stats = diamond_armor(df, fast=st.session_state["fast_ema"], slow=st.session_state["slow_ema"], trend=st.session_state["trend_ema"])
-        
         mult = (fx_rate if (is_thb_mode and not meta["is_thb_native"]) else 1.0)
         last_close = float(df["close"].iloc[-1]) * mult
         prev_close = float(df["close"].iloc[-2]) * mult if len(df) >= 2 else last_close
@@ -283,7 +277,7 @@ def dashboard():
         last_close = 0.0
         live_pct = 0.0
 
-    # 3. แถบแท็บด้านบน (ดึงชื่อจริงและเปอร์เซ็นต์ที่คำนวณได้สด)
+    # 3. บรรทัดที่ 1 (บนสุด): วาดแถบแท็บสินทรัพย์
     pct_sign = "+" if live_pct >= 0 else ""
     pct_str = f"{pct_sign}{live_pct:.2f}%"
     display_title = meta["display_name"]
@@ -294,6 +288,13 @@ def dashboard():
         st.button(f"💎 {display_title} {pct_str}", key="main_active_tab_btn", type="primary", use_container_width=True)
     with c_add:
         st.button("+", key="add_t_btn")
+
+    # 4. บรรทัดที่ 2 (ถัดลงมา): วาดแถบเครื่องมือ Top Toolbar
+    if st.session_state.get("show_top_bar", True):
+        tb_tf, tb_bars, tb_fill, auto, every, reload_btn = render_top_toolbar()
+        tf = tb_tf
+        bars = tb_bars
+   
     tech_data = compute_full_technicals(df)
     seasonality_html = fetch_seasonality_svg(df)
     gauges_html_compact = render_3_gauges_html(tech_data, compact=True)

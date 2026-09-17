@@ -133,26 +133,83 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
         )
         st.plotly_chart(fig_season, use_container_width=True, config={"displayModeBar": False})
 
-        # บล็อก 8: Technical Gauge (มาตรวัดสัญญาณครึ่งวงกลม)
-        st.markdown("<div style='font-size:12px; font-weight:bold; color:#d1d4dc; margin-top:4px;'>มาตรวัดสัญญาณเทคนิค</div>", unsafe_allow_html=True)
-        fig_gauge = go.Figure(go.Indicator(
-            mode="gauge",
-            value=chg_pct,
-            domain={'x': [0, 1], 'y': [0, 1]},
-            gauge={
-                'axis': {'range': [-5, 5], 'visible': False},
-                'bar': {'color': "#ffffff", 'thickness': 0.15},
-                'steps': [
-                    {'range': [-5, -2], 'color': "#ff1744"},
-                    {'range': [-2, -0.5], 'color': "#ff5252"},
-                    {'range': [-0.5, 0.5], 'color': "#9e9e9e"},
-                    {'range': [0.5, 2], 'color': "#00e676"},
-                    {'range': [2, 5], 'color': "#00c853"},
-                ],
-            }
-        ))
-        fig_gauge.update_layout(height=110, margin=dict(l=10, r=10, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_gauge, use_container_width=True, config={"displayModeBar": False})
+       # บล็อก 8: Technical Gauge สไตล์ TradingView (Custom SVG มินิมอล)
+        import math
+
+        # ประเมินระดับสัญญาณจาก % การเปลี่ยนแปลง (สเกล -2 ถึง +2)
+        gauge_score = max(-2.0, min(2.0, chg_pct / 0.8))
+        
+        if gauge_score <= -1.2:
+            status_text = "มีแรงขายรุนแรง"
+            status_color = "#ef4444"
+        elif gauge_score <= -0.4:
+            status_text = "มีแรงขาย"
+            status_color = "#f87171"
+        elif gauge_score < 0.4:
+            status_text = "เป็นกลาง"
+            status_color = "#94a3b8"
+        elif gauge_score < 1.2:
+            status_text = "มีแรงซื้อ"
+            status_color = "#4ade80"
+        else:
+            status_text = "มีแรงซื้อรุนแรง"
+            status_color = "#22c55e"
+
+        # คำนวณมุมองศาของเข็ม (180 องศาซ้าย -> 0 องศาขวา)
+        angle_deg = 90.0 - (gauge_score / 2.0) * 80.0
+        rad = math.radians(angle_deg)
+        cx, cy, r = 120, 95, 55
+        tx = cx + r * math.cos(rad)
+        ty = cy - r * math.sin(rad)
+
+        st.markdown(f"""
+        <div style="background:#131722; padding:12px 10px; border-radius:8px; margin-top:10px; border:1px solid #1e222d;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <span style="font-size:12px; font-weight:bold; color:#f8fafc;">ทางเทคนิค</span>
+                <span style="font-size:11px; font-weight:bold; color:{status_color};">{status_text}</span>
+            </div>
+
+            <div style="text-align:center;">
+                <svg width="240" height="115" viewBox="0 0 240 115" style="margin:0 auto; display:block;">
+                    <defs>
+                        <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#ef4444" />
+                            <stop offset="25%" stop-color="#ec4899" />
+                            <stop offset="50%" stop-color="#64748b" />
+                            <stop offset="75%" stop-color="#3b82f6" />
+                            <stop offset="100%" stop-color="#22c55e" />
+                        </linearGradient>
+                    </defs>
+
+                    <!-- เส้นโค้งมาตรวัด -->
+                    <path d="M 40,95 A 80,80 0 0,1 200,95" fill="none" stroke="url(#gaugeGrad)" stroke-width="6" stroke-linecap="round" />
+
+                    <!-- ป้ายข้อความบอกโซน -->
+                    <text x="32" y="110" font-size="8" fill="#64748b" text-anchor="middle">มีแรงขายรุนแรง</text>
+                    <text x="55" y="55" font-size="8" fill="#64748b" text-anchor="middle">มีแรงขาย</text>
+                    <text x="120" y="25" font-size="9" fill="#94a3b8" text-anchor="middle">เป็นกลาง</text>
+                    <text x="185" y="55" font-size="8" fill="#64748b" text-anchor="middle">มีแรงซื้อ</text>
+                    <text x="208" y="110" font-size="8" fill="#64748b" text-anchor="middle">มีแรงซื้อรุนแรง</text>
+
+                    <!-- เข็มชี้วัดและหมุดโคนเข็ม -->
+                    <line x1="{cx}" y1="{cy}" x2="{tx}" y2="{ty}" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" />
+                    <circle cx="{cx}" cy="{cy}" r="4" fill="#ffffff" />
+                </svg>
+            </div>
+
+            <!-- ข้อความสรุปตรงกลาง -->
+            <div style="text-align:center; font-size:15px; font-weight:bold; color:#f8fafc; margin-top:-6px;">
+                {status_text}
+            </div>
+
+            <!-- ปุ่มทางเทคนิคเพิ่มเติม -->
+            <div style="text-align:center; margin-top:8px;">
+                <button style="background:#2a2e39; color:#d1d4dc; border:none; padding:4px 14px; border-radius:15px; font-size:10px; cursor:pointer;">
+                    ทางเทคนิคเพิ่มเติม
+                </button>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
     # -------------------------------------------------------------
     # แท็บ 2: ยุทธศาสตร์ & ข้อวิเคราะห์เทคนิค (พื้นที่ไม้ตาย)
