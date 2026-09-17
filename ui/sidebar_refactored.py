@@ -165,10 +165,9 @@ def render_sidebar():
                 render_symbol_modal()
 
         # กำหนด symbol_map รองรับการ์ดแสดงผลและรายการด้านล่าง
-        tag = "BINANCE"
-        if ".BK" in selected_sym: tag = "SET"
-        elif "=" in selected_sym: tag = "FX" if "X" in selected_sym else "COMMODITY"
-        
+        from data.fetchers import resolve_market_info
+        meta = resolve_market_info(selected_sym)
+        tag = meta.get("exchange", "BINANCE")
         symbol_map = {
             selected_sym: {"price": "--", "chg": "0.00%", "up": True, "tag": tag},
             "BTCUSDT": {"price": "--", "chg": "0.00%", "up": True, "tag": "BINANCE"},

@@ -10,7 +10,12 @@ def render_drawing_chart(
 ):
     if not charts_config:
         return
-
+    import streamlit as st
+    from data.fetchers import resolve_market_info
+    curr_sym = st.session_state.get("current_symbol", "BTCUSDT")
+    meta = resolve_market_info(curr_sym)
+    display_title = meta.get("display_name", curr_sym)
+    exchange_name = meta.get("exchange", "MARKET")
     # คำนวณความสูง: ไม่มีแถบ Header 26px มาแย่งพื้นที่อีกต่อไป
     if len(charts_config) == 1:
         charts_config[0]["chart"]["height"] = 650
@@ -1260,4 +1265,6 @@ def render_drawing_chart(
     </body>
     </html>
     """
+    # อัปเดตชื่อเหรียญและกระดานเทรดให้ตรงกับสินทรัพย์ที่เลือก
+    html_code = html_code.replace(">BTCUSDT<", f">{display_title}<").replace(">Binance<", f">{exchange_name}<").replace('"BTCUSDT"', f'"{display_title}"')
     components.html(html_code, height=real_total_h)

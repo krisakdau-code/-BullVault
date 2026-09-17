@@ -133,83 +133,141 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
         )
         st.plotly_chart(fig_season, use_container_width=True, config={"displayModeBar": False})
 
-       # บล็อก 8: Technical Gauge สไตล์ TradingView (Custom SVG มินิมอล)
+      # บล็อก 8: Technical Gauge สไตล์ TradingView Pro ผ่าน Iframe (เรนเดอร์ตรง ไม่โดนตัด SVG)
         import math
+        import streamlit.components.v1 as components
 
-        # ประเมินระดับสัญญาณจาก % การเปลี่ยนแปลง (สเกล -2 ถึง +2)
+        # ประเมินระดับสัญญาณจาก % การเปลี่ยนแปลง (-2 ถึง +2)
         gauge_score = max(-2.0, min(2.0, chg_pct / 0.8))
-        
+
         if gauge_score <= -1.2:
             status_text = "มีแรงขายรุนแรง"
-            status_color = "#ef4444"
+            status_color = "#ff3366"
+            glow_color = "rgba(255, 51, 102, 0.3)"
         elif gauge_score <= -0.4:
             status_text = "มีแรงขาย"
-            status_color = "#f87171"
+            status_color = "#ff7b72"
+            glow_color = "rgba(255, 123, 114, 0.25)"
         elif gauge_score < 0.4:
             status_text = "เป็นกลาง"
-            status_color = "#94a3b8"
+            status_color = "#8b949e"
+            glow_color = "rgba(139, 148, 158, 0.2)"
         elif gauge_score < 1.2:
             status_text = "มีแรงซื้อ"
-            status_color = "#4ade80"
+            status_color = "#3fb950"
+            glow_color = "rgba(63, 185, 80, 0.25)"
         else:
             status_text = "มีแรงซื้อรุนแรง"
-            status_color = "#22c55e"
+            status_color = "#00f59b"
+            glow_color = "rgba(0, 245, 155, 0.35)"
 
-        # คำนวณมุมองศาของเข็ม (180 องศาซ้าย -> 0 องศาขวา)
-        angle_deg = 90.0 - (gauge_score / 2.0) * 80.0
-        rad = math.radians(angle_deg)
-        cx, cy, r = 120, 95, 55
-        tx = cx + r * math.cos(rad)
-        ty = cy - r * math.sin(rad)
+        # คำนวณมุมองศาเข็มชี้ (180 องศาฝั่งซ้าย -> 0 องศาฝั่งขวา)
+        deg = 180.0 - ((gauge_score + 2.0) / 4.0) * 180.0
+        rad = math.radians(deg)
+        cx, cy, r_needle = 140, 100, 60
+        tx = cx + r_needle * math.cos(rad)
+        ty = cy - r_needle * math.sin(rad)
 
-        st.markdown(f"""
-        <div style="background:#131722; padding:12px 10px; border-radius:8px; margin-top:10px; border:1px solid #1e222d;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                <span style="font-size:12px; font-weight:bold; color:#f8fafc;">ทางเทคนิค</span>
-                <span style="font-size:11px; font-weight:bold; color:{status_color};">{status_text}</span>
-            </div>
+        gauge_html = f"""
+        <!DOCTYPE html>
+        <html translate="no" class="notranslate">
+        <head>
+            <meta charset="utf-8">
+            <meta name="google" content="notranslate">
+            <style>
+                * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+                body {{ background: transparent; overflow: hidden; }}
+                .gauge-card {{
+                    background: linear-gradient(180deg, #131722 0%, #0d1117 100%);
+                    border: 1px solid #21262d;
+                    border-radius: 8px;
+                    padding: 10px 12px;
+                    text-align: center;
+                }}
+                .header-row {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 2px;
+                }}
+                .title-lbl {{
+                    font-size: 12px;
+                    font-weight: 700;
+                    color: #c9d1d9;
+                }}
+                .status-badge {{
+                    font-size: 11px;
+                    font-weight: 700;
+                    color: {status_color};
+                    background: {glow_color};
+                    padding: 2px 8px;
+                    border-radius: 12px;
+                    border: 1px solid {status_color}55;
+                }}
+                .summary-txt {{
+                    font-size: 14px;
+                    font-weight: 800;
+                    color: {status_color};
+                    margin-top: -6px;
+                }}
+                .more-btn {{
+                    background: #21262d;
+                    color: #8b949e;
+                    border: 1px solid #30363d;
+                    padding: 4px 14px;
+                    border-radius: 16px;
+                    font-size: 10px;
+                    font-weight: 600;
+                    cursor: pointer;
+                    margin-top: 6px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="gauge-card notranslate" translate="no">
+                <div class="header-row">
+                    <span class="title-lbl">ทางเทคนิค</span>
+                    <span class="status-badge">● {status_text}</span>
+                </div>
 
-            <div style="text-align:center;">
-                <svg width="240" height="115" viewBox="0 0 240 115" style="margin:0 auto; display:block;">
+                <svg width="280" height="110" viewBox="0 0 280 110" style="display: block; margin: 0 auto; overflow: visible;">
                     <defs>
-                        <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stop-color="#ef4444" />
-                            <stop offset="25%" stop-color="#ec4899" />
-                            <stop offset="50%" stop-color="#64748b" />
-                            <stop offset="75%" stop-color="#3b82f6" />
-                            <stop offset="100%" stop-color="#22c55e" />
+                        <linearGradient id="cyberArc" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stop-color="#ff1744" />
+                            <stop offset="25%" stop-color="#ff5252" />
+                            <stop offset="50%" stop-color="#484f58" />
+                            <stop offset="75%" stop-color="#2ea043" />
+                            <stop offset="100%" stop-color="#00f59b" />
                         </linearGradient>
                     </defs>
 
-                    <!-- เส้นโค้งมาตรวัด -->
-                    <path d="M 40,95 A 80,80 0 0,1 200,95" fill="none" stroke="url(#gaugeGrad)" stroke-width="6" stroke-linecap="round" />
+                    <!-- รางโค้งพื้นหลัง -->
+                    <path d="M 45,100 A 95,95 0 0,1 235,100" fill="none" stroke="#1f242c" stroke-width="8" stroke-linecap="round" />
 
-                    <!-- ป้ายข้อความบอกโซน -->
-                    <text x="32" y="110" font-size="8" fill="#64748b" text-anchor="middle">มีแรงขายรุนแรง</text>
-                    <text x="55" y="55" font-size="8" fill="#64748b" text-anchor="middle">มีแรงขาย</text>
-                    <text x="120" y="25" font-size="9" fill="#94a3b8" text-anchor="middle">เป็นกลาง</text>
-                    <text x="185" y="55" font-size="8" fill="#64748b" text-anchor="middle">มีแรงซื้อ</text>
-                    <text x="208" y="110" font-size="8" fill="#64748b" text-anchor="middle">มีแรงซื้อรุนแรง</text>
+                    <!-- เส้นโค้งสีสัญญาณ -->
+                    <path d="M 45,100 A 95,95 0 0,1 235,100" fill="none" stroke="url(#cyberArc)" stroke-width="5" stroke-linecap="round" />
 
-                    <!-- เข็มชี้วัดและหมุดโคนเข็ม -->
-                    <line x1="{cx}" y1="{cy}" x2="{tx}" y2="{ty}" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" />
-                    <circle cx="{cx}" cy="{cy}" r="4" fill="#ffffff" />
+                    <!-- ป้ายข้อความ 5 ช่วง -->
+                    <text x="32" y="106" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงขายรุนแรง</text>
+                    <text x="65" y="44" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงขาย</text>
+                    <text x="140" y="18" font-size="9" font-weight="700" fill="#8b949e" text-anchor="middle">เป็นกลาง</text>
+                    <text x="215" y="44" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงซื้อ</text>
+                    <text x="248" y="106" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงซื้อรุนแรง</text>
+
+                    <!-- เข็มชี้วัดและหมุดกลาง -->
+                    <line x1="{cx}" y1="{cy}" x2="{tx}" y2="{ty}" stroke="#f0f6fc" stroke-width="2.5" stroke-linecap="round" />
+                    <circle cx="{cx}" cy="{cy}" r="5" fill="#161b22" stroke="{status_color}" stroke-width="2" />
+                    <circle cx="{cx}" cy="{cy}" r="2" fill="#f0f6fc" />
                 </svg>
-            </div>
 
-            <!-- ข้อความสรุปตรงกลาง -->
-            <div style="text-align:center; font-size:15px; font-weight:bold; color:#f8fafc; margin-top:-6px;">
-                {status_text}
+                <div class="summary-txt">{status_text}</div>
+                <button class="more-btn">ทางเทคนิคเพิ่มเติม</button>
             </div>
+        </body>
+        </html>
+        """
 
-            <!-- ปุ่มทางเทคนิคเพิ่มเติม -->
-            <div style="text-align:center; margin-top:8px;">
-                <button style="background:#2a2e39; color:#d1d4dc; border:none; padding:4px 14px; border-radius:15px; font-size:10px; cursor:pointer;">
-                    ทางเทคนิคเพิ่มเติม
-                </button>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        components.html(gauge_html, height=185)
 
     # -------------------------------------------------------------
     # แท็บ 2: ยุทธศาสตร์ & ข้อวิเคราะห์เทคนิค (พื้นที่ไม้ตาย)
