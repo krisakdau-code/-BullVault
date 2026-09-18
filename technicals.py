@@ -5,7 +5,18 @@ import pandas as pd
 import streamlit as st
 
 UP, DOWN = "#26a69a", "#ef5350"
+def diamond_armor(df: pd.DataFrame, fast=7, slow=13, trend=45, rsi_len=14, macd_f=12, macd_s=26, macd_sig=9, warn_pct=3.0, danger_pct=7.0):
+    # --- เริ่มส่วนดักจับข้อมูลว่าง ---
+    if df is None or len(df) < 2:
+        empty_stats = {
+            "close": 0.0, "change": 0.0, "fast_ema": 0.0, 
+            "slow_ema": 0.0, "trend_ema": 0.0, "trend_status": "WAITING_DATA"
+        }
+        return df, empty_stats
+    # --- จบส่วนดักจับข้อมูลว่าง ---
 
+    df = df.copy()
+    df["ema_fast"] = df["close"].ewm(span=fast, adjust=False).mean()
 def rsi_wilder(close: pd.Series, period: int = 14) -> pd.Series:
     d = close.diff()
     gain = d.clip(lower=0).ewm(alpha=1/period, adjust=False).mean()
