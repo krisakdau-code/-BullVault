@@ -1,4 +1,5 @@
 import streamlit as st
+from ui.indicator_modal import show_indicators_modal, INDICATOR_REGISTRY, init_indicator_state
 
 ALL_TIMEFRAMES = {
     "นาที": [
@@ -99,8 +100,28 @@ def render_top_toolbar(current_symbol: str = "BTCUSDT", **kwargs):
                         st.rerun()
                 st.divider()
 
-    # 5. ปุ่มอินดิเคเตอร์
+    # 5. ปุ่มคลังอินดิเคเตอร์ + ปุ่มลัดด่วนติดดาว ⭐
     with cols[4]:
-        st.button("📊 อินดิเคเตอร์ ⌵", key="btn_indicators_bar", use_container_width=True)
+        init_indicator_state()
+        fav_codes = [c for c in st.session_state.get("favorite_indicators", []) if c in INDICATOR_REGISTRY]
+        
+        # แบ่งคอลัมน์ย่อยแนวนอน: ปุ่มคลังหลัก + ชิปปุ่มลัดตามจำนวนดาวที่ปักไว้
+        sub_cols = st.columns([1.6] + [1.0] * len(fav_codes))
+        
+        with sub_cols[0]:
+            if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True, help="เปิดคลังอินดิเคเตอร์"):
+                show_indicators_modal()
+
+        for idx, code in enumerate(fav_codes):
+            with sub_cols[idx + 1]:
+                meta = INDICATOR_REGISTRY[code]
+                is_active = st.session_state.get(meta["state_key"], True)
+                btn_style = "primary" if is_active else "tertiary"
+                if st.button(code, key=f"quick_fav_{code}", type=btn_style, use_container_width=True, help=f"เปิด/ปิด {meta['name']}"):
+                    st.session_state[meta["state_key"]] = not is_active
+                    try:
+                        st.rerun(scope="app")
+                    except TypeError:
+                        st.rerun()
 
     return st.session_state.selected_tf

@@ -169,6 +169,8 @@ def render_drawing_chart(
             }}
 
             /* แถบเครื่องมือ TradingView ชิดขอบซ้าย */
+            /* แถบเครื่องมือ TradingView ขอบซ้าย */
+            /* แถบเครื่องมือ TradingView ขอบซ้าย */
             .draw-toolbar {{
                 position: absolute;
                 top: 12px;
@@ -177,14 +179,16 @@ def render_drawing_chart(
                 display: {toolbar_display} !important;
                 flex-direction: column;
                 gap: 3px;
-                background: rgba(20, 24, 35, 0.94);
+                background: rgba(20, 24, 35, 0.45) !important;
                 backdrop-filter: blur(8px);
-                border: 1px solid #2a2e39;
+                -webkit-backdrop-filter: blur(8px);
+                border: 1px solid rgba(255, 255, 255, 0.1) !important;
                 border-radius: 6px;
                 padding: 4px;
-                box-shadow: 0 4px 16px rgba(0,0,0,0.7);
+                box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
                 user-select: none;
             }}
+            
             .drag-handle {{
                 width: 100%; height: 14px; display: flex; align-items: center; justify-content: center;
                 cursor: grab; color: #787b86; font-size: 13px; font-weight: bold; letter-spacing: 2px;

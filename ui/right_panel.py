@@ -23,7 +23,8 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
         prev_p = float(df["close"].iloc[-2]) * mult
         chg_val = curr_p - prev_p
         chg_pct = (chg_val / prev_p * 100) if prev_p else 0.0
-        display_unit = "THB (บาท)" if (is_thb_mode or meta["is_thb_native"]) else meta["unit"]
+       #  เปลี่ยนเป็นบรรทัดนี้
+        display_unit = "THB (บาท)" if (is_thb_mode or meta.get("is_thb_native", False)) else meta.get("unit", "USD")
 
         # บล็อก 1 & 2: ส่วนหัว, ราคา และ Bid/Ask Depth
         color_hex = "#00e676" if chg_val >= 0 else "#ff5252"
@@ -31,10 +32,11 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
         st.markdown(f"""
         <div style="background:#131722; padding:12px; border-radius:8px; border-left:3px solid {color_hex}; margin-bottom:10px;">
             <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:bold; font-size:16px; color:#fff;">{meta['display_name']}</span>
+                <span style="font-weight:bold; font-size:16px; color:#fff;">{meta.get('display_name', meta.get('symbol', ''))}</span>
                 <span style="color:#00e676; font-size:11px; font-weight:bold;">🟢 ตลาดเปิด</span>
             </div>
-            <div style="color:#787b86; font-size:12px;">{meta['exchange']} • {meta['category']}</div>
+           #  แก้ไขเป็นบรรทัดนี้
+            <div style="color:#787b86; font-size:12px;">{meta.get('exchange', 'BINANCE')} • {meta.get('category', 'Crypto')}</div>
             <div style="font-size:24px; font-weight:bold; color:#fff; margin-top:4px;">
                 {curr_p:,.2f} <span style="font-size:13px; color:#787b86;">{display_unit}</span>
             </div>
@@ -301,7 +303,9 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
         """, unsafe_allow_html=True)
 
         # 2. กรณีเป็นสินค้าข้าว/เกษตร: ส่วนต่างราคาเทียบตลาดโลก (Price Spread Matrix)
-        if "RICE" in meta["symbol"] or "FOB" in meta["symbol"]:
+        #  แก้ไขเป็นบรรทัดนี้
+        sym_check = str(meta.get("symbol", ""))
+        if "RICE" in sym_check or "FOB" in sym_check:
             st.markdown(f"""
             <div style="background:#1e1b4b; padding:10px; border-radius:6px; border-left:3px solid #818cf8; margin-bottom:10px;">
                 <div style="font-size:12px; font-weight:bold; color:#c7d2fe;">🌾 การวิเคราะห์ส่วนต่างข้าว (Spread Analysis)</div>

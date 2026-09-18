@@ -1,38 +1,155 @@
 import streamlit as st
 import datetime
 from ui.symbol_modal import render_symbol_modal
-from data.symbols import (
-    get_full_binance_symbols,
-    get_full_binance_th_symbols,
-    get_full_bitkub_symbols,
-    get_full_okx_symbols,
-    get_full_bybit_symbols,
-    get_full_gate_symbols,
-    get_full_mexc_symbols,
-    get_full_kucoin_symbols,
-    get_full_commodities,
-    get_full_forex,
-    get_full_sp500_symbols,
-    get_full_china_stocks,
-    get_full_vietnam_symbols,
-    _load_json
-)
 from data.fetchers import resolve_market_info
+from color_store import (
+    COLOR_TAGS, COLOR_KEYS, norm_sym,
+    ensure_color_state, assign_color, get_sym_color_key, get_sym_color_dot
+)
 
-# นิยาม 5 กลุ่มสีหลัก
-COLOR_TAGS = {
-    "red": {"name": "แดง", "dot": "🔴", "hex": "#FF3366"},
-    "green": {"name": "เขียว", "dot": "🟢", "hex": "#00FF66"},
-    "orange": {"name": "ส้ม", "dot": "🟠", "hex": "#FF7A1A"},
-    "blue": {"name": "ฟ้า", "dot": "🔵", "hex": "#00E5FF"},
-    "white": {"name": "ขาว", "dot": "⚪", "hex": "#FFFFFF"},
-}
+# ══════════════════════════════════════════════════════════════
+# 1. กล่องโมดอลศูนย์ตั้งค่ารวม 4 แท็บ (Unified Settings Dialog)
+# ══════════════════════════════════════════════════════════════
+@st.dialog("⚙️ การตั้งค่าระบบและชาร์ต (Unified Settings)")
+def show_chart_settings_dialog():
+    tab_chart, tab_main_ind, tab_sub_ind, tab_ui = st.tabs([
+        "🎨 กราฟ & ธีม", 
+        "📈 อินดิเคเตอร์หลัก", 
+        "📉 RSI & MACD", 
+        "🖥️ พื้นที่ทำงาน"
+    ])
 
+    # ──────────────────────────────────────────────────────────
+    # แท็บ 1: สีกราฟและแท่งเทียน
+    # ──────────────────────────────────────────────────────────
+    with tab_chart:
+        st.caption("🎨 โทนสีแท่งเทียนและพื้นหลัง")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.session_state["candle_up_color"] = st.color_picker(
+                "แท่งขึ้น (Bullish)", value=st.session_state.get("candle_up_color", "#089981")
+            )
+        with c2:
+            st.session_state["candle_down_color"] = st.color_picker(
+                "แท่งลง (Bearish)", value=st.session_state.get("candle_down_color", "#F23645")
+            )
+
+        c3, c4 = st.columns(2)
+        with c3:
+            st.session_state["chart_bg_color"] = st.color_picker(
+                "พื้นหลังกราฟ (Background)", value=st.session_state.get("chart_bg_color", "#131722")
+            )
+        with c4:
+            st.session_state["chart_grid_color"] = st.color_picker(
+                "เส้นกริด (Grid)", value=st.session_state.get("chart_grid_color", "#1e222d")
+            )
+
+    # ──────────────────────────────────────────────────────────
+    # แท็บ 2: อินดิเคเตอร์หลักบนกราฟ (EMA & Volume)
+    # ──────────────────────────────────────────────────────────
+    with tab_main_ind:
+        st.caption("📈 EMA Ribbon")
+        st.session_state["show_ema"] = st.toggle("เปิดใช้งาน EMA Ribbon", value=st.session_state.get("show_ema", True))
+        
+        e1, e2, e3 = st.columns(3)
+        with e1:
+            st.session_state["fast_ema"] = st.number_input(
+                "Fast EMA", min_value=1, max_value=50, value=int(st.session_state.get("fast_ema", 7))
+            )
+        with e2:
+            st.session_state["slow_ema"] = st.number_input(
+                "Slow EMA", min_value=5, max_value=100, value=int(st.session_state.get("slow_ema", 13))
+            )
+        with e3:
+            st.session_state["trend_ema"] = st.number_input(
+                "Trend EMA", min_value=20, max_value=300, value=int(st.session_state.get("trend_ema", 45))
+            )
+
+        st.divider()
+        st.caption("📊 ปริมาณการซื้อขาย (Volume)")
+        st.session_state["show_volume"] = st.toggle("แสดง Volume แท่งล่าง", value=st.session_state.get("show_volume", True))
+
+    # ──────────────────────────────────────────────────────────
+    # แท็บ 3: อินดิเคเตอร์ย่อยด้านล่าง (RSI & MACD)
+    # ──────────────────────────────────────────────────────────
+    with tab_sub_ind:
+        st.caption("📉 RSI Settings")
+        st.session_state["show_rsi"] = st.toggle("แสดง RSI Pane", value=st.session_state.get("show_rsi", True))
+        r1, r2, r3 = st.columns(3)
+        with r1:
+            st.session_state["rsi_length"] = st.number_input("RSI Length", min_value=2, max_value=50, value=int(st.session_state.get("rsi_length", 14)))
+        with r2:
+            st.session_state["rsi_ob"] = st.number_input("Overbought", min_value=50, max_value=95, value=int(st.session_state.get("rsi_ob", 70)))
+        with r3:
+            st.session_state["rsi_os"] = st.number_input("Oversold", min_value=5, max_value=50, value=int(st.session_state.get("rsi_os", 30)))
+
+        st.divider()
+        st.caption("📊 MACD Settings")
+        st.session_state["show_macd"] = st.toggle("แสดง MACD Pane", value=st.session_state.get("show_macd", True))
+        m1, m2, m3 = st.columns(3)
+        with m1:
+            st.session_state["macd_fast"] = st.number_input("Fast Period", min_value=2, max_value=50, value=int(st.session_state.get("macd_fast", 12)))
+        with m2:
+            st.session_state["macd_slow"] = st.number_input("Slow Period", min_value=5, max_value=100, value=int(st.session_state.get("macd_slow", 26)))
+        with m3:
+            st.session_state["macd_signal"] = st.number_input("Signal Period", min_value=1, max_value=50, value=int(st.session_state.get("macd_signal", 9)))
+
+    # ──────────────────────────────────────────────────────────
+    # แท็บ 4: สวิตช์เปิด-ปิดแถบควบคุม (Workspace UI)
+    # ──────────────────────────────────────────────────────────
+    with tab_ui:
+        st.caption("🖥️ ควบคุมการแสดงผลแถบเครื่องมือ")
+        st.session_state["show_draw_toolbar"] = st.toggle(
+            "✏️ แถบวาดรูป (Draw Toolbar)", value=st.session_state.get("show_draw_toolbar", True)
+        )
+        st.session_state["show_top_bar"] = st.toggle(
+            "💻 แถบควบคุมบน (Top Bar)", value=st.session_state.get("show_top_bar", True)
+        )
+
+    st.divider()
+    b1, b2 = st.columns(2)
+    with b1:
+        if st.button("🔄 รีเซ็ตเป็นค่าเริ่มต้น", use_container_width=True):
+            # รีเซ็ตค่าทั้งหมด
+            st.session_state["candle_up_color"] = "#089981"
+            st.session_state["candle_down_color"] = "#F23645"
+            st.session_state["chart_bg_color"] = "#131722"
+            st.session_state["chart_grid_color"] = "#1e222d"
+            st.session_state["show_ema"] = True
+            st.session_state["fast_ema"] = 7
+            st.session_state["slow_ema"] = 13
+            st.session_state["trend_ema"] = 45
+            st.session_state["show_volume"] = True
+            st.session_state["show_rsi"] = True
+            st.session_state["rsi_length"] = 14
+            st.session_state["rsi_ob"] = 70
+            st.session_state["rsi_os"] = 30
+            st.session_state["show_macd"] = True
+            st.session_state["macd_fast"] = 12
+            st.session_state["macd_slow"] = 26
+            st.session_state["macd_signal"] = 9
+            st.session_state["show_draw_toolbar"] = True
+            st.session_state["show_top_bar"] = True
+            try:
+                st.rerun(scope="app")
+            except TypeError:
+                st.rerun()
+    with b2:
+        if st.button("💾 บันทึกและปรับใช้", type="primary", use_container_width=True):
+            try:
+                st.rerun(scope="app")
+            except TypeError:
+                st.rerun()
+
+
+# ══════════════════════════════════════════════════════════════
+# 2. ฟังก์ชันเสริมการจัดการข้อมูล
+# ══════════════════════════════════════════════════════════════
 def set_active_symbol(sym_code: str):
+    sym_code = norm_sym(sym_code)
     st.session_state["current_symbol"] = sym_code
     st.session_state["selected_symbol"] = sym_code
     
-    # ซิงค์กับ chart_tabs ของหน้าจอหลัก
     if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
         active_id = st.session_state.get("active_tab_id")
         for t in st.session_state["chart_tabs"]:
@@ -47,32 +164,70 @@ def set_active_symbol(sym_code: str):
                 t["symbol"] = sym_code
                 break
 
-    for k in ("active_key", "df_data", "last_fetch_ts"):
+    for k in ("active_key", "df_data", "last_fetch_time"):
         st.session_state.pop(k, None)
 
+def _color_menu(sym: str) -> None:
+    s = norm_sym(sym)
+    current = get_sym_color_key(s)
+    st.caption(f"กลุ่มสีของ {s}")
+    for ckey, cinfo in COLOR_TAGS.items():
+        mark = " ✓" if ckey == current else ""
+        if st.button(f"{cinfo['dot']} {cinfo['label']}{mark}", key=f"clr_{s}_{ckey}", use_container_width=True):
+            assign_color(s, None if ckey == current else ckey)
+            st.rerun()
+
+    st.divider()
+    if st.button("✖ ปลดกลุ่มสี", key=f"clr_{s}_none", use_container_width=True, disabled=(current is None)):
+        assign_color(s, None)
+        st.rerun()
+    if st.button("🗑️ ลบจาก Watchlist", key=f"clr_{s}_del", use_container_width=True):
+        assign_color(s, None)
+        if "custom_watchlist" in st.session_state:
+            st.session_state["custom_watchlist"] = [
+                item for item in st.session_state["custom_watchlist"]
+                if norm_sym(item[0] if isinstance(item, (list, tuple)) else item) != s
+            ]
+        st.rerun()
+
+def _normalize_row(row):
+    if isinstance(row, dict):
+        return (norm_sym(row.get("symbol") or row.get("sym")), row.get("price", "-"), row.get("change", "-"), bool(row.get("is_up", True)))
+    if isinstance(row, (list, tuple)):
+        vals = list(row) + ["-", "-", True]
+        return (norm_sym(vals[0]), vals[1], vals[2], bool(vals[3]))
+    return (norm_sym(row), "-", "-", True)
+
+
+# ══════════════════════════════════════════════════════════════
+# 3. เมนูหลักแถบข้าง SIDEBAR (Fragmented UI)
+# ══════════════════════════════════════════════════════════════
+@st.fragment
 def render_sidebar():
-    # Anchor สำหรับ Workspace Resizers
     st.markdown('<div id="custom-left-menu-anchor" style="display:none;"></div>', unsafe_allow_html=True)
+    ensure_color_state()
 
     if "sidebar_active_tab" not in st.session_state:
         st.session_state["sidebar_active_tab"] = "market"
-        
-    # ค่าเริ่มต้นสำหรับ 5 กลุ่มสี
-    if "color_watchlists" not in st.session_state:
-        st.session_state["color_watchlists"] = {
-            "red": ["BTCUSDT"],
-            "green": ["DELTA.BK"],
-            "orange": ["ETHUSDT"],
-            "blue": ["SOLUSDT"],
-            "white": ["GC=F"]
-        }
-        
-    if "active_color_filter" not in st.session_state:
-        st.session_state["active_color_filter"] = "all"
+    if "color_filter" not in st.session_state:
+        st.session_state["color_filter"] = None
+    if "custom_watchlist" not in st.session_state:
+        st.session_state["custom_watchlist"] = []
 
-    # CSS ตกแต่ง Cyberpunk UI
     st.markdown("""
     <style>
+    section[data-testid="stSidebar"] div[data-testid="stPopover"] button {
+        padding: 0.15rem 0.2rem !important;
+        min-height: 26px !important;
+        height: 26px !important;
+        border: 1px solid #2a2e39 !important;
+        background: transparent !important;
+        color: #787b86 !important;
+    }
+    section[data-testid="stSidebar"] div[data-testid="stPopover"] button:hover {
+        color: #ff7d1e !important;
+        border-color: #ff7d1e !important;
+    }
     .tv-pill-green {
         background: rgba(8, 153, 129, 0.2);
         color: #089981;
@@ -103,7 +258,7 @@ def render_sidebar():
     </style>
     """, unsafe_allow_html=True)
 
-    # 1. แท็บคู่บน: ตลาด (ส้ม) | เครื่องมือ (เขียว)
+    # ปุ่มสลับแท็บหลัก: ตลาด (ส้ม) | เครื่องมือ (เขียว)
     t_c1, t_c2 = st.columns(2)
     with t_c1:
         if st.button("ตลาด (ส้ม)", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "market" else "secondary"):
@@ -114,11 +269,10 @@ def render_sidebar():
             st.session_state["sidebar_active_tab"] = "tools"
             st.rerun()
 
-    # ══════════════════════════════════════════════════════
-    # แท็บ 1: ตลาด (ส้ม)
-    # ══════════════════════════════════════════════════════
+    # ──────────────────────────────────────────────────────────
+    # TAB 1: ตลาด (แสดง Watchlist เต็มพื้นที่)
+    # ──────────────────────────────────────────────────────────
     if st.session_state["sidebar_active_tab"] == "market":
-        # เลือกระดับกลุ่มสินทรัพย์
         st.selectbox(
             "1. กลุ่มสินทรัพย์",
             ["1. คริปโต (Crypto)", "2. หุ้น (Stock)", "3. ฟอเร็กซ์ (Forex)", "4. สินทรัพย์/โภคภัณฑ์", "5. ข้าว (Rice)"],
@@ -130,158 +284,76 @@ def render_sidebar():
         meta = resolve_market_info(selected_sym)
         tag = meta.get("exchange", "BINANCE")
 
-        # 1. แถบค้นหาเหรียญแบบ Compact แถวเดียว (ตัดความซ้ำซ้อนออกทั้งหมด)
-        if st.button(f"🔍 {selected_sym}   [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary", help="คลิกเพื่อค้นหาและเปลี่ยนสินทรัพย์"):
+        if st.button(f"🔍 {selected_sym}   [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
             render_symbol_modal()
 
-        # 2. แถบกรอง 5 กลุ่มสี (Marker Wrapper ไร้กรอบ 100%)
-        st.markdown("""
-        <style>
-        #color-filter-bar-marker + div button,
-        div[data-testid="stHorizontalBlock"]:has(#color-filter-anchor) button {
-            background: transparent !important;
-            background-color: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            padding: 0 !important;
-            min-height: 24px !important;
-            height: 24px !important;
-            min-width: 0 !important;
-            font-size: 15px !important;
-            line-height: 1 !important;
-        }
-        #color-filter-bar-marker + div button:hover,
-        div[data-testid="stHorizontalBlock"]:has(#color-filter-anchor) button:hover {
-            background: transparent !important;
-            transform: scale(1.3);
-        }
-        </style>
-        <div id="color-filter-bar-marker" style="display:none;"></div>
-        <div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>
-        """, unsafe_allow_html=True)
-
+        # แถบกรอง 5 สีแบบ Ghost Buttons
+        st.markdown("<div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>", unsafe_allow_html=True)
         f_cols = st.columns([1.2, 1, 1, 1, 1, 1])
-        f_cols = st.columns([1.2, 1, 1, 1, 1, 1])
-        cur_filter = st.session_state.get("active_color_filter", "all")
+        active = st.session_state.get("color_filter")
 
         with f_cols[0]:
-            st.markdown('<div id="color-filter-anchor" style="display:none;"></div>', unsafe_allow_html=True)
-            if st.button("ALL" if cur_filter != "all" else "⭐", key="filter_all", use_container_width=True, help="ดูทั้งหมด"):
-                st.session_state["active_color_filter"] = "all"
-                st.rerun()
-        with f_cols[1]:
-            if st.button("🔴", key="filter_red", use_container_width=True, type="primary" if cur_filter == "red" else "secondary", help="กลุ่มสีแดง"):
-                st.session_state["active_color_filter"] = "red"
-                st.rerun()
-        with f_cols[2]:
-            if st.button("🟢", key="filter_green", use_container_width=True, type="primary" if cur_filter == "green" else "secondary", help="กลุ่มสีเขียว"):
-                st.session_state["active_color_filter"] = "green"
-                st.rerun()
-        with f_cols[3]:
-            if st.button("🟠", key="filter_orange", use_container_width=True, type="primary" if cur_filter == "orange" else "secondary", help="กลุ่มสีส้ม"):
-                st.session_state["active_color_filter"] = "orange"
-                st.rerun()
-        with f_cols[4]:
-            if st.button("🔵", key="filter_blue", use_container_width=True, type="primary" if cur_filter == "blue" else "secondary", help="กลุ่มสีฟ้า"):
-                st.session_state["active_color_filter"] = "blue"
-                st.rerun()
-        with f_cols[5]:
-            if st.button("⚪", key="filter_white", use_container_width=True, type="primary" if cur_filter == "white" else "secondary", help="กลุ่มสีขาว"):
-                st.session_state["active_color_filter"] = "white"
+            if st.button("ALL" if active else "⭐", key="cf_all", use_container_width=True, type="primary" if active is None else "tertiary"):
+                st.session_state["color_filter"] = None
                 st.rerun()
 
-        # 3. รายการสินทรัพย์เฝ้าดู (Watchlist)
-        st.markdown("<div style='font-size:12px; color:#8b949e; margin:10px 0 4px 0;'>📋 รายการสินทรัพย์เฝ้าดู</div>", unsafe_allow_html=True)
-        
-        # จัดเก็บ Watchlist ลง session_state เพื่อให้ลบเข้า-ลบออกได้
-        # จัดเก็บ Watchlist ลง session_state เพื่อให้ลบเข้า-ลบออกได้
-        if "custom_watchlist" not in st.session_state:
-            st.session_state["custom_watchlist"] = []
-
-        def get_sym_color_dot(sym):
-            for c_key, c_info in COLOR_TAGS.items():
-                if sym in st.session_state.get("color_watchlists", {}).get(c_key, []):
-                    return c_info["dot"]
-            return ""
-
-        base_watchlist = st.session_state["custom_watchlist"]
-
-        # กรองรายการตามกลุ่มสีที่เลือก
-        if cur_filter == "all":
-            display_list = base_watchlist
-        else:
-            allowed_syms = set(st.session_state.get("color_watchlists", {}).get(cur_filter, []))
-            display_list = [item for item in base_watchlist if item[0] in allowed_syms]
-
-        if not display_list:
-            st.caption(f"ไม่มีเหรียญในกลุ่ม {COLOR_TAGS.get(cur_filter, {}).get('name', '')}")
-
-        for sym, p_val, c_val, is_up in display_list:
-            p_class = "tv-pill-green" if is_up else "tv-pill-red"
-            c_dot = get_sym_color_dot(sym)
-            btn_title = f"{c_dot} {sym}".strip()
-
-            c1, c2 = st.columns([2.2, 1.8])
-            with c1:
-                if st.button(btn_title, key=f"wl_btn_{sym}", use_container_width=True):
-                    set_active_symbol(sym)
+        for i, ckey in enumerate(COLOR_KEYS):
+            with f_cols[i + 1]:
+                btn_type = "primary" if active == ckey else "tertiary"
+                if st.button(COLOR_TAGS[ckey]["dot"], key=f"cf_{ckey}", use_container_width=True, type=btn_type):
+                    st.session_state["color_filter"] = None if active == ckey else ckey
                     st.rerun()
+
+        st.markdown("<div style='font-size:12px; color:#8b949e; margin:10px 0 4px 0;'>📋 รายการสินทรัพย์เฝ้าดู</div>", unsafe_allow_html=True)
+        raw_rows = [_normalize_row(r) for r in st.session_state.get("custom_watchlist", [])]
+        rows = [r for r in raw_rows if get_sym_color_key(r[0]) == active] if active else raw_rows
+
+        if not rows:
+            st.caption("ไม่มีเหรียญในกลุ่มนี้")
+
+        for sym, p_val, c_val, is_up in rows:
+            dot = get_sym_color_dot(sym)
+            c1, c2, c3 = st.columns([1.9, 1.7, 0.4], vertical_alignment="center")
+            with c1:
+                if st.button(f"{dot} {sym}".strip(), key=f"wl_btn_{sym}", use_container_width=True):
+                    set_active_symbol(sym)
+                    try:
+                        st.rerun(scope="app")
+                    except TypeError:
+                        st.rerun()
             with c2:
-                st.markdown(f"""
-                <div style="text-align:right; margin-top:6px;">
-                    <span style="color:#ffffff; font-size:12px; font-weight:bold; margin-right:4px;">{p_val}</span>
-                    <span class="{p_class}">{c_val}</span>
-                </div>
-                """, unsafe_allow_html=True)
+                cls = "tv-pill-green" if is_up else "tv-pill-red"
+                st.markdown(f'<div style="text-align:right;"><span style="color:#eaecef;font-size:12px;font-weight:700;margin-right:4px;">{p_val}</span><span class="{cls}">{c_val}</span></div>', unsafe_allow_html=True)
+            with c3:
+                with st.popover("⋮", use_container_width=True):
+                    _color_menu(sym)
 
-    # ══════════════════════════════════════════════════════
-    # แท็บ 2: เครื่องมือ & อินดี้ (เขียว)
-    # ══════════════════════════════════════════════════════
+    # ──────────────────────────────────────────────────────────
+    # TAB 2: เครื่องมือ (Control Center สะอาดตา)
+    # ──────────────────────────────────────────────────────────
     else:
-        st.markdown("<b style='font-size:12px; color:#00FF66;'>⚙️ พารามิเตอร์อินดิเคเตอร์</b>", unsafe_allow_html=True)
-        with st.expander("📈 EMA Ribbon", expanded=True):
-            st.slider("Fast", 5, 20, int(st.session_state.get("fast_ema", 7)), key="fast_ema_sb")
-            st.slider("Slow", 10, 50, int(st.session_state.get("slow_ema", 13)), key="slow_ema_sb")
-            st.slider("Trend", 30, 200, int(st.session_state.get("trend_ema", 45)), key="trend_ema_sb")
+        st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ เมนูควบคุมหลัก</div>", unsafe_allow_html=True)
+        act1, act2 = st.columns(2)
+        with act1:
+            if st.button("🌾 ตลาดข้าว", key="btn_rice_modal", use_container_width=True, type="secondary"):
+                from ui.rice_tab import show_rice_dialog_modal
+                show_rice_dialog_modal()
+        with act2:
+            if st.button("⚙️ ตั้งค่ากราฟ", key="btn_chart_settings", use_container_width=True, type="secondary"):
+                show_chart_settings_dialog()
 
-    # ฟังก์ชันด่วน 4 ปุ่ม (📐, 📊, 🌾, 🟣)
-    st.markdown("<hr style='margin: 10px 0 6px 0; border: 0.5px solid #2a2e39;'>", unsafe_allow_html=True)
-    st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:4px;'>⚡ ฟังก์ชันด่วน (Hover Tooltips)</div>", unsafe_allow_html=True)
-    q1, q2, q3, q4 = st.columns(4)
-    with q1:
-        if st.button("📐", help="Fibonacci", use_container_width=True):
-            st.session_state["trigger_fib_modal"] = True
-            st.rerun()
-    with q2:
-        if st.button("📊", help="สถิติตลาด 24 ชม.", use_container_width=True):
-            st.session_state["trigger_market_modal"] = True
-            st.rerun()
-    with q3:
-        if st.button("🌾", help="รายงานราคาข้าว", use_container_width=True):
-            from ui.rice_tab import show_rice_dialog_modal
-            show_rice_dialog_modal()
-    with q4:
-        if st.button("🟣", help="การตั้งค่าสีกราฟ", use_container_width=True):
-            st.session_state["trigger_settings_modal"] = True
-            st.rerun()
+        st.markdown("<hr style='margin: 16px 0 12px 0; border: 0.5px solid #2a2e39;'>", unsafe_allow_html=True)
 
-    # สวิตช์ ON แถบวาดรูป & แถบควบคุมบน
-    st.markdown("<div style='margin-top:8px;'></div>", unsafe_allow_html=True)
-    s_col1, s_col2 = st.columns(2)
-    with s_col1:
-        draw_on = st.checkbox("✏️ แถบวาดรูป (Draw)", value=st.session_state.get("show_draw_toolbar", True), key="sb_chk_draw")
-        st.session_state["show_draw_toolbar"] = draw_on
-    with s_col2:
-        top_on = st.checkbox("💻 แถบควบคุมบน (Top)", value=st.session_state.get("show_top_bar", True), key="sb_chk_top")
-        st.session_state["show_top_bar"] = top_on
+        # นาฬิกา BKK LIVE
+        now_bkk = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
+        st.markdown(f"""
+        <div style="padding:8px 12px; background:#131722; border:1px solid #2a2e39; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="color:#eaecef; font-size:12px; font-weight:600;">🕒 BKK {now_bkk.strftime('%H:%M:%S')}</span>
+            <span class="tv-quick-badge-on">LIVE</span>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # นาฬิกา BKK LIVE
-    now_bkk = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
-    st.markdown(f"""
-    <div style="margin-top:10px; padding:6px 10px; background:#131722; border:1px solid #2a2e39; border-radius:6px; font-size:11px; color:#00FF66; display:flex; justify-content:space-between; align-items:center;">
-        <span>🕒 BKK {now_bkk.strftime('%H:%M:%S')}</span>
-        <span class="tv-quick-badge-on">LIVE</span>
-    </div>
-    """, unsafe_allow_html=True)
-
-    return {"show_top_bar": top_on, "show_draw_toolbar": draw_on}
+    return {
+        "show_top_bar": st.session_state.get("show_top_bar", True),
+        "show_draw_toolbar": st.session_state.get("show_draw_toolbar", True)
+    }

@@ -11,6 +11,9 @@ import pandas as pd
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
+from ui.indicator_modal import show_indicators_modal, INDICATOR_REGISTRY, init_indicator_state
+from color_store import ensure_color_state
+ensure_color_state()
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
@@ -311,96 +314,6 @@ def inject_workspace_resizers():
                 return el ? el.closest('[data-testid="stColumn"], [data-testid="column"], .stColumn') : null;
             }
 
-            // สร้าง DOM เมนูลอยคลิกขวา
-            let activeTargetSym = null;
-            let ctxMenu = doc.getElementById('custom-color-context-menu');
-            if (!ctxMenu) {
-                ctxMenu = doc.createElement('div');
-                ctxMenu.id = 'custom-color-context-menu';
-                ctxMenu.style.cssText = 'position:fixed !important; z-index:2147483647 !important; background:#181b22; border:1px solid #ff7d1e; box-shadow:0 8px 24px rgba(0,0,0,0.85); border-radius:6px; padding:6px; min-width:160px; display:none; flex-direction:column; gap:3px; font-family:sans-serif; font-size:12px; user-select:none;';
-                ctxMenu.innerHTML = `
-                    <div class="ctx-header" id="ctx-symbol-title" style="color:#ff7d1e; font-size:11px; font-weight:bold; padding:4px 8px; border-bottom:1px solid #2a2e39; margin-bottom:3px;">จัดการเหรียญ</div>
-                    <div class="ctx-item" data-action="set_color" data-color="red" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>🔴</span> แดง</div>
-                    <div class="ctx-item" data-action="set_color" data-color="green" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>🟢</span> เขียว</div>
-                    <div class="ctx-item" data-action="set_color" data-color="orange" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>🟠</span> ส้ม</div>
-                    <div class="ctx-item" data-action="set_color" data-color="blue" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>🔵</span> ฟ้า</div>
-                    <div class="ctx-item" data-action="set_color" data-color="white" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>⚪</span> ขาว</div>
-                    <div style="height:1px; background:#2a2e39; margin:3px 0;"></div>
-                    <div class="ctx-item" data-action="remove_color" style="padding:6px 8px; cursor:pointer; color:#d1d4dc;"><span>✖</span> ปลดออกจากกลุ่มสี</div>
-                    <div class="ctx-item" data-action="delete_watchlist" style="padding:6px 8px; cursor:pointer; color:#f23645;"><span>🗑️</span> ลบออกจากเฝ้าดู</div>
-                `;
-                doc.body.appendChild(ctxMenu);
-
-                // ดักจับการเลือกเมนู
-                ctxMenu.addEventListener('click', (e) => {
-                    const item = e.target.closest('.ctx-item');
-                    if (!item || !activeTargetSym) return;
-                    e.stopPropagation();
-                    ctxMenu.style.display = 'none';
-
-                    const action = item.dataset.action;
-                    const color = item.dataset.color;
-                    const url = new URL(window.parent.location.href);
-
-                    if (action === 'set_color' && color) {
-                        url.searchParams.set('set_color_sym', activeTargetSym);
-                        url.searchParams.set('set_color', color);
-                        url.searchParams.delete('remove_color_sym');
-                        url.searchParams.delete('delete_watchlist_sym');
-                    } else if (action === 'remove_color') {
-                        url.searchParams.set('remove_color_sym', activeTargetSym);
-                        url.searchParams.delete('set_color');
-                        url.searchParams.delete('delete_watchlist_sym');
-                    } else if (action === 'delete_watchlist') {
-                        url.searchParams.set('delete_watchlist_sym', activeTargetSym);
-                        url.searchParams.delete('set_color');
-                        url.searchParams.delete('remove_color_sym');
-                    }
-                    window.parent.location.search = url.search;
-                });
-
-                // ปิดเมื่อคลิกนอกเมนูเท่านั้น (ใช้ setTimeout ป้องกัน event ตีกันตอนคลิกขวา)
-                doc.addEventListener('click', (e) => {
-                    if (ctxMenu && !ctxMenu.contains(e.target)) {
-                        ctxMenu.style.display = 'none';
-                    }
-                });
-            }
-
-            // ดักจับคลิกขวาที่ปุ่ม Watchlist
-            if (!doc._watchlistCtxBound) {
-                doc._watchlistCtxBound = true;
-                doc.addEventListener('contextmenu', (e) => {
-                    const btn = e.target.closest('button');
-                    if (!btn) return;
-
-                    const fullText = (btn.textContent || btn.innerText || '').trim();
-                    const cleanSym = fullText.replace(/^[🔴🟢🟠🔵⚪\s]+/, '').trim();
-
-                    const isCryptoOrStock = /^[A-Z0-9_=\.]{2,15}$/.test(cleanSym) || 
-                                           cleanSym.includes('USDT') || 
-                                           cleanSym.includes('_THB') || 
-                                           cleanSym.includes('.BK') || 
-                                           cleanSym.includes('=F');
-
-                    if (isCryptoOrStock && !cleanSym.includes('ALL') && !cleanSym.includes('⭐')) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        activeTargetSym = cleanSym;
-
-                        const titleEl = doc.getElementById('ctx-symbol-title');
-                        if (titleEl) titleEl.innerText = cleanSym;
-
-                        // กำหนดพิกัดและบังคับแสดงผลค้างไว้
-                        setTimeout(() => {
-                            ctxMenu.style.setProperty('left', Math.min(e.pageX || e.clientX, window.parent.innerWidth - 190) + 'px', 'important');
-                            ctxMenu.style.setProperty('top', Math.min(e.pageY || e.clientY, window.parent.innerHeight - 280) + 'px', 'important');
-                            ctxMenu.style.setProperty('display', 'flex', 'important');
-                        }, 50);
-                    }
-                }, true);
-            }
-
             function attachResizers() {
                 if (window.parent.innerWidth < 768) return;
 
@@ -576,42 +489,6 @@ def dashboard():
         st.query_params.clear()
         st.rerun()
 
-       # จัดการคำสั่งย้ายกลุ่มสี / ปลดสี / ลบออกจาก Watchlist
-    if "set_color_sym" in st.query_params and "set_color" in st.query_params:
-        target_sym = st.query_params["set_color_sym"]
-        target_color = st.query_params["set_color"]
-        if "color_watchlists" in st.session_state:
-            for c_list in st.session_state["color_watchlists"].values():
-                if target_sym in c_list:
-                    c_list.remove(target_sym)
-            st.session_state["color_watchlists"].setdefault(target_color, []).append(target_sym)
-        st.query_params.clear()
-        st.rerun()
-
-    if "remove_color_sym" in st.query_params:
-        target_sym = st.query_params["remove_color_sym"]
-        if "color_watchlists" in st.session_state:
-            for c_list in st.session_state["color_watchlists"].values():
-                if target_sym in c_list:
-                    c_list.remove(target_sym)
-        st.query_params.clear()
-        st.rerun()
-
-    if "delete_watchlist_sym" in st.query_params:
-        target_sym = st.query_params["delete_watchlist_sym"]
-        # ลบออกจากกลุ่มสี
-        if "color_watchlists" in st.session_state:
-            for c_list in st.session_state["color_watchlists"].values():
-                if target_sym in c_list:
-                    c_list.remove(target_sym)
-        # ลบออกจาก Watchlist หลัก
-        if "custom_watchlist" in st.session_state:
-            st.session_state["custom_watchlist"] = [
-                item for item in st.session_state["custom_watchlist"] if item[0] != target_sym
-            ]
-        st.query_params.clear()
-        st.rerun()
-
     apply_theme()
     render_floating_sidebar_toggle()
     init_settings_state()
@@ -708,7 +585,7 @@ def dashboard():
     # =========================================================================
     # แถวที่ 2: แถบเลือก Timeframe และ Indicators Popover
     # =========================================================================
-    c_space, c_tf, c_ind = st.columns([0.35, 7.8, 1.6], gap="small")
+    c_space, c_tf, c_ind = st.columns([0.35, 6.2, 2.2], gap="small")
     with c_tf:
         st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
         primary_tfs = ["5m", "15m", "30m", "1h", "2h", "3h", "4h", "D", "2D", "3D", "W", "M"]
@@ -722,11 +599,22 @@ def dashboard():
         st.markdown('</div>', unsafe_allow_html=True)
 
     with c_ind:
-        with st.popover("📊 Indicators ▾", use_container_width=True):
-            st.markdown("##### ⚙️ ตัวชี้วัดเทคนิค")
-            st.toggle("RSI (14)", value=True, key="show_rsi_pane")
-            st.toggle("MACD (12, 26, 9)", value=True, key="show_macd_pane")
-            st.toggle("EMA Ribbon", value=True, key="show_ema")
+            init_indicator_state()
+            fav_codes = [c for c in st.session_state.get("favorite_indicators", []) if c in INDICATOR_REGISTRY]
+            sub_cols = st.columns([1.8] + [1.0] * len(fav_codes) + [2.0])
+
+            with sub_cols[0]:
+                if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
+                    show_indicators_modal()
+
+            for idx, code in enumerate(fav_codes):
+                with sub_cols[idx + 1]:
+                    meta = INDICATOR_REGISTRY[code]
+                    is_active = st.session_state.get(meta["state_key"], True)
+                    btn_style = "primary" if is_active else "tertiary"
+                    if st.button(code, key=f"quick_fav_{code}", type=btn_style, use_container_width=True, help=f"เปิด/ปิด {meta['name']}"):
+                        st.session_state[meta["state_key"]] = not is_active
+                        st.rerun()
 
     # =========================================================================
     # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก (มี Draggable Splitters คั่นกลาง)
