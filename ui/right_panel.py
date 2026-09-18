@@ -35,7 +35,6 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
                 <span style="font-weight:bold; font-size:16px; color:#fff;">{meta.get('display_name', meta.get('symbol', ''))}</span>
                 <span style="color:#00e676; font-size:11px; font-weight:bold;">🟢 ตลาดเปิด</span>
             </div>
-           #  แก้ไขเป็นบรรทัดนี้
             <div style="color:#787b86; font-size:12px;">{meta.get('exchange', 'BINANCE')} • {meta.get('category', 'Crypto')}</div>
             <div style="font-size:24px; font-weight:bold; color:#fff; margin-top:4px;">
                 {curr_p:,.2f} <span style="font-size:13px; color:#787b86;">{display_unit}</span>

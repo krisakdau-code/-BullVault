@@ -585,7 +585,9 @@ def dashboard():
     # =========================================================================
     # แถวที่ 2: แถบเลือก Timeframe และ Indicators Popover
     # =========================================================================
-    c_space, c_tf, c_ind = st.columns([0.35, 6.2, 2.2], gap="small")
+    # แถวที่ 2: Timeframe และ Indicators (เพิ่มคอลัมน์ c_right_blank กั้นไม่ให้ปุ่มล้นไปวงสีแดง)
+    c_space, c_tf, c_ind, c_right_blank = st.columns([0.35, 5.6, 2.5, 2.0], gap="small")
+
     with c_tf:
         st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
         primary_tfs = ["5m", "15m", "30m", "1h", "2h", "3h", "4h", "D", "2D", "3D", "W", "M"]
@@ -598,23 +600,33 @@ def dashboard():
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
+    # จุดวงเขียว 2: ปุ่ม Indicators + ปุ่มลัดชิปเฉพาะตัวที่ติ๊กดาว ⭐ เท่านั้น
     with c_ind:
-            init_indicator_state()
-            fav_codes = [c for c in st.session_state.get("favorite_indicators", []) if c in INDICATOR_REGISTRY]
-            sub_cols = st.columns([1.8] + [1.0] * len(fav_codes) + [2.0])
+        init_indicator_state()
+        fav_codes = [c for c in st.session_state.get("favorite_indicators", []) if c in INDICATOR_REGISTRY]
+        
+        # แบ่งช่องขนาดกะทัดรัด เกาะกลุ่มอยู่เหนือกราฟ ไม่ล้นข้ามฝั่ง
+    with c_ind:
+        init_indicator_state()
+        fav_codes = [c for c in st.session_state.get("favorite_indicators", []) if c in INDICATOR_REGISTRY]
 
-            with sub_cols[0]:
-                if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
-                    show_indicators_modal()
+        # แบ่งช่องขนาดกะทัดรัด เกาะกลุ่มอยู่เหนือกราฟ ไม่ล้นข้ามฝั่ง
+        sub_cols = st.columns([1.4] + [0.8] * len(fav_codes))
 
-            for idx, code in enumerate(fav_codes):
-                with sub_cols[idx + 1]:
-                    meta = INDICATOR_REGISTRY[code]
-                    is_active = st.session_state.get(meta["state_key"], True)
-                    btn_style = "primary" if is_active else "tertiary"
-                    if st.button(code, key=f"quick_fav_{code}", type=btn_style, use_container_width=True, help=f"เปิด/ปิด {meta['name']}"):
-                        st.session_state[meta["state_key"]] = not is_active
-                        st.rerun()
+    with sub_cols[0]:
+        if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
+            show_indicators_modal()
+
+    for idx, code in enumerate(fav_codes):
+        with sub_cols[idx + 1]:
+            meta = INDICATOR_REGISTRY[code]
+            is_active = st.session_state.get(meta["state_key"], True)
+            btn_style = "primary" if is_active else "tertiary"
+            if st.button(code, key=f"quick_fav_{code}", type=btn_style, use_container_width=True, help=f"เปิด/ปิด {meta['name']}"):
+                st.session_state[meta["state_key"]] = not is_active
+                st.rerun()
+
+    # c_right_blank จะปล่อยว่างไว้ เพื่อคืนพื้นที่หัวข้อพาเนลขวาให้สะอาด 100%
 
     # =========================================================================
     # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก (มี Draggable Splitters คั่นกลาง)
