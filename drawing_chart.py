@@ -1115,22 +1115,33 @@ def render_drawing_chart(
             window.addEventListener('mouseup', stopPaneDrag);
         }}
 
-        function onPaneDrag(e) {{
-            if (!_spDrag) return;
-            const dy = e.clientY - _spDrag.y;
-            if (_spDrag.isBottom) {{
-                // กรณีลากเส้นขอบล่างสุดของ MACD: ขยาย/หดความสูง MACD ลงล่างโดยตรง
-                _spDrag.up.style.flex = 'none';
-                _spDrag.up.style.height = Math.max(40, _spDrag.uh + dy) + 'px';
-            }} else {{
-                // กรณีลากเส้นคั่นระหว่างหน้าต่าง: กราฟหลักกับ RSI ทำงานตามเดิม
-                _spDrag.up.style.flex = 'none';
-                _spDrag.low.style.flex = 'none';
-                _spDrag.up.style.height = Math.max(80, _spDrag.uh + dy) + 'px';
-                _spDrag.low.style.height = Math.max(46, _spDrag.lh - dy) + 'px';
-            }}
-            paneResizeAll();
-        }}
+       function onPaneDrag(e) {{
+    if (!_spDrag) return;
+    const dy = e.clientY - _spDrag.y;
+    if (_spDrag.isBottom) {{
+        // ขยาย/หดความสูงลงล่างโดยตรง พร้อมปลดล็อก overflow
+        _spDrag.up.style.flex = 'none';
+        _spDrag.up.style.overflow = 'hidden';
+        const newH = Math.max(40, _spDrag.uh + dy);
+        _spDrag.up.style.height = newH + 'px';
+        const hdr = _spDrag.up.querySelector('.pane-header');
+        const hdrH = hdr ? hdr.offsetHeight : 0;
+        const view = _spDrag.up.querySelector('.chart-view') || _spDrag.up.children[0];
+        if (view) view.style.height = Math.max(20, newH - hdrH) + 'px';
+        if (typeof container !== 'undefined' && container) container.style.height = 'auto';
+    }} else {{
+        // กรณีลากเส้นคั่นระหว่างหน้าต่าง: กราฟหลักกับ RSI ทำงานตามเดิม
+        _spDrag.up.style.flex = 'none';
+        _spDrag.low.style.flex = 'none';
+        _spDrag.up.style.height = Math.max(80, _spDrag.uh + dy) + 'px';
+        _spDrag.low.style.height = Math.max(46, _spDrag.lh - dy) + 'px';
+    }}
+    paneResizeAll();
+    if (typeof resizeCanvas === 'function') resizeCanvas();
+    if (window.Streamlit && typeof window.Streamlit.setFrameHeight === 'function') {{
+        window.Streamlit.setFrameHeight();
+    }}
+}}
             function stopPaneDrag() {{
                 if (_spDrag && _spDrag.bar) _spDrag.bar.classList.remove('dragging');
                 _spDrag = null;

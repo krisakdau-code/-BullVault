@@ -99,10 +99,8 @@ def save_watchlist_data():
 # ══════════════════════════════════════════════════════════════
 @st.dialog("⚙️ การตั้งค่าระบบและชาร์ต (Unified Settings)")
 def show_chart_settings_dialog():
-    tab_chart, tab_main_ind, tab_sub_ind, tab_ui = st.tabs([
+    tab_chart, tab_ui = st.tabs([
         "🎨 กราฟ & ธีม", 
-        "📈 อินดิเคเตอร์หลัก", 
-        "📉 RSI & MACD", 
         "🖥️ พื้นที่ทำงาน"
     ])
 
@@ -127,45 +125,14 @@ def show_chart_settings_dialog():
                 "เส้นกริด (Grid)", value=st.session_state.get("chart_grid_color", "#1e222d")
             )
 
-    with tab_main_ind:
-        st.caption("📈 EMA Ribbon")
-        st.session_state["show_ema"] = st.toggle("เปิดใช้งาน EMA Ribbon", value=st.session_state.get("show_ema", True))
-        e1, e2, e3 = st.columns(3)
-        with e1:
-            st.session_state["fast_ema"] = st.number_input("Fast EMA", min_value=1, max_value=50, value=int(st.session_state.get("fast_ema", 7)))
-        with e2:
-            st.session_state["slow_ema"] = st.number_input("Slow EMA", min_value=5, max_value=100, value=int(st.session_state.get("slow_ema", 13)))
-        with e3:
-            st.session_state["trend_ema"] = st.number_input("Trend EMA", min_value=20, max_value=300, value=int(st.session_state.get("trend_ema", 45)))
-        st.divider()
-        st.caption("📊 ปริมาณการซื้อขาย (Volume)")
-        st.session_state["show_volume"] = st.toggle("แสดง Volume แท่งล่าง", value=st.session_state.get("show_volume", True))
-
-    with tab_sub_ind:
-        st.caption("📉 RSI Settings")
-        st.session_state["show_rsi"] = st.toggle("แสดง RSI Pane", value=st.session_state.get("show_rsi", True))
-        r1, r2, r3 = st.columns(3)
-        with r1:
-            st.session_state["rsi_length"] = st.number_input("RSI Length", min_value=2, max_value=50, value=int(st.session_state.get("rsi_length", 14)))
-        with r2:
-            st.session_state["rsi_ob"] = st.number_input("Overbought", min_value=50, max_value=95, value=int(st.session_state.get("rsi_ob", 70)))
-        with r3:
-            st.session_state["rsi_os"] = st.number_input("Oversold", min_value=5, max_value=50, value=int(st.session_state.get("rsi_os", 30)))
-        st.divider()
-        st.caption("📊 MACD Settings")
-        st.session_state["show_macd"] = st.toggle("แสดง MACD Pane", value=st.session_state.get("show_macd", True))
-        m1, m2, m3 = st.columns(3)
-        with m1:
-            st.session_state["macd_fast"] = st.number_input("Fast Period", min_value=2, max_value=50, value=int(st.session_state.get("macd_fast", 12)))
-        with m2:
-            st.session_state["macd_slow"] = st.number_input("Slow Period", min_value=5, max_value=100, value=int(st.session_state.get("macd_slow", 26)))
-        with m3:
-            st.session_state["macd_signal"] = st.number_input("Signal Period", min_value=1, max_value=50, value=int(st.session_state.get("macd_signal", 9)))
-
     with tab_ui:
         st.caption("🖥️ ควบคุมการแสดงผลแถบเครื่องมือ")
-        st.session_state["show_draw_toolbar"] = st.toggle("✏️ แถบวาดรูป (Draw Toolbar)", value=st.session_state.get("show_draw_toolbar", True))
-        st.session_state["show_top_bar"] = st.toggle("💻 แถบควบคุมบน (Top Bar)", value=st.session_state.get("show_top_bar", True))
+        st.session_state["show_draw_toolbar"] = st.toggle(
+            "✏️ แถบวาดรูป (Draw Toolbar)", value=st.session_state.get("show_draw_toolbar", True)
+        )
+        st.session_state["show_top_bar"] = st.toggle(
+            "💻 แถบควบคุมบน (Top Bar)", value=st.session_state.get("show_top_bar", True)
+        )
 
     st.divider()
     b1, b2 = st.columns(2)
@@ -175,26 +142,12 @@ def show_chart_settings_dialog():
             st.session_state["candle_down_color"] = "#F23645"
             st.session_state["chart_bg_color"] = "#131722"
             st.session_state["chart_grid_color"] = "#1e222d"
-            st.session_state["show_ema"] = True
-            st.session_state["fast_ema"] = 7
-            st.session_state["slow_ema"] = 13
-            st.session_state["trend_ema"] = 45
-            st.session_state["show_volume"] = True
-            st.session_state["show_rsi"] = True
-            st.session_state["rsi_length"] = 14
-            st.session_state["rsi_ob"] = 70
-            st.session_state["rsi_os"] = 30
-            st.session_state["show_macd"] = True
-            st.session_state["macd_fast"] = 12
-            st.session_state["macd_slow"] = 26
-            st.session_state["macd_signal"] = 9
             st.session_state["show_draw_toolbar"] = True
             st.session_state["show_top_bar"] = True
             st.rerun()
     with b2:
         if st.button("💾 บันทึกและปรับใช้", type="primary", use_container_width=True):
             st.rerun()
-
 
 # ══════════════════════════════════════════════════════════════
 # 2. ฟังก์ชันจัดการข้อมูลเหรียญและสี

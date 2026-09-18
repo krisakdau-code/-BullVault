@@ -608,28 +608,7 @@ def dashboard():
     # =========================================================================
     tech_data = compute_full_technicals(df)
     raw_charts = build_charts(df, symbol, tf, 520, 120, 120)
-
-    # กรองอินดิเคเตอร์ตามสวิตช์ Toggle จากคลังโมดอลและชิป Top Bar
-    show_ema = st.session_state.get("ind_active_EMA", st.session_state.get("show_ema", True))
-    show_rsi = st.session_state.get("ind_active_RSI", st.session_state.get("show_rsi_pane", True))
-    show_macd = st.session_state.get("ind_active_MACD", st.session_state.get("show_macd_pane", True))
-
-    filtered_charts = []
-    for idx, c in enumerate(raw_charts):
-        if idx == 0:
-            if not show_ema and "series" in c:
-                c_copy = dict(c)
-                c_copy["series"] = [
-                    s for s in c["series"]
-                    if not any(k in str(s.get("title", "")).lower() for k in ["ema", "ribbon", "trend"])
-                ]
-                filtered_charts.append(c_copy)
-            else:
-                filtered_charts.append(c)
-        elif idx == 1 and show_rsi:
-            filtered_charts.append(c)
-        elif idx == 2 and show_macd:
-            filtered_charts.append(c)
+    filtered_charts = raw_charts
 
     col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
 
