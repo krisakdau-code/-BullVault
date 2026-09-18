@@ -582,11 +582,8 @@ def dashboard():
             st.session_state["current_symbol"] = new_sym
             st.rerun()
 
-    # =========================================================================
-    # แถวที่ 2: แถบเลือก Timeframe และ Indicators Popover
-    # =========================================================================
-    # แถวที่ 2: Timeframe และ Indicators (เพิ่มคอลัมน์ c_right_blank กั้นไม่ให้ปุ่มล้นไปวงสีแดง)
-    c_space, c_tf, c_ind, c_right_blank = st.columns([0.35, 5.6, 2.5, 2.0], gap="small")
+    # แถวที่ 2: Timeframe และ Indicators (มีคอลัมน์ c_right_blank ป้องกันปุ่มล้นไปวงสีแดง)
+    c_space, c_tf, c_ind, c_right_blank = st.columns([0.35, 5.2, 2.5, 2.0], gap="small")
 
     with c_tf:
         st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
@@ -602,30 +599,27 @@ def dashboard():
 
     # จุดวงเขียว 2: ปุ่ม Indicators + ปุ่มลัดชิปเฉพาะตัวที่ติ๊กดาว ⭐ เท่านั้น
     with c_ind:
-        init_indicator_state()
-        fav_codes = [c for c in st.session_state.get("favorite_indicators", []) if c in INDICATOR_REGISTRY]
+        fav_codes = st.session_state.get("favorite_indicators", ["EMA", "RSI", "MACD"])
         
-        # แบ่งช่องขนาดกะทัดรัด เกาะกลุ่มอยู่เหนือกราฟ ไม่ล้นข้ามฝั่ง
-    with c_ind:
-        init_indicator_state()
-        fav_codes = [c for c in st.session_state.get("favorite_indicators", []) if c in INDICATOR_REGISTRY]
+        # ย่อหน้าให้อยู่ใต้ with c_ind: เพื่อไม่ให้ปุ่มล้นข้ามไปวงสีแดงฝั่งขวา
+        sub_cols = st.columns([1.5] + [0.8] * max(len(fav_codes), 1))
 
-        # แบ่งช่องขนาดกะทัดรัด เกาะกลุ่มอยู่เหนือกราฟ ไม่ล้นข้ามฝั่ง
-        sub_cols = st.columns([1.4] + [0.8] * len(fav_codes))
+        with sub_cols[0]:
+            if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
+                show_chart_settings_dialog()
 
-    with sub_cols[0]:
-        if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
-            show_indicators_modal()
-
-    for idx, code in enumerate(fav_codes):
-        with sub_cols[idx + 1]:
-            meta = INDICATOR_REGISTRY[code]
-            is_active = st.session_state.get(meta["state_key"], True)
+        for idx, code in enumerate(fav_codes):
+            active_key = f"ind_active_{code}"
+            is_active = st.session_state.get(active_key, True)
             btn_style = "primary" if is_active else "tertiary"
-            if st.button(code, key=f"quick_fav_{code}", type=btn_style, use_container_width=True, help=f"เปิด/ปิด {meta['name']}"):
-                st.session_state[meta["state_key"]] = not is_active
-                st.rerun()
-
+            with sub_cols[idx + 1]:
+                if st.button(code, key=f"quick_fav_{code}", type=btn_style, use_container_width=True, help=f"เปิด/ปิด {code}"):
+                    st.session_state[active_key] = not is_active
+                    # ซิงก์สถานะเปิด-ปิดเข้ากับระบบแสดงผล
+                    if code == "EMA": st.session_state["show_ema"] = not is_active
+                    elif code == "RSI": st.session_state["show_rsi_pane"] = not is_active
+                    elif code == "MACD": st.session_state["show_macd_pane"] = not is_active
+                    st.rerun()
     # c_right_blank จะปล่อยว่างไว้ เพื่อคืนพื้นที่หัวข้อพาเนลขวาให้สะอาด 100%
 
     # =========================================================================
@@ -634,10 +628,10 @@ def dashboard():
     tech_data = compute_full_technicals(df)
     raw_charts = build_charts(df, symbol, tf, 520, 120, 120)
 
-    # กรองอินดิเคเตอร์ตามสวิตช์ Toggle
-    show_rsi = st.session_state.get("show_rsi_pane", True)
-    show_macd = st.session_state.get("show_macd_pane", True)
-    show_ema = st.session_state.get("show_ema", True)
+    # กรองอินดิเคเตอร์ตามสวิตช์ Toggle จากคลังโมดอลและชิป Top Bar
+    show_ema = st.session_state.get("ind_active_EMA", st.session_state.get("show_ema", True))
+    show_rsi = st.session_state.get("ind_active_RSI", st.session_state.get("show_rsi_pane", True))
+    show_macd = st.session_state.get("ind_active_MACD", st.session_state.get("show_macd_pane", True))
 
     filtered_charts = []
     for idx, c in enumerate(raw_charts):

@@ -373,6 +373,8 @@ def render_drawing_chart(
                         if (!mainSeries) mainSeries = series;
                     }} else if (s.type === "Histogram") {{
                         series = mainChart.addHistogramSeries(opts);
+                    }} else if (s.type === "Area") {{
+                        series = mainChart.addAreaSeries(opts);
                     }}
                     if (series && s.data) series.setData(s.data);
                     if (series && s.markers) series.setMarkers(s.markers);
@@ -432,6 +434,7 @@ def render_drawing_chart(
                         if (s.type === "Line") series = subChart.addLineSeries(opts);
                         else if (s.type === "Histogram") series = subChart.addHistogramSeries(opts);
                         else if (s.type === "Candlestick") series = subChart.addCandlestickSeries(opts);
+                        else if (s.type === "Area") series = subChart.addAreaSeries(opts);
                         
                         if (series && s.data) series.setData(s.data);
 
@@ -1257,7 +1260,8 @@ def render_drawing_chart(
                 resizeCanvas();
             }}
 
-            upgradePanes(['MAIN CHART', 'RSI', 'MACD']);
+            const paneTitles = config.map((c, i) => c.title || (i === 0 ? 'MAIN CHART' : ('PANE ' + i)));
+            upgradePanes(paneTitles);
             window.addEventListener('resize', updateAllWidths);
             window.addEventListener('resize', () => {{ try {{ paneResizeAll(); }} catch(e) {{}} }});
             setTimeout(updateAllWidths, 100);
