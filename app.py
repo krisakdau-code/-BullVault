@@ -599,28 +599,9 @@ def dashboard():
 
     # จุดวงเขียว 2: ปุ่ม Indicators + ปุ่มลัดชิปเฉพาะตัวที่ติ๊กดาว ⭐ เท่านั้น
     with c_ind:
-        fav_codes = st.session_state.get("favorite_indicators", ["EMA", "RSI", "MACD"])
-        
-        # ย่อหน้าให้อยู่ใต้ with c_ind: เพื่อไม่ให้ปุ่มล้นข้ามไปวงสีแดงฝั่งขวา
-        sub_cols = st.columns([1.5] + [0.8] * max(len(fav_codes), 1))
-
-        with sub_cols[0]:
+        with c_ind:
             if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
-                show_chart_settings_dialog()
-
-        for idx, code in enumerate(fav_codes):
-            active_key = f"ind_active_{code}"
-            is_active = st.session_state.get(active_key, True)
-            btn_style = "primary" if is_active else "tertiary"
-            with sub_cols[idx + 1]:
-                if st.button(code, key=f"quick_fav_{code}", type=btn_style, use_container_width=True, help=f"เปิด/ปิด {code}"):
-                    st.session_state[active_key] = not is_active
-                    # ซิงก์สถานะเปิด-ปิดเข้ากับระบบแสดงผล
-                    if code == "EMA": st.session_state["show_ema"] = not is_active
-                    elif code == "RSI": st.session_state["show_rsi_pane"] = not is_active
-                    elif code == "MACD": st.session_state["show_macd_pane"] = not is_active
-                    st.rerun()
-    # c_right_blank จะปล่อยว่างไว้ เพื่อคืนพื้นที่หัวข้อพาเนลขวาให้สะอาด 100%
+                show_indicators_modal()
 
     # =========================================================================
     # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก (มี Draggable Splitters คั่นกลาง)
