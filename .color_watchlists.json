@@ -2,7 +2,10 @@
   "red": [
     "ADAUSDT"
   ],
-  "green": [],
+  "green": [
+    "BTCUSDT",
+    "ETHUSDT"
+  ],
   "orange": [
     "TRXUSDT"
   ],

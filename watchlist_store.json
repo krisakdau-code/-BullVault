@@ -1,0 +1,45 @@
+{
+  "watchlist": [
+    [
+      "ETCUSDT",
+      "-",
+      "-",
+      true
+    ],
+    [
+      "BTCUSDT",
+      "-",
+      "-",
+      true
+    ],
+    [
+      "ETHUSDT",
+      "-",
+      "-",
+      true
+    ],
+    [
+      "SOLUSDT",
+      "-",
+      "-",
+      true
+    ],
+    [
+      "BNBUSDT",
+      "-",
+      "-",
+      true
+    ],
+    [
+      "ADAUSDT",
+      "-",
+      "-",
+      true
+    ]
+  ],
+  "colors": {
+    "BTCUSDT": "green",
+    "ETHUSDT": "green",
+    "ADAUSDT": "red"
+  }
+}

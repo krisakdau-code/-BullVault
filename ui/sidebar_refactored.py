@@ -1,11 +1,56 @@
 import streamlit as st
 import datetime
+import json
+import os
 from ui.symbol_modal import render_symbol_modal
 from data.fetchers import resolve_market_info
 from color_store import (
     COLOR_TAGS, COLOR_KEYS, norm_sym,
     ensure_color_state, assign_color, get_sym_color_key, get_sym_color_dot
 )
+
+WATCHLIST_STORE_FILE = "watchlist_store.json"
+
+# ══════════════════════════════════════════════════════════════
+# ระบบบันทึกข้อมูล Watchlist และกลุ่มสีลงไฟล์ถาวร (Local Storage)
+# ══════════════════════════════════════════════════════════════
+def load_saved_data():
+    """โหลดข้อมูลเหรียญและกลุ่มสีที่เคยบันทึกไว้"""
+    if os.path.exists(WATCHLIST_STORE_FILE):
+        try:
+            with open(WATCHLIST_STORE_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return data.get("watchlist", []), data.get("colors", {})
+        except Exception:
+            pass
+    # รายการเริ่มต้นกรณีเปิดครั้งแรก
+    default_watchlist = [
+        ("BTCUSDT", "-", "-", True),
+        ("ETHUSDT", "-", "-", True),
+        ("SOLUSDT", "-", "-", True),
+        ("BNBUSDT", "-", "-", True),
+        ("ADAUSDT", "-", "-", True)
+    ]
+    return default_watchlist, {}
+
+def save_watchlist_data():
+    """บันทึกรายการเหรียญและกลุ่มสีลงไฟล์ JSON ทันทีที่มีการเปลี่ยนแปลง"""
+    try:
+        raw_rows = st.session_state.get("custom_watchlist", [])
+        clean_list = [_normalize_row(r) for r in raw_rows]
+        
+        color_map = {}
+        for r in clean_list:
+            s = r[0]
+            ckey = get_sym_color_key(s)
+            if ckey:
+                color_map[s] = ckey
+
+        with open(WATCHLIST_STORE_FILE, "w", encoding="utf-8") as f:
+            json.dump({"watchlist": clean_list, "colors": color_map}, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+
 
 # ══════════════════════════════════════════════════════════════
 # 1. กล่องโมดอลศูนย์ตั้งค่ารวม 4 แท็บ (Unified Settings Dialog)
@@ -19,9 +64,6 @@ def show_chart_settings_dialog():
         "🖥️ พื้นที่ทำงาน"
     ])
 
-    # ──────────────────────────────────────────────────────────
-    # แท็บ 1: สีกราฟและแท่งเทียน
-    # ──────────────────────────────────────────────────────────
     with tab_chart:
         st.caption("🎨 โทนสีแท่งเทียนและพื้นหลัง")
         c1, c2 = st.columns(2)
@@ -44,9 +86,6 @@ def show_chart_settings_dialog():
                 "เส้นกริด (Grid)", value=st.session_state.get("chart_grid_color", "#1e222d")
             )
 
-    # ──────────────────────────────────────────────────────────
-    # แท็บ 2: อินดิเคเตอร์หลักบนกราฟ (EMA & Volume)
-    # ──────────────────────────────────────────────────────────
     with tab_main_ind:
         st.caption("📈 EMA Ribbon")
         st.session_state["show_ema"] = st.toggle("เปิดใช้งาน EMA Ribbon", value=st.session_state.get("show_ema", True))
@@ -69,9 +108,6 @@ def show_chart_settings_dialog():
         st.caption("📊 ปริมาณการซื้อขาย (Volume)")
         st.session_state["show_volume"] = st.toggle("แสดง Volume แท่งล่าง", value=st.session_state.get("show_volume", True))
 
-    # ──────────────────────────────────────────────────────────
-    # แท็บ 3: อินดิเคเตอร์ย่อยด้านล่าง (RSI & MACD)
-    # ──────────────────────────────────────────────────────────
     with tab_sub_ind:
         st.caption("📉 RSI Settings")
         st.session_state["show_rsi"] = st.toggle("แสดง RSI Pane", value=st.session_state.get("show_rsi", True))
@@ -94,9 +130,6 @@ def show_chart_settings_dialog():
         with m3:
             st.session_state["macd_signal"] = st.number_input("Signal Period", min_value=1, max_value=50, value=int(st.session_state.get("macd_signal", 9)))
 
-    # ──────────────────────────────────────────────────────────
-    # แท็บ 4: สวิตช์เปิด-ปิดแถบควบคุม (Workspace UI)
-    # ──────────────────────────────────────────────────────────
     with tab_ui:
         st.caption("🖥️ ควบคุมการแสดงผลแถบเครื่องมือ")
         st.session_state["show_draw_toolbar"] = st.toggle(
@@ -110,7 +143,6 @@ def show_chart_settings_dialog():
     b1, b2 = st.columns(2)
     with b1:
         if st.button("🔄 รีเซ็ตเป็นค่าเริ่มต้น", use_container_width=True):
-            # รีเซ็ตค่าทั้งหมด
             st.session_state["candle_up_color"] = "#089981"
             st.session_state["candle_down_color"] = "#F23645"
             st.session_state["chart_bg_color"] = "#131722"
@@ -143,13 +175,22 @@ def show_chart_settings_dialog():
 
 
 # ══════════════════════════════════════════════════════════════
-# 2. ฟังก์ชันเสริมการจัดการข้อมูล
+# 2. ฟังก์ชันจัดการข้อมูลเหรียญและสี
 # ══════════════════════════════════════════════════════════════
 def set_active_symbol(sym_code: str):
     sym_code = norm_sym(sym_code)
     st.session_state["current_symbol"] = sym_code
     st.session_state["selected_symbol"] = sym_code
     
+    # เพิ่มเข้า custom_watchlist ทันทีถ้ายังไม่มี
+    if "custom_watchlist" not in st.session_state:
+        st.session_state["custom_watchlist"] = []
+    
+    existing = [norm_sym(r[0] if isinstance(r, (list, tuple)) else (r.get("symbol") if isinstance(r, dict) else r)) for r in st.session_state["custom_watchlist"]]
+    if sym_code not in existing:
+        st.session_state["custom_watchlist"].insert(0, (sym_code, "-", "-", True))
+        save_watchlist_data()
+
     if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
         active_id = st.session_state.get("active_tab_id")
         for t in st.session_state["chart_tabs"]:
@@ -167,27 +208,30 @@ def set_active_symbol(sym_code: str):
     for k in ("active_key", "df_data", "last_fetch_time"):
         st.session_state.pop(k, None)
 
-def _color_menu(sym: str) -> None:
+def _color_menu(sym: str, prefix: str = "wl") -> None:
     s = norm_sym(sym)
     current = get_sym_color_key(s)
     st.caption(f"กลุ่มสีของ {s}")
     for ckey, cinfo in COLOR_TAGS.items():
         mark = " ✓" if ckey == current else ""
-        if st.button(f"{cinfo['dot']} {cinfo['label']}{mark}", key=f"clr_{s}_{ckey}", use_container_width=True):
+        if st.button(f"{cinfo['dot']} {cinfo['label']}{mark}", key=f"{prefix}_clr_{s}_{ckey}", use_container_width=True):
             assign_color(s, None if ckey == current else ckey)
+            save_watchlist_data()
             st.rerun()
 
     st.divider()
-    if st.button("✖ ปลดกลุ่มสี", key=f"clr_{s}_none", use_container_width=True, disabled=(current is None)):
+    if st.button("✖ ปลดกลุ่มสี", key=f"{prefix}_clr_{s}_none", use_container_width=True, disabled=(current is None)):
         assign_color(s, None)
+        save_watchlist_data()
         st.rerun()
-    if st.button("🗑️ ลบจาก Watchlist", key=f"clr_{s}_del", use_container_width=True):
+    if st.button("🗑️ ลบจาก Watchlist", key=f"{prefix}_clr_{s}_del", use_container_width=True):
         assign_color(s, None)
         if "custom_watchlist" in st.session_state:
             st.session_state["custom_watchlist"] = [
                 item for item in st.session_state["custom_watchlist"]
                 if norm_sym(item[0] if isinstance(item, (list, tuple)) else item) != s
             ]
+        save_watchlist_data()
         st.rerun()
 
 def _normalize_row(row):
@@ -207,12 +251,17 @@ def render_sidebar():
     st.markdown('<div id="custom-left-menu-anchor" style="display:none;"></div>', unsafe_allow_html=True)
     ensure_color_state()
 
+    # โหลดข้อมูลถาวรเมื่อเปิดโปรแกรมใหม่
+    if "custom_watchlist" not in st.session_state:
+        saved_wl, saved_colors = load_saved_data()
+        st.session_state["custom_watchlist"] = saved_wl
+        for s, ckey in saved_colors.items():
+            assign_color(s, ckey)
+
     if "sidebar_active_tab" not in st.session_state:
         st.session_state["sidebar_active_tab"] = "market"
     if "color_filter" not in st.session_state:
         st.session_state["color_filter"] = None
-    if "custom_watchlist" not in st.session_state:
-        st.session_state["custom_watchlist"] = []
 
     st.markdown("""
     <style>
@@ -258,7 +307,7 @@ def render_sidebar():
     </style>
     """, unsafe_allow_html=True)
 
-    # ปุ่มสลับแท็บหลัก: ตลาด (ส้ม) | เครื่องมือ (เขียว)
+    # ปุ่มสลับแท็บ: ตลาด (ส้ม) | เครื่องมือ (เขียว)
     t_c1, t_c2 = st.columns(2)
     with t_c1:
         if st.button("ตลาด (ส้ม)", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "market" else "secondary"):
@@ -270,7 +319,7 @@ def render_sidebar():
             st.rerun()
 
     # ──────────────────────────────────────────────────────────
-    # TAB 1: ตลาด (แสดง Watchlist เต็มพื้นที่)
+    # TAB 1: ตลาด (Watchlist + ตัวเลือกกลุ่มสี)
     # ──────────────────────────────────────────────────────────
     if st.session_state["sidebar_active_tab"] == "market":
         st.selectbox(
@@ -284,13 +333,26 @@ def render_sidebar():
         meta = resolve_market_info(selected_sym)
         tag = meta.get("exchange", "BINANCE")
 
-        if st.button(f"🔍 {selected_sym}   [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
-            render_symbol_modal()
+        # ตรวจสอบและเพิ่มเหรียญปัจจุบันเข้า Watchlist อัตโนมัติ
+        existing_syms = [norm_sym(r[0] if isinstance(r, (list, tuple)) else (r.get("symbol") if isinstance(r, dict) else r)) for r in st.session_state["custom_watchlist"]]
+        if norm_sym(selected_sym) not in existing_syms:
+            st.session_state["custom_watchlist"].insert(0, (norm_sym(selected_sym), "-", "-", True))
+            save_watchlist_data()
 
+        # แถบค้นหาเหรียญ + ปุ่มลัดเลือกกลุ่มสีของเหรียญปัจจุบัน
+        c_search, c_color_quick = st.columns([0.80, 0.20], gap="small", vertical_alignment="center")
+        with c_search:
+            if st.button(f"🔍 {selected_sym}  [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
+                render_symbol_modal()
+        with c_color_quick:
+            cur_dot = get_sym_color_dot(selected_sym)
+            btn_label = cur_dot if cur_dot else "🏷️"
+            with st.popover(btn_label, use_container_width=True, help="เลือกกลุ่มสีของเหรียญนี้"):
+                _color_menu(selected_sym, prefix="top")
         # แถบกรอง 5 สีแบบ Ghost Buttons
-        st.markdown("<div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>", unsafe_allow_html=True)
-        f_cols = st.columns([1.2, 1, 1, 1, 1, 1])
-        active = st.session_state.get("color_filter")
+                st.markdown("<div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>", unsafe_allow_html=True)
+                f_cols = st.columns([1.2, 1, 1, 1, 1, 1])
+                active = st.session_state.get("color_filter")
 
         with f_cols[0]:
             if st.button("ALL" if active else "⭐", key="cf_all", use_container_width=True, type="primary" if active is None else "tertiary"):
@@ -329,7 +391,7 @@ def render_sidebar():
                     _color_menu(sym)
 
     # ──────────────────────────────────────────────────────────
-    # TAB 2: เครื่องมือ (Control Center สะอาดตา)
+    # TAB 2: เครื่องมือ (Control Center)
     # ──────────────────────────────────────────────────────────
     else:
         st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ เมนูควบคุมหลัก</div>", unsafe_allow_html=True)
