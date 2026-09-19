@@ -5,6 +5,7 @@ import os
 import requests
 from ui.symbol_modal import render_symbol_modal
 from data.fetchers import resolve_market_info
+from ui.rice_seasonality_modal import show_rice_market_modal
 from color_store import (
     COLOR_TAGS, COLOR_KEYS, norm_sym,
     ensure_color_state, assign_color, get_sym_color_key, get_sym_color_dot
@@ -126,7 +127,7 @@ def show_chart_settings_dialog():
             )
 
     with tab_ui:
-        st.caption("🖥️ ควบคุมการแสดงผลแถบเครื่องมือ")
+        st.caption("🖥 ควบคุมการแสดงผลแถบ 'กราฟเปรียบเทียบ'")
         st.session_state["show_draw_toolbar"] = st.toggle(
             "✏️ แถบวาดรูป (Draw Toolbar)", value=st.session_state.get("show_draw_toolbar", True)
         )
@@ -330,14 +331,14 @@ def render_sidebar():
     </style>
     """, unsafe_allow_html=True)
 
-    # ปุ่มสลับแท็บหลัก: ตลาด (ส้ม) | เครื่องมือ (เขียว)
+    # ปุ่มสลับแท็บหลัก: ตลาด  | กราฟเปรียบเทียบ (เขียว)
     t_c1, t_c2 = st.columns(2)
     with t_c1:
-        if st.button("ตลาด (ส้ม)", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "market" else "secondary"):
+        if st.button("ตลาด", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "market" else "secondary"):
             st.session_state["sidebar_active_tab"] = "market"
             st.rerun()
     with t_c2:
-        if st.button("เครื่องมือ (เขียว)", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "tools" else "secondary"):
+        if st.button("กราฟเปรียบเทียบ (เขียว)", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "tools" else "secondary"):
             st.session_state["sidebar_active_tab"] = "tools"
             st.rerun()
 
@@ -517,26 +518,38 @@ def render_sidebar():
                     )
 
     # ──────────────────────────────────────────────────────────
-    # TAB 2: เครื่องมือ
-    # ──────────────────────────────────────────────────────────
+    # -------------------------------------------------------------
+    # แท็บที่ 2: กราฟเปรียบเทียบ (มีปุ่มตลาดข้าวเฉพาะแท็บนี้)
+    # -------------------------------------------------------------
     else:
         st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ เมนูควบคุมหลัก</div>", unsafe_allow_html=True)
-        act1, act2 = st.columns(2)
-        with act1:
-            if st.button("🌾 ตลาดข้าว", key="btn_rice_modal", use_container_width=True, type="secondary"):
-                from ui.rice_tab import show_rice_dialog_modal
-                show_rice_dialog_modal()
-        with act2:
-            if st.button("⚙️ ตั้งค่ากราฟ", key="btn_chart_settings", use_container_width=True, type="secondary"):
-                show_chart_settings_dialog()
+        if st.button("🌾 ตลาดข้าว", key="btn_rice_modal", use_container_width=True, type="secondary"):
+            from ui import rice_seasonality_modal
+            rice_seasonality_modal.show_rice_market_modal()
 
-        st.markdown("<hr style='margin: 16px 0 12px 0; border: 0.5px solid #2a2e39;'>", unsafe_allow_html=True)
+    # -------------------------------------------------------------
+    # แถบล่างสุด: ตั้งค่า + นาฬิกา (เคาะ 4 ช่อง อยู่นอก else เพื่อให้แสดงทั้ง 2 แท็บ)
+    # -------------------------------------------------------------
+    st.markdown("<hr style='margin: 14px 0 10px 0; border: 0.5px solid #2a2e39;'>", unsafe_allow_html=True)
 
+    col_set, col_clk = st.columns([0.42, 0.58], vertical_alignment="center")
+    with col_set:
+        if st.button("⚙️ ตั้งค่า", key="btn_chart_settings", use_container_width=True, type="secondary", help="ตั้งค่ากราฟ"):
+            show_chart_settings_dialog()
+
+    with col_clk:
         now_bkk = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
         st.markdown(f"""
-        <div style="padding:8px 12px; background:#131722; border:1px solid #2a2e39; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
-            <span style="color:#eaecef; font-size:12px; font-weight:600;">🕒 BKK {now_bkk.strftime('%H:%M:%S')}</span>
-            <span class="tv-quick-badge-on">LIVE</span>
+        <div style="padding:6px 8px; background:#131722; border:1px solid #2a2e39; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <div style="font-size:10px; color:#787b86; display:flex; align-items:center; gap:3px;">
+                    <span>🕒</span> BKK
+                </div>
+                <div style="font-size:11px; font-weight:600; color:#d1d4dc; font-family:monospace;">
+                    {now_bkk.strftime('%H:%M:%S')}
+                </div>
+            </div>
+            <span style="background:rgba(38,166,154,0.15); color:#26a69a; border:1px solid #26a69a; padding:1px 5px; border-radius:3px; font-size:9px; font-weight:bold;">LIVE</span>
         </div>
         """, unsafe_allow_html=True)
 
