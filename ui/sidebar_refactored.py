@@ -521,11 +521,51 @@ def render_sidebar():
     # -------------------------------------------------------------
     # แท็บที่ 2: กราฟเปรียบเทียบ (มีปุ่มตลาดข้าวเฉพาะแท็บนี้)
     # -------------------------------------------------------------
+    # TAB 2: กราฟเปรียบเทียบ
+    # -------------------------------------------------------------
+    # แท็บที่ 2: กราฟเปรียบเทียบ (6 ปุ่มหมวด + 1 ปุ่มบทวิเคราะห์)
+    # -------------------------------------------------------------
     else:
-        st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ เมนูควบคุมหลัก</div>", unsafe_allow_html=True)
-        if st.button("🌾 ตลาดข้าว", key="btn_rice_modal", use_container_width=True, type="secondary"):
-            from ui import rice_seasonality_modal
-            rice_seasonality_modal.show_rice_market_modal()
+        st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ หมวดหมู่เปรียบเทียบ</div>", unsafe_allow_html=True)
+        
+        # แถวที่ 1
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🌾 ตลาดข้าว", key="btn_rice_modal", use_container_width=True, type="secondary"):
+                from ui import rice_seasonality_modal
+                rice_seasonality_modal.show_rice_market_modal()
+        with c2:
+            if st.button("🪙 คริปโต", key="btn_crypto_modal", use_container_width=True, type="secondary"):
+                from ui import macro_comparison_modal
+                macro_comparison_modal.show_crypto_modal()
+
+        # แถวที่ 2
+        c3, c4 = st.columns(2)
+        with c3:
+            if st.button("📈 หุ้น (GICS)", key="btn_stocks_modal", use_container_width=True, type="secondary"):
+                from ui import macro_comparison_modal
+                macro_comparison_modal.show_stocks_gics_modal()
+        with c4:
+            if st.button("⛏️ แร่ & เหมือง", key="btn_metals_modal", use_container_width=True, type="secondary"):
+                from ui import macro_comparison_modal
+                macro_comparison_modal.show_metals_mining_modal()
+
+        # แถวที่ 3
+        c5, c6 = st.columns(2)
+        with c5:
+            if st.button("💵 สกุลเงิน FX", key="btn_forex_modal", use_container_width=True, type="secondary"):
+                from ui import macro_comparison_modal
+                macro_comparison_modal.show_forex_modal()
+        with c6:
+            if st.button("🌐 เทียบข้ามกลุ่ม", key="btn_macro_modal", use_container_width=True, type="secondary"):
+                from ui import macro_comparison_modal
+                macro_comparison_modal.show_macro_comparison_modal()
+
+        # แถวที่ 4: ปุ่มบทวิเคราะห์กระแสเงินทุน
+        st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
+        if st.button("🧭 บทวิเคราะห์เงินทุนไหล (Capital Flow)", key="btn_flow_modal", use_container_width=True, type="primary"):
+            from ui import macro_comparison_modal
+            macro_comparison_modal.show_flow_analysis_modal()
 
     # -------------------------------------------------------------
     # แถบล่างสุด: ตั้งค่า + นาฬิกา (เคาะ 4 ช่อง อยู่นอก else เพื่อให้แสดงทั้ง 2 แท็บ)
