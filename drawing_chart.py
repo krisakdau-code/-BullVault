@@ -1272,29 +1272,61 @@ def render_drawing_chart(
             const paneTitles = config.map((c, i) => c.title || (i === 0 ? 'MAIN CHART' : ('PANE ' + i)));
             upgradePanes(paneTitles);
             // --- ซิงค์เส้น Crosshair ไข่ปลาให้ทะลุวิ่งตรงกันทุกหน้าต่าง ---
-    let _isSyncingCH = false;
-    allCharts.forEach((srcC, srcIdx) => {{
-        srcC.subscribeCrosshairMove(param => {{
-            if (_isSyncingCH) return;
-            _isSyncingCH = true;
-            try {{
-                allCharts.forEach((tgtC, tgtIdx) => {{
-                    if (srcIdx === tgtIdx || !tgtC) return;
-                    if (!param || !param.time || param.point === undefined) {{
-                        if (typeof tgtC.clearCrosshairPosition === 'function') tgtC.clearCrosshairPosition();
-                    }} else {{
-                        const tgtEntry = paneRegistry[tgtIdx];
-                        const tgtSeries = (tgtEntry && tgtEntry.chart && tgtEntry.chart._firstSeries)
-                            || tgtC._firstSeries
-                            || (tgtC.series && tgtC.series[0]);
-                        if (typeof tgtC.setCrosshairPosition === 'function' && tgtSeries) {{
-                            tgtC.setCrosshairPosition(undefined, param.time, tgtSeries);
-                        }}
-                    }}
-                }});
-            }} catch (err) {{}}
-            finally {{
-                _isSyncingCH = false;
+            // --- เส้นไข่ปลาแนวตั้งและป้ายวันที่ล่างสุด (Time Badge) วิ่งทะลุลง MACD ตลอดเวลา ---
+    let vLine = document.getElementById('global-sync-vline');
+    let vBadge = document.getElementById('global-sync-vbadge');
+    const chartWrap = (typeof mainBox !== 'undefined' && mainBox && mainBox.parentElement) ? mainBox.parentElement : document.body;
+    
+    if (!vLine && chartWrap) {{
+        vLine = document.createElement('div');
+        vLine.id = 'global-sync-vline';
+        vLine.style.cssText = 'position:absolute;top:0;bottom:0;width:0px;border-left:1px dashed rgba(255,255,255,0.45);pointer-events:none;z-index:80;display:none;';
+        chartWrap.style.position = 'relative';
+        chartWrap.appendChild(vLine);
+    }}
+
+    if (!vBadge && chartWrap) {{
+        vBadge = document.createElement('div');
+        vBadge.id = 'global-sync-vbadge';
+        vBadge.style.cssText = 'position:absolute;bottom:2px;transform:translateX(-50%);background:#1e222d;color:#d1d4dc;border:1px solid #363a45;border-radius:2px;padding:2px 6px;font-size:11px;font-family:-apple-system,BlinkMacSystemFont,"Trebuchet MS",Roboto,sans-serif;pointer-events:none;z-index:95;display:none;white-space:nowrap;line-height:16px;box-shadow:0 2px 5px rgba(0,0,0,0.6);font-weight:500;';
+        chartWrap.appendChild(vBadge);
+    }}
+
+    const _thMonths = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    function _fmtTimeBadge(t) {{
+        if (!t) return '';
+        let dt;
+        if (typeof t === 'number') {{
+            dt = new Date(t * 1000);
+        }} else if (t.year && t.month && t.day) {{
+            dt = new Date(Date.UTC(t.year, t.month - 1, t.day));
+        }} else {{
+            return '';
+        }}
+        const d = dt.getUTCDate();
+        const m = _thMonths[dt.getUTCMonth()];
+        const y = String(dt.getUTCFullYear() % 100).padStart(2, '0');
+        const hh = String(dt.getUTCHours()).padStart(2, '0');
+        const mm = String(dt.getUTCMinutes()).padStart(2, '0');
+        return d + ' ' + m + " '" + y + '  ' + hh + ':' + mm;
+    }}
+
+    allCharts.forEach(c => {{
+        c.subscribeCrosshairMove(param => {{
+            if (!vLine) return;
+            if (!param || !param.point || param.point.x === undefined || !param.time) {{
+                vLine.style.display = 'none';
+                if (vBadge) vBadge.style.display = 'none';
+            }} else {{
+                const offLeft = (typeof mainView !== 'undefined' && mainView && chartWrap) ? (mainView.getBoundingClientRect().left - chartWrap.getBoundingClientRect().left) : 0;
+                const posX = (param.point.x + offLeft) + 'px';
+                vLine.style.left = posX;
+                vLine.style.display = 'block';
+                if (vBadge) {{
+                    vBadge.style.left = posX;
+                    vBadge.innerText = _fmtTimeBadge(param.time);
+                    vBadge.style.display = 'block';
+                }}
             }}
         }});
     }});
