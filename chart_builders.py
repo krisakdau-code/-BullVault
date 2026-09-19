@@ -596,8 +596,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
     # ตั้งค่าให้แถบวันที่/เวลาแสดงผล "เฉพาะหน้าต่างล่างสุดตัวเดียวเสมอ"
     # ══════════════════════════════════════════════════════════
     if charts:
-        for c in charts:
-            c["chart"]["timeScale"]["visible"] = False
-        charts[-1]["chart"]["timeScale"]["visible"] = True
-
+     for i, c in enumerate(charts):
+        c["chart"]["timeScale"] = dict(c["chart"].get("timeScale", pane_ts)).copy()
+        c["chart"]["timeScale"]["visible"] = (i == len(charts) - 1)
     return charts
