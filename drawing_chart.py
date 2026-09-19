@@ -1115,11 +1115,10 @@ def render_drawing_chart(
             window.addEventListener('mouseup', stopPaneDrag);
         }}
 
-       function onPaneDrag(e) {{
+    function onPaneDrag(e) {{
     if (!_spDrag) return;
     const dy = e.clientY - _spDrag.y;
     if (_spDrag.isBottom) {{
-        // ขยาย/หดความสูงลงล่างโดยตรง พร้อมปลดล็อก overflow
         _spDrag.up.style.flex = 'none';
         _spDrag.up.style.overflow = 'hidden';
         const newH = Math.max(40, _spDrag.uh + dy);
@@ -1130,7 +1129,6 @@ def render_drawing_chart(
         if (view) view.style.height = Math.max(20, newH - hdrH) + 'px';
         if (typeof container !== 'undefined' && container) container.style.height = 'auto';
     }} else {{
-        // กรณีลากเส้นคั่นระหว่างหน้าต่าง: กราฟหลักกับ RSI ทำงานตามเดิม
         _spDrag.up.style.flex = 'none';
         _spDrag.low.style.flex = 'none';
         _spDrag.up.style.height = Math.max(80, _spDrag.uh + dy) + 'px';
@@ -1273,6 +1271,33 @@ def render_drawing_chart(
 
             const paneTitles = config.map((c, i) => c.title || (i === 0 ? 'MAIN CHART' : ('PANE ' + i)));
             upgradePanes(paneTitles);
+            // --- ซิงค์เส้น Crosshair ไข่ปลาให้ทะลุวิ่งตรงกันทุกหน้าต่าง ---
+    let _isSyncingCH = false;
+    allCharts.forEach((srcC, srcIdx) => {{
+        srcC.subscribeCrosshairMove(param => {{
+            if (_isSyncingCH) return;
+            _isSyncingCH = true;
+            try {{
+                allCharts.forEach((tgtC, tgtIdx) => {{
+                    if (srcIdx === tgtIdx || !tgtC) return;
+                    if (!param || !param.time || param.point === undefined) {{
+                        if (typeof tgtC.clearCrosshairPosition === 'function') tgtC.clearCrosshairPosition();
+                    }} else {{
+                        const tgtEntry = paneRegistry[tgtIdx];
+                        const tgtSeries = (tgtEntry && tgtEntry.chart && tgtEntry.chart._firstSeries)
+                            || tgtC._firstSeries
+                            || (tgtC.series && tgtC.series[0]);
+                        if (typeof tgtC.setCrosshairPosition === 'function' && tgtSeries) {{
+                            tgtC.setCrosshairPosition(undefined, param.time, tgtSeries);
+                        }}
+                    }}
+                }});
+            }} catch (err) {{}}
+            finally {{
+                _isSyncingCH = false;
+            }}
+        }});
+    }});
             window.addEventListener('resize', updateAllWidths);
             window.addEventListener('resize', () => {{ try {{ paneResizeAll(); }} catch(e) {{}} }});
             setTimeout(updateAllWidths, 100);

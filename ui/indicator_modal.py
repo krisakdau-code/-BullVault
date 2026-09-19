@@ -36,7 +36,7 @@ INDICATOR_CONFIGS = {
         "inputs": {"conversion": 9, "base": 26, "span_b": 52},
         "style": {
             "tenkan_color": "#00bcd4", "kijun_color": "#ff4081",
-            "lead_a_color": "rgba(0, 230, 118, 0.2)", "lead_b_color": "rgba(255, 82, 82, 0.2)"
+            "lead_a_color": "#00e676", "lead_b_color": "#ff5252"
         }
     },
     "VWAP": {

@@ -1,4 +1,4 @@
-# chart_builders.py — Full Engine: 11 Professional Indicators & Dynamic Sub-panes
+# chart_builders.py — Full Engine: 11 Professional Indicators, Dynamic Sub-panes & Bottom-only TimeScale
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -85,7 +85,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
     tr = pd.concat([d["high"] - d["low"], (d["high"] - d["close"].shift(1)).abs(), (d["low"] - d["close"].shift(1)).abs()], axis=1).max(axis=1)
 
     # ══════════════════════════════════════════════════════════
-    # 1. RSI & RSI MA (คงสูตรเดิม 100% พร้อมตัวเลือก SMA/EMA)
+    # 1. RSI & RSI MA (คงของเดิม 100% สลับ SMA/EMA ได้)
     # ══════════════════════════════════════════════════════════
     r_len = int(st.session_state.get("RSI_in_length", st.session_state.get("rsi_len", 14)))
     r_src = str(st.session_state.get("RSI_in_source", st.session_state.get("rsi_source", "close"))).lower()
@@ -107,7 +107,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         d["calc_rsi_ma"] = d["calc_rsi"].rolling(ma_len).mean()
 
     # ══════════════════════════════════════════════════════════
-    # 2. MACD (คงสูตรเดิม 100%)
+    # 2. MACD (คงของเดิม 100%)
     # ══════════════════════════════════════════════════════════
     m_fast = int(st.session_state.get("MACD_in_fast", st.session_state.get("macd_fast_len", 12)))
     m_slow = int(st.session_state.get("MACD_in_slow", st.session_state.get("macd_slow_len", 26)))
@@ -122,7 +122,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
     d["calc_macd_hist"] = d["calc_macd"] - d["calc_macd_sig"]
 
     # ══════════════════════════════════════════════════════════
-    # 3. EMA Ribbon กราฟหลัก (คงสูตรเดิม 100%)
+    # 3. EMA Ribbon กราฟหลัก (คงของเดิม 100%)
     # ══════════════════════════════════════════════════════════
     ema_f_len = int(st.session_state.get("EMA_in_fast", st.session_state.get("ema_fast_len", 12)))
     ema_s_len = int(st.session_state.get("EMA_in_slow", st.session_state.get("ema_slow_len", 26)))
@@ -132,7 +132,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
     d["calc_ema_trend"] = d["close"].ewm(span=ema_t_len, adjust=False).mean()
 
     # ══════════════════════════════════════════════════════════
-    # 4. คำนวณอินดิเคเตอร์เพิ่มเติม (อีก 8 ตัวที่เหลือ)
+    # 4. คำนวณอินดิเคเตอร์เพิ่มเติม
     # ══════════════════════════════════════════════════════════
     # Bollinger Bands
     bb_len = int(st.session_state.get("BB_in_length", 20))
@@ -199,7 +199,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
     records = d.to_dict("records")
 
     pane_ts = {
-        "visible": True,
+        "visible": False,  # ซ่อนแกนเวลาไว้เป็นค่าเริ่มต้น (จะเปิดเฉพาะหน้าต่างล่างสุดตัวเดียว)
         "timeVisible": True,
         "secondsVisible": tf in ("1m", "3m", "5m"),
         "borderColor": theme.BORDER_COLOR,
@@ -255,7 +255,6 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         },
     }
 
-    # แท่งเทียนหลัก
     candles = [
         {
             "time": int(r["time"]),
@@ -287,7 +286,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         },
     }]
 
-    # 1. เส้น EMA กราฟหลัก (คงโครงสร้างเดิม 100% พร้อมรองรับสวิตช์ Toggle)
+    # 1. EMA Ribbon Overlay
     if st.session_state.get("ind_active_EMA", st.session_state.get("show_ema", True)):
         fast_col = st.session_state.get("EMA_st_fast_color", theme.EMA_FAST_COLOR)
         fast_lw = int(st.session_state.get("EMA_st_fast_width", 2))
@@ -296,14 +295,12 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         trend_col = st.session_state.get("EMA_st_trend_color", theme.EMA_TREND_COLOR)
         trend_lw = int(st.session_state.get("EMA_st_trend_width", 1))
 
-        fast_data = [{"time": int(r["time"]), "value": float(r["calc_ema_fast"])} for r in records if pd.notna(r.get("calc_ema_fast")) and r["time"] > 0]
-        price_series.append({"type": "Line", "data": fast_data, "options": {"color": fast_col, "lineWidth": fast_lw, "priceLineVisible": False, "lastValueVisible": False}})
-
-        slow_data = [{"time": int(r["time"]), "value": float(r["calc_ema_slow"])} for r in records if pd.notna(r.get("calc_ema_slow")) and r["time"] > 0]
-        price_series.append({"type": "Line", "data": slow_data, "options": {"color": slow_col, "lineWidth": slow_lw, "priceLineVisible": False, "lastValueVisible": False}})
-
-        trend_data = [{"time": int(r["time"]), "value": float(r["calc_ema_trend"])} for r in records if pd.notna(r.get("calc_ema_trend")) and r["time"] > 0]
-        price_series.append({"type": "Line", "data": trend_data, "options": {"color": trend_col, "lineWidth": trend_lw, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_fast"])} for r in records if pd.notna(r.get("calc_ema_fast")) and r["time"] > 0],
+                             "options": {"color": fast_col, "lineWidth": fast_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_slow"])} for r in records if pd.notna(r.get("calc_ema_slow")) and r["time"] > 0],
+                             "options": {"color": slow_col, "lineWidth": slow_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_trend"])} for r in records if pd.notna(r.get("calc_ema_trend")) and r["time"] > 0],
+                             "options": {"color": trend_col, "lineWidth": trend_lw, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
 
     # 2. Bollinger Bands Overlay
     if st.session_state.get("ind_active_BB", False):
@@ -333,23 +330,28 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_st_upper"])} for r in records if pd.notna(r.get("calc_st_upper")) and r["time"] > 0],
                              "options": {"color": st_dn_col, "lineWidth": st_dn_lw, "priceLineVisible": False, "lastValueVisible": False}})
 
-    # 4. Ichimoku Cloud Overlay
+    # 4. Ichimoku Cloud Overlay (ผูกค่าสี Lead A, Lead B ตามหน้าต่าง Style 100%)
     if st.session_state.get("ind_active_ICHI", False):
+        ichi_t_col = st.session_state.get("ICHI_st_tenkan_color", "#00bcd4")
+        ichi_k_col = st.session_state.get("ICHI_st_kijun_color", "#ff4081")
+        ichi_a_col = st.session_state.get("ICHI_st_lead_a_color", st.session_state.get("ICHI_st_span_a_color", "rgba(0, 230, 118, 0.6)"))
+        ichi_b_col = st.session_state.get("ICHI_st_lead_b_color", st.session_state.get("ICHI_st_span_b_color", "rgba(255, 82, 82, 0.6)"))
+
         price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_tenkan"])} for r in records if pd.notna(r.get("calc_ichi_tenkan")) and r["time"] > 0],
-                             "options": {"color": st.session_state.get("ICHI_st_tenkan_color", "#00bcd4"), "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
+                             "options": {"color": ichi_t_col, "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
         price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_kijun"])} for r in records if pd.notna(r.get("calc_ichi_kijun")) and r["time"] > 0],
-                             "options": {"color": st.session_state.get("ICHI_st_kijun_color", "#ff4081"), "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
+                             "options": {"color": ichi_k_col, "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
         price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_span_a"])} for r in records if pd.notna(r.get("calc_ichi_span_a")) and r["time"] > 0],
-                             "options": {"color": "rgba(0, 230, 118, 0.6)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+                             "options": {"color": ichi_a_col, "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
         price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_span_b"])} for r in records if pd.notna(r.get("calc_ichi_span_b")) and r["time"] > 0],
-                             "options": {"color": "rgba(255, 82, 82, 0.6)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+                             "options": {"color": ichi_b_col, "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
 
     # 5. VWAP Overlay
     if st.session_state.get("ind_active_VWAP", False):
         price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_vwap"])} for r in records if pd.notna(r.get("calc_vwap")) and r["time"] > 0],
                              "options": {"color": st.session_state.get("VWAP_st_color", "#ff9800"), "lineWidth": int(st.session_state.get("VWAP_st_width", 2)), "priceLineVisible": False, "lastValueVisible": False}})
 
-    # Volume Overlay ชิดขอบล่าง (คงเดิม 100%)
+    # Volume Overlay ชิดขอบล่าง
     if theme.SHOW_VOLUME:
         vol = [
             {
@@ -371,7 +373,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         })
 
     # ══════════════════════════════════════════════════════════
-    # กราฟ RSI (14) พร้อม RSI MA และ Bands (คงโค้ดเดิม 100%)
+    # Sub-panes (RSI, MACD, Stochastic, ATR, ADX, Volume)
     # ══════════════════════════════════════════════════════════
     def make_rsi_pane():
         rsi_col = st.session_state.get("RSI_st_line_color", st.session_state.get("rsi_col_line", theme.RSI_LINE_COLOR))
@@ -406,9 +408,6 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
             "series": series_list,
         }
 
-    # ══════════════════════════════════════════════════════════
-    # กราฟ MACD (4-Color Histogram & Zero Line) (คงโค้ดเดิม 100%)
-    # ══════════════════════════════════════════════════════════
     def make_macd_pane():
         m_col = st.session_state.get("MACD_st_macd_color", st.session_state.get("macd_col_line", theme.MACD_LINE_COLOR))
         m_lw = int(st.session_state.get("MACD_st_macd_width", st.session_state.get("macd_lw_line", 2)))
@@ -508,9 +507,6 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
             "series": series_list,
         }
 
-    # ══════════════════════════════════════════════════════════
-    # Sub-panes เพิ่มเติม (Stochastic, ATR, ADX, Volume)
-    # ══════════════════════════════════════════════════════════
     def make_stoch_pane():
         mk = lambda v: [{"time": int(r["time"]), "value": v} for r in records if r["time"] > 0]
         return {
@@ -582,7 +578,6 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         "series": price_series,
     }]
 
-    # ตรวจสอบและสร้างหน้าต่าง Sub-panes ตามสวิตช์ที่เปิดจริง
     if is_timeframe_visible(tf):
         if st.session_state.get("ind_active_RSI", st.session_state.get("show_rsi_pane", True)):
             charts.append(make_rsi_pane())
@@ -596,5 +591,13 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
             charts.append(make_adx_pane())
         if st.session_state.get("ind_active_VOL", False):
             charts.append(make_vol_pane())
+
+    # ══════════════════════════════════════════════════════════
+    # ตั้งค่าให้แถบวันที่/เวลาแสดงผล "เฉพาะหน้าต่างล่างสุดตัวเดียวเสมอ"
+    # ══════════════════════════════════════════════════════════
+    if charts:
+        for c in charts:
+            c["chart"]["timeScale"]["visible"] = False
+        charts[-1]["chart"]["timeScale"]["visible"] = True
 
     return charts
