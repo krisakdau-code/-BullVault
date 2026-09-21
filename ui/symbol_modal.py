@@ -1,6 +1,62 @@
 import streamlit as st
 from data.symbols import _load_json
 
+# ══════════════════════════════════════════════════════════
+# พจนานุกรมชื่อภาษาไทยสำหรับแสดงผล 2 บรรทัดและค้นหาภาษาไทย
+# ══════════════════════════════════════════════════════════
+SYMBOL_NAMES_TH = {
+    # โภคภัณฑ์
+    "GC=F": "ทองคำโลก (Gold)",
+    "SI=F": "โลหะเงิน (Silver)",
+    "PL=F": "แพลทินัม (Platinum)",
+    "HG=F": "ทองแดง (Copper)",
+    "CL=F": "น้ำมันดิบ WTI Crude",
+    "BZ=F": "น้ำมันดิบ Brent Crude",
+    "NG=F": "ก๊าซธรรมชาติ (Natural Gas)",
+    "ZC=F": "ข้าวโพด (Corn)",
+    "ZS=F": "ถั่วเหลือง (Soybeans)",
+    "ZW=F": "ข้าวสาลี (Wheat)",
+    # ข้าว
+    "RICE:ข้าวเปลือกหอมมะลิ": "ข้าวเปลือกหอมมะลิ 105",
+    "RICE:ข้าวเปลือกเจ้า5%": "ข้าวเปลือกเจ้า 5%",
+    "RICE:ข้าวเปลือกปทุมธานี1": "ข้าวเปลือกหอมปทุมธานี 1",
+    "RICE:ข้าวเปลือกเหนียว": "ข้าวเปลือกเหนียว กข6",
+    "FOB:TH_HOM_MALI": "ข้าวหอมมะลิไทย 100% เกรด B",
+    "FOB:TH_WHITE_5%": "ข้าวขาวไทย 5%",
+    "FOB:TH_WHITE_25%": "ข้าวขาวไทย 25%",
+    "FOB:TH_PARBOILED": "ข้าวนึ่งไทย 5%",
+    "FOB:TH_BROKEN_A1": "ข้าวหักไทย A1 เลิศ",
+    "FOB:VN_WHITE_5%": "ข้าวขาวเวียดนาม 5%",
+    "FOB:VN_JASMINE85": "ข้าวหอมจัสมิน เวียดนาม",
+    "FOB:IN_WHITE_5%": "ข้าวขาวอินเดีย 5%",
+    "FOB:IN_BASMATI_1121": "ข้าวบาสมาตี อินเดีย",
+    "FOB:PK_WHITE_5%": "ข้าวขาวปากีสถาน 5%",
+    "FOB:KH_PHKA_RUMDUOL": "ข้าวหอมผการำดวน กัมพูชา",
+    # ฟอเร็กซ์
+    "USDTHB=X": "ดอลลาร์สหรัฐ / บาทไทย",
+    "EURUSD=X": "ยูโร / ดอลลาร์สหรัฐ",
+    "USDJPY=X": "ดอลลาร์สหรัฐ / เยนญี่ปุ่น",
+    "GBPUSD=X": "ปอนด์สเตอร์ลิง / ดอลลาร์",
+    "AUDUSD=X": "ดอลลาร์ออสเตรเลีย / ดอลลาร์",
+    "USDCHF=X": "ดอลลาร์สหรัฐ / ฟรังก์สวิส",
+    "USDCAD=X": "ดอลลาร์สหรัฐ / ดอลลาร์แคนาดา",
+    "EURGBP=X": "ยูโร / ปอนด์สเตอร์ลิง",
+    # หุ้นไทยยอดนิยม
+    "ADVANC.BK": "บมจ.แอดวานซ์ อินโฟร์ เซอร์วิส",
+    "AOT.BK": "บมจ.ท่าอากาศยานไทย",
+    "CPALL.BK": "บมจ.ซีพี ออลล์",
+    "DELTA.BK": "บมจ.เดลต้า อีเลคโทรนิคส์",
+    "KBANK.BK": "ธนาคารกสิกรไทย",
+    "PTT.BK": "บมจ.ปตท.",
+    "SCB.BK": "บมจ.เอสซีบี เอกซ์",
+    # คริปโตหลัก
+    "BTCUSDT": "Bitcoin (บิตคอยน์)",
+    "ETHUSDT": "Ethereum (อีเธอเรียม)",
+    "SOLUSDT": "Solana (โซลานา)",
+    "BNBUSDT": "BNB Chain",
+    "DOGEUSDT": "Dogecoin (โดจคอยน์)",
+}
+
 CRYPTO_EXCHANGE_FILES = {
     "Binance Spot": "binance_crypto.json",
     "Binance TH": "binance_th_crypto.json",
@@ -27,7 +83,7 @@ DEFAULT_RICE = ["RICE:ข้าวเปลือกหอมมะลิ", "RIC
 
 @st.dialog("ค้นหาและเลือกสินทรัพย์ (Symbol Search)", width="large")
 def render_symbol_modal():
-    # 1. ตัวเลือกหมวดหมู่หลัก 4 ตลาด (ส่งค่าเข้า Python ได้ทันที)
+    # 1. ตัวเลือกหมวดหมู่หลัก 4 ตลาด
     market_category = st.radio(
         "เลือกหมวดหมู่ตลาด",
         ["🪙 คริปโต (10 กระดาน)", "📈 ตลาดหุ้น", "💱 ฟอเร็กซ์", "🛢️ โภคภัณฑ์ / สินค้าเกษตร"],
@@ -39,7 +95,7 @@ def render_symbol_modal():
     symbol_list = []
     current_market_tag = "CRYPTO"
 
-    # 2. แยกโหลดข้อมูลตามตลาดที่เลือกอย่างแท้จริง
+    # 2. แยกโหลดข้อมูลตามตลาดที่เลือก
     if "คริปโต" in market_category:
         ex_names = list(CRYPTO_EXCHANGE_FILES.keys())
         chosen_ex = st.selectbox("เลือกกระดานเทรด (Exchange)", ex_names, index=0, key="modal_crypto_ex_select")
@@ -60,7 +116,6 @@ def render_symbol_modal():
         symbol_list = _load_json("forex.json") or DEFAULT_FOREX
 
     elif "โภคภัณฑ์" in market_category:
-        # เปลี่ยนเป็น Selectbox เพื่อป้องกันปัญหาตัวอักษรล้นขอบจอ
         sub_other = st.selectbox(
             "เลือกกลุ่มสินค้า / ประเทศคู่แข่ง",
             [
@@ -76,7 +131,6 @@ def render_symbol_modal():
             key="modal_sub_other_select"
         )
         
-        # กำหนดสัญลักษณ์โดยตรงเพื่อป้องกัน Error จากไฟล์ JSON
         if "ข้าวไทย (หน้าโรงสี)" in sub_other:
             current_market_tag = "RICE_TH"
             symbol_list = [
@@ -128,7 +182,8 @@ def render_symbol_modal():
         else:
             current_market_tag = "COMMODITY"
             symbol_list = _load_json("commodities.json") or DEFAULT_COMMODITIES
-    # 3. จัดการโครงสร้างข้อมูลกรณีเป็น Dict หรือ List
+
+    # 3. จัดการโครงสร้างข้อมูล
     if isinstance(symbol_list, dict):
         clean_symbols = list(symbol_list.keys())
     elif isinstance(symbol_list, list):
@@ -136,31 +191,33 @@ def render_symbol_modal():
     else:
         clean_symbols = []
 
-    # 4. กล่องค้นหา
+    # 4. กล่องค้นหา (รองรับค้นหาทั้งรหัสและชื่อภาษาไทย)
     st.write("---")
     col_search, col_count = st.columns([3, 1])
     with col_search:
-        search_kw = st.text_input("พิมพ์ชื่อย่อเพื่อค้นหา...", placeholder="เช่น USD, GC=F, DELTA, BTC", key="modal_filter_input")
+        search_kw = st.text_input("พิมพ์ชื่อย่อเพื่อค้นหา...", placeholder="เช่น USD, GC=F, DELTA, BTC, ทองคำ, ข้าว", key="modal_filter_input")
     with col_count:
         st.write("")
         st.caption(f"ทั้งหมด: **{len(clean_symbols):,}** รายการ")
 
-    # กรองตามคำค้น
+    # กรองตามคำค้น (เช็กทั้งรหัสสัญลักษณ์และคำอธิบายภาษาไทย)
     if search_kw:
         kw = search_kw.strip().upper()
-        display_symbols = [s for s in clean_symbols if kw in s.upper()]
+        display_symbols = [
+            s for s in clean_symbols 
+            if kw in s.upper() or (s in SYMBOL_NAMES_TH and kw in SYMBOL_NAMES_TH[s].upper())
+        ]
     else:
         display_symbols = clean_symbols
 
-    # 5. แสดงผลปุ่มกดเลือกสินทรัพย์ (พร้อมปุ่ม + เพิ่มเข้า Watchlist แบบ TradingView)
+    # 5. แสดงผลปุ่มกดเลือกสินทรัพย์ (แสดง 2 บรรทัดเมื่อมีชื่อไทย และคงปุ่ม + Watchlist เดิม)
     with st.container(height=380):
         if not display_symbols:
             st.warning(f"ไม่พบรายการสินทรัพย์ในหมวด {current_market_tag}")
         else:
-            # ตรวจสอบเหรียญที่มีอยู่ใน Watchlist แล้ว
             wl_syms = set(item[0] for item in st.session_state.get("custom_watchlist", []))
 
-            cols_count = 2  # จัดเป็น 2 แถวคู่เพื่อให้มีพื้นที่กดปุ่ม + ชัดเจน
+            cols_count = 2
             for i in range(0, min(len(display_symbols), 400), cols_count):
                 row_cols = st.columns(cols_count)
                 for j in range(cols_count):
@@ -168,9 +225,13 @@ def render_symbol_modal():
                         sym = display_symbols[i + j]
                         in_wl = sym in wl_syms
                         
+                        # สร้างป้ายชื่อ 2 บรรทัด
+                        th_name = SYMBOL_NAMES_TH.get(sym)
+                        btn_label = f"**{sym}**  \n:gray[{th_name}]" if th_name else sym
+
                         c_sym, c_add = row_cols[j].columns([3.5, 1])
                         with c_sym:
-                            if st.button(sym, key=f"btn_m_{current_market_tag}_{sym}", use_container_width=True):
+                            if st.button(btn_label, key=f"btn_m_{current_market_tag}_{sym}", use_container_width=True):
                                 st.session_state["current_symbol"] = sym
                                 st.session_state["selected_symbol"] = sym
                                 st.rerun()

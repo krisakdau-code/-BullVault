@@ -1,25 +1,19 @@
 {
   "watchlist": [
     [
-      "PERPTHB",
+      "ABK",
       "-",
       "-",
       true
     ],
     [
-      "RICEขาวเปลอกหอมมะล",
+      "DELTABK",
       "-",
       "-",
       true
     ],
     [
-      "FOBTHHOMMALI",
-      "-",
-      "-",
-      true
-    ],
-    [
-      "APEXBK",
+      "ADVANCBK",
       "-",
       "-",
       true
@@ -50,7 +44,6 @@
     ]
   ],
   "colors": {
-    "BTCUSDT": "green",
     "ADAUSDT": "red"
   }
 }

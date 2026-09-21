@@ -1,3 +1,4 @@
+# ui/sidebar_refactored.py — Full Terminal Sidebar (Only Dropdown #1 Removed)
 import streamlit as st
 import datetime
 import json
@@ -346,13 +347,7 @@ def render_sidebar():
     # TAB 1: ตลาด
     # ──────────────────────────────────────────────────────────
     if st.session_state["sidebar_active_tab"] == "market":
-        st.selectbox(
-            "1. กลุ่มสินทรัพย์",
-            ["1. คริปโต (Crypto)", "2. หุ้น (Stock)", "3. ฟอเร็กซ์ (Forex)", "4. สินทรัพย์/โภคภัณฑ์", "5. ข้าว (Rice)"],
-            label_visibility="collapsed",
-            key="sb_asset_cat"
-        )
-
+        # จุดที่ปรับปรุง: ตัด st.selectbox("1. กลุ่มสินทรัพย์", ...) ออกตามที่ตกลงไว้
         selected_sym = st.session_state.get("current_symbol", "BTCUSDT")
         meta = resolve_market_info(selected_sym)
         tag = meta.get("exchange", "BINANCE")
@@ -363,7 +358,7 @@ def render_sidebar():
             st.session_state["custom_watchlist"].insert(0, (norm_sym(selected_sym), "-", "-", True))
             save_watchlist_data()
 
-        # ปุ่มค้นหาเหรียญเต็มความกว้าง
+        # ปุ่มค้นหาเหรียญเต็มความกว้าง (ช่องทางเดียวสำหรับเปิด Symbol Search)
         if st.button(f"🔍 {selected_sym}  [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
             render_symbol_modal()
 
@@ -518,13 +513,8 @@ def render_sidebar():
                     )
 
     # ──────────────────────────────────────────────────────────
-    # -------------------------------------------------------------
-    # แท็บที่ 2: กราฟเปรียบเทียบ (มีปุ่มตลาดข้าวเฉพาะแท็บนี้)
-    # -------------------------------------------------------------
-    # TAB 2: กราฟเปรียบเทียบ
-    # -------------------------------------------------------------
-    # แท็บที่ 2: กราฟเปรียบเทียบ (6 ปุ่มหมวด + 1 ปุ่มบทวิเคราะห์)
-    # -------------------------------------------------------------
+    # TAB 2: กราฟเปรียบเทียบ (มีปุ่ม 6 หมวด + 1 บทวิเคราะห์เงินทุนไหล)
+    # ──────────────────────────────────────────────────────────
     else:
         st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ หมวดหมู่เปรียบเทียบ</div>", unsafe_allow_html=True)
         
@@ -568,7 +558,7 @@ def render_sidebar():
             macro_comparison_modal.show_flow_analysis_modal()
 
     # -------------------------------------------------------------
-    # แถบล่างสุด: ตั้งค่า + นาฬิกา (เคาะ 4 ช่อง อยู่นอก else เพื่อให้แสดงทั้ง 2 แท็บ)
+    # แถบล่างสุด: ตั้งค่า + นาฬิกา (แสดงค้างไว้ทั้ง 2 แท็บ)
     # -------------------------------------------------------------
     st.markdown("<hr style='margin: 14px 0 10px 0; border: 0.5px solid #2a2e39;'>", unsafe_allow_html=True)
 
