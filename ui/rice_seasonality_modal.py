@@ -1,4 +1,4 @@
-# ui/rice_seasonality_modal.py — Rice Seasonality & Tabbed Agricultural Intelligence
+# ui/rice_seasonality_modal.py — Rice Seasonality & Smooth Pan/Zoom Crosshair
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -179,7 +179,7 @@ def render_rice_ecosystem_report():
     """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════
-# 2. หน้าต่างโมดอลตลาดข้าว (ใช้ st.tabs ไม่เกิด Rerun / ไม่เด้งปิด)
+# 2. หน้าต่างโมดอลตลาดข้าว (Pan/Zoom นุ่มนวล, ล็อกแกนราคา, ป้ายวันที่บนแกน)
 # ══════════════════════════════════════════════════════════
 @st.dialog("🌾 ศูนย์ข้อมูลตลาดข้าว & วัฏจักรฤดูกาล (Wide Terminal)", width="large")
 def show_rice_market_modal():
@@ -243,15 +243,15 @@ def show_rice_market_modal():
                 if calc_mode == "%":
                     y_data = pct_val
                     val_disp = f"{last_pct:+.1f}%"
-                    hover_str = f"<b>{c_name}</b><br>ผลตอบแทน: %{{y:+.2f}}%<br>ราคา: %{{customdata:,.2f}} {orig_unit}<extra></extra>"
+                    hover_str = f"<b>{c_name}</b>: %{{y:+.2f}}%<extra></extra>"
                 elif calc_mode == "฿ บาท":
                     y_data = df_bench[c_name] * THB_RATE
                     val_disp = f"฿{y_data.iloc[-1]:,.0f}"
-                    hover_str = f"<b>{c_name}</b><br>ราคา: ฿%{{y:,.0f}}<br>เปลี่ยนแปลง: %{{customdata:+.2f}}%<extra></extra>"
+                    hover_str = f"<b>{c_name}</b>: ฿%{{y:,.0f}}<extra></extra>"
                 else:
                     y_data = df_bench[c_name]
                     val_disp = f"${cur_p:,.0f}"
-                    hover_str = f"<b>{c_name}</b><br>ราคา: $%{{y:,.1f}}<extra></extra>"
+                    hover_str = f"<b>{c_name}</b>: $%{{y:,.1f}}<extra></extra>"
 
                 plot_df = pd.DataFrame({"Date": df_bench["Date"], "y": y_data, "custom": pct_val if calc_mode != "%" else df_bench[c_name]})
                 if len(plot_df) > 3650:
@@ -259,7 +259,7 @@ def show_rice_market_modal():
 
                 fig.add_trace(go.Scatter(
                     x=plot_df["Date"], y=plot_df["y"], mode="lines", name=c_name,
-                    line=dict(color=color, width=1.4), customdata=plot_df["custom"], hovertemplate=hover_str
+                    line=dict(color=color, width=1.5), customdata=plot_df["custom"], hovertemplate=hover_str
                 ))
 
                 fig.add_annotation(
@@ -269,7 +269,18 @@ def show_rice_market_modal():
                 )
                 strip_items.append({"label": c_name, "val": val_disp, "pct": last_pct, "color": color})
 
-            fig.update_xaxes(gridcolor="#161a24", showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1, spikedash="dash", spikecolor="#787b86", tickformat="%d %b %Y", hoverformat="%d %b %Y")
+            fig.update_xaxes(
+                gridcolor="#161a24",
+                showspikes=True,
+                spikemode="across",
+                spikesnap="cursor",
+                spikethickness=1,
+                spikedash="dash",
+                spikecolor="#787b86",
+                tickformat="%d %b %Y",
+                hoverformat="%d %b %Y",
+                fixedrange=False
+            )
         else:
             with c2:
                 sel_var = st.selectbox("สายพันธุ์ข้าว", list(RICE_CATEGORIES[sel_cat]["varieties"].keys()), key="rs_var", label_visibility="collapsed")
@@ -295,12 +306,15 @@ def show_rice_market_modal():
                     if calc_mode == "%":
                         y_axis_val = df_y["pct"]
                         val_disp = f"{last_pct:+.1f}%"
+                        hover_str = f"<b>ปี {yr}</b>: %{{y:+.2f}}%<extra></extra>"
                     elif calc_mode == "฿ บาท":
                         y_axis_val = df_y["price"] * (THB_RATE if orig_unit == "USD/ตัน" else 1.0)
                         val_disp = f"฿{y_axis_val.iloc[-1]:,.0f}"
+                        hover_str = f"<b>ปี {yr}</b>: ฿%{{y:,.0f}}<extra></extra>"
                     else:
                         y_axis_val = df_y["price"] / (THB_RATE if orig_unit == "บาท/ตัน" else 1.0)
                         val_disp = f"${y_axis_val.iloc[-1]:,.1f}"
+                        hover_str = f"<b>ปี {yr}</b>: $%{{y:,.1f}}<extra></extra>"
 
                     df_y["plot_date"] = pd.to_datetime([f"2024-{m:02d}-{min(d, 28 if m == 2 else 30):02d}" for m, d in zip(df_y["month"], df_y["day"])])
 
@@ -308,7 +322,7 @@ def show_rice_market_modal():
                         x=df_y["plot_date"], y=y_axis_val, mode="lines", name=f"{yr}",
                         line=dict(color=year_colors[yr], width=1.8 if yr == 2026 else 1.3),
                         customdata=df_y["price"],
-                        hovertemplate=f"<b>ปี {yr}</b><br>ระดับ: %{{y:,.1f}}<br>ราคาเดิม: %{{customdata:,.1f}} {orig_unit}<extra></extra>"
+                        hovertemplate=hover_str
                     ))
 
                     fig.add_annotation(
@@ -318,7 +332,20 @@ def show_rice_market_modal():
                     )
                     strip_items.append({"label": f"ปี {yr}", "val": val_disp, "pct": last_pct, "color": year_colors[yr]})
 
-                fig.update_xaxes(tickformat="%b", tickvals=[f"2024-{m:02d}-01" for m in range(1, 13)], ticktext=month_names_th, gridcolor="#161a24", showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1, spikedash="dash", spikecolor="#787b86", hoverformat="%d %B")
+                fig.update_xaxes(
+                    tickformat="%b",
+                    tickvals=[f"2024-{m:02d}-01" for m in range(1, 13)],
+                    ticktext=month_names_th,
+                    gridcolor="#161a24",
+                    showspikes=True,
+                    spikemode="across",
+                    spikesnap="cursor",
+                    spikethickness=1,
+                    spikedash="dash",
+                    spikecolor="#787b86",
+                    hoverformat="%d %B",
+                    fixedrange=False
+                )
             elif tf_choice == "เดือน (ฤดูกาล)":
                 for yr in [2023, 2024, 2025, 2026]:
                     df_y = df[df["year"] == yr].groupby("month")["price"].mean().reset_index()
@@ -332,20 +359,23 @@ def show_rice_market_modal():
                     if calc_mode == "%":
                         y_axis_val = df_y["pct"]
                         val_disp = f"{last_pct:+.1f}%"
+                        hover_str = f"<b>ปี {yr}</b>: %{{y:+.2f}}%<extra></extra>"
                     elif calc_mode == "฿ บาท":
                         y_axis_val = df_y["price"] * (THB_RATE if orig_unit == "USD/ตัน" else 1.0)
                         val_disp = f"฿{y_axis_val.iloc[-1]:,.0f}"
+                        hover_str = f"<b>ปี {yr}</b>: ฿%{{y:,.0f}}<extra></extra>"
                     else:
                         y_axis_val = df_y["price"] / (THB_RATE if orig_unit == "บาท/ตัน" else 1.0)
                         val_disp = f"${y_axis_val.iloc[-1]:,.1f}"
+                        hover_str = f"<b>ปี {yr}</b>: $%{{y:,.1f}}<extra></extra>"
 
                     fig.add_trace(go.Scatter(
                         x=[month_names_th[m - 1] for m in df_y["month"]], y=y_axis_val, mode="lines+markers", name=f"{yr}",
                         line=dict(color=year_colors[yr], width=1.8 if yr == 2026 else 1.3), marker=dict(size=5),
-                        customdata=df_y["price"], hovertemplate=f"<b>ปี {yr}</b>: %{{y:,.1f}} (%{{customdata:,.0f}} {orig_unit})<extra></extra>"
+                        customdata=df_y["price"], hovertemplate=hover_str
                     ))
                     strip_items.append({"label": f"ปี {yr}", "val": val_disp, "pct": last_pct, "color": year_colors[yr]})
-                fig.update_xaxes(gridcolor="#161a24", showspikes=True, spikemode="across", spikedash="dash", spikecolor="#787b86")
+                fig.update_xaxes(gridcolor="#161a24", showspikes=True, spikemode="across", spikedash="dash", spikecolor="#787b86", fixedrange=False)
             else:
                 yr_limit_map = {"ประวัติ 4 ปี": 4, "ประวัติ 10 ปี": 10, "ประวัติ 20 ปี": 20, "ประวัติ 30 ปี": 30}
                 target_years = yr_limit_map.get(tf_choice, 30)
@@ -358,12 +388,15 @@ def show_rice_market_modal():
                 if calc_mode == "%":
                     y_axis_val = df_cont["pct"]
                     val_disp = f"{df_cont['pct'].iloc[-1]:+.1f}%"
+                    hover_str = f"<b>{sel_var}</b>: %{{y:+.2f}}%<extra></extra>"
                 elif calc_mode == "฿ บาท":
                     y_axis_val = df_cont["price"] * (THB_RATE if orig_unit == "USD/ตัน" else 1.0)
                     val_disp = f"฿{y_axis_val.iloc[-1]:,.0f}"
+                    hover_str = f"<b>{sel_var}</b>: ฿%{{y:,.0f}}<extra></extra>"
                 else:
                     y_axis_val = df_cont["price"] / (THB_RATE if orig_unit == "บาท/ตัน" else 1.0)
                     val_disp = f"${y_axis_val.iloc[-1]:,.1f}"
+                    hover_str = f"<b>{sel_var}</b>: $%{{y:,.1f}}<extra></extra>"
 
                 plot_df = pd.DataFrame({"date": df_cont["date"], "y": y_axis_val, "orig": df_cont["price"]})
                 if len(plot_df) > 3650:
@@ -372,7 +405,7 @@ def show_rice_market_modal():
                 fig.add_trace(go.Scatter(
                     x=plot_df["date"], y=plot_df["y"], mode="lines", name=f"{sel_var}",
                     line=dict(color="#00FFA3", width=1.5), customdata=plot_df["orig"],
-                    hovertemplate=f"<b>{sel_var}</b><br>ระดับ: %{{y:,.1f}}<br>ราคาเดิม: %{{customdata:,.1f}} {orig_unit}<extra></extra>"
+                    hovertemplate=hover_str
                 ))
 
                 fig.add_annotation(
@@ -380,18 +413,58 @@ def show_rice_market_modal():
                     showarrow=False, xanchor="left", font=dict(size=11, color="#00FFA3"),
                     bgcolor="rgba(0, 0, 0, 0.90)", bordercolor="#00FFA3", borderwidth=1, borderpad=2
                 )
-                fig.update_xaxes(gridcolor="#161a24", showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1, spikedash="dash", spikecolor="#787b86", tickformat="%d %b %Y", hoverformat="%d %b %Y")
+                fig.update_xaxes(
+                    gridcolor="#161a24",
+                    showspikes=True,
+                    spikemode="across",
+                    spikesnap="cursor",
+                    spikethickness=1,
+                    spikedash="dash",
+                    spikecolor="#787b86",
+                    tickformat="%d %b %Y",
+                    hoverformat="%d %b %Y",
+                    fixedrange=False
+                )
                 strip_items.append({"label": f"{sel_var} ({tf_choice})", "val": val_disp, "pct": df_cont["pct"].iloc[-1], "color": "#00FFA3"})
 
         y_title = "การเปลี่ยนแปลงตามฤดูกาล (%)" if calc_mode == "%" else f"ระดับราคา ({calc_mode.split()[0]})"
         fig.update_layout(
-            template="plotly_dark", paper_bgcolor="#000000", plot_bgcolor="#000000",
-            margin=dict(l=15, r=180, t=15, b=20), height=620, hovermode="x unified",
+            template="plotly_dark",
+            paper_bgcolor="#000000",
+            plot_bgcolor="#000000",
+            margin=dict(l=15, r=180, t=15, b=20),
+            height=620,
+            dragmode="pan",           # คลิกลากคือเลื่อนซ้าย-ขวา
+            hovermode="x",            # ปักป้ายวันที่ชัดเจนบนแกนล่าง
+            hoverdistance=100,
+            spikedistance=1000,
             legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
-            yaxis=dict(title=y_title, side="right", gridcolor="#161a24", zeroline=True, zerolinecolor="#2a2e39", ticksuffix="%" if calc_mode == "%" else "", showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1, spikedash="dash", spikecolor="#787b86")
+            yaxis=dict(
+                title=y_title,
+                side="right",
+                gridcolor="#161a24",
+                zeroline=True,
+                zerolinecolor="#2a2e39",
+                ticksuffix="%" if calc_mode == "%" else "",
+                showspikes=True,
+                spikemode="across",
+                spikesnap="cursor",
+                spikethickness=1,
+                spikedash="dash",
+                spikecolor="#787b86",
+                fixedrange=True       # ล็อกแกนราคา
+            )
         )
 
-        st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True, "displayModeBar": False})
+        st.plotly_chart(
+            fig,
+            use_container_width=True,
+            config={
+                "scrollZoom": True,
+                "displayModeBar": False,
+                "doubleClick": "reset"
+            }
+        )
 
         strip_html = "<div style='display:flex; flex-wrap:wrap; gap:12px; margin-top:-6px; padding:6px 10px; background:#08090c; border:1px solid #1a1d26; border-radius:6px; font-family:monospace;'>"
         for it in strip_items:

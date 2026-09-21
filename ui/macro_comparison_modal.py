@@ -1,4 +1,4 @@
-# ui/macro_comparison_modal.py — Universal Macro Terminal & Tabbed Capital Flow Intelligence
+# ui/macro_comparison_modal.py — Universal Macro Terminal & Smooth Pan/Zoom Crosshair
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -34,7 +34,7 @@ div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] {
 THB_RATE = 34.8  # อัตราแลกเปลี่ยนอ้างอิง USD/THB
 
 # ══════════════════════════════════════════════════════════
-# 1. นิยามโครงสร้างสินทรัพย์ครบทุกหมวดหมู่เดิม (+ หัวข้อที่ 8 ตัวแทนกลุ่ม)
+# 1. นิยามโครงสร้างสินทรัพย์ครบทุกหมวดหมู่เดิม
 # ══════════════════════════════════════════════════════════
 CRYPTO_GROUPS = {
     "1. เหรียญหลัก (Layer 1)": {
@@ -115,7 +115,7 @@ FOREX_PAIRS = {
 }
 
 # ══════════════════════════════════════════════════════════
-# ฟังก์ชันสร้างข้อมูลและการเรนเดอร์กราฟ
+# ฟังก์ชันสร้างข้อมูลและการเรนเดอร์กราฟ (ปรับจูนแบบกราฟหลัก)
 # ══════════════════════════════════════════════════════════
 @st.cache_data(ttl=3600, show_spinner=False)
 def generate_series(catalog_dict, lookback_days=365):
@@ -152,19 +152,19 @@ def render_chart_with_crosshair(df, selected_items, meta_dict, calc_mode, height
             y_data = pct_series
             custom_data = raw_series
             val_display = f"{pct_series.iloc[-1]:+.1f}%"
-            hover_html = f"<b>{meta['name']}</b><br>ผลตอบแทน: %{{y:+.2f}}%<br>ราคาจริง: %{{customdata:,.2f}} {orig_unit}<extra></extra>"
+            hover_str = f"<b>{code}</b>: %{{y:+.2f}}%<extra></extra>"
         elif calc_mode == "฿ บาท":
             display_unit = "฿"
             y_data = raw_series * THB_RATE if orig_unit == "$" else raw_series
             custom_data = pct_series
             val_display = f"{display_unit}{y_data.iloc[-1]:,.2f}"
-            hover_html = f"<b>{meta['name']}</b><br>ราคา: %{{y:,.2f}} {display_unit}<br>เปลี่ยนแปลง: %{{customdata:+.2f}}%<extra></extra>"
+            hover_str = f"<b>{code}</b>: ฿%{{y:,.2f}}<extra></extra>"
         else:  # "$ USD"
             display_unit = "$"
             y_data = raw_series / THB_RATE if orig_unit in ["บาท", "บ./ตัน"] else raw_series
             custom_data = pct_series
             val_display = f"{display_unit}{y_data.iloc[-1]:,.2f}"
-            hover_html = f"<b>{meta['name']}</b><br>ราคา: %{{y:,.2f}} {display_unit}<br>เปลี่ยนแปลง: %{{customdata:+.2f}}%<extra></extra>"
+            hover_str = f"<b>{code}</b>: $%{{y:,.2f}}<extra></extra>"
 
         cur_p_orig = raw_series.iloc[-1]
         p_str_orig = f"{orig_unit}{cur_p_orig:,.2f}" if orig_unit == "$" else f"{cur_p_orig:,.2f} {orig_unit}"
@@ -175,7 +175,7 @@ def render_chart_with_crosshair(df, selected_items, meta_dict, calc_mode, height
 
         fig.add_trace(go.Scatter(
             x=plot_df["Date"], y=plot_df["y"], mode="lines", name=code,
-            line=dict(color=color, width=1.4), customdata=plot_df["custom"], hovertemplate=hover_html
+            line=dict(color=color, width=1.5), customdata=plot_df["custom"], hovertemplate=hover_str
         ))
 
         fig.add_annotation(
@@ -188,14 +188,56 @@ def render_chart_with_crosshair(df, selected_items, meta_dict, calc_mode, height
 
     y_title = "ผลตอบแทนสะสม (%)" if calc_mode == "%" else f"ระดับราคา ({calc_mode.split()[0]})"
     
+    # ── ปรับแต่ง Layout ให้เหมือนกราฟหลัก (Pan นุ่มนวล, ป้ายวันที่บนแกนล่าง, ล็อกแกนราคา) ──
     fig.update_layout(
-        template="plotly_dark", paper_bgcolor="#000000", plot_bgcolor="#000000",
-        margin=dict(l=15, r=180, t=15, b=20), height=height, hovermode="x unified",
+        template="plotly_dark",
+        paper_bgcolor="#000000",
+        plot_bgcolor="#000000",
+        margin=dict(l=15, r=180, t=15, b=20),
+        height=height,
+        dragmode="pan",           # คลิกลากคือการเลื่อนซ้าย-ขวา ไม่ใช่การตีกรอบซูม
+        hovermode="x",            # ปักป้ายวันที่บนแกน X ด้านล่าง และป้ายราคาตามเส้น
+        hoverdistance=100,
+        spikedistance=1000,
         legend=dict(orientation="h", yanchor="bottom", y=1.01, xanchor="left", x=0),
-        xaxis=dict(gridcolor="#161a24", showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1, spikedash="dash", spikecolor="#787b86"),
-        yaxis=dict(title=y_title, side="right", gridcolor="#161a24", zeroline=True, zerolinecolor="#2a2e39", ticksuffix="%" if calc_mode == "%" else "", showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1, spikedash="dash", spikecolor="#787b86")
+        xaxis=dict(
+            gridcolor="#161a24",
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikethickness=1,
+            spikedash="dash",
+            spikecolor="#787b86",
+            tickformat="%d %b %Y",
+            hoverformat="%d %b %Y",  # ป้ายกรอบดำบอกวันที่ชัดเจนตรงปลายเส้นประแกน X
+            fixedrange=False          # อนุญาตให้ซูมเข้า-ออกแกนเวลาได้
+        ),
+        yaxis=dict(
+            title=y_title,
+            side="right",
+            gridcolor="#161a24",
+            zeroline=True,
+            zerolinecolor="#2a2e39",
+            ticksuffix="%" if calc_mode == "%" else "",
+            showspikes=True,
+            spikemode="across",
+            spikesnap="cursor",
+            spikethickness=1,
+            spikedash="dash",
+            spikecolor="#787b86",
+            fixedrange=True           # ล็อกแกนราคา ไม่ให้ยืดหดเพี้ยนเวลาหมุน Scroll เมาส์
+        )
     )
-    st.plotly_chart(fig, use_container_width=True, config={"scrollZoom": True, "displayModeBar": False})
+
+    st.plotly_chart(
+        fig,
+        use_container_width=True,
+        config={
+            "scrollZoom": True,       # หมุนลูกกลิ้งเพื่อซูมเข้า-ออกแกนเวลา
+            "displayModeBar": False,  # ซ่อนปุ่มที่ไม่จำเป็น
+            "doubleClick": "reset"    # ดับเบิ้ลคลิกเพื่อรีเซ็ตกลับมุมมองปกติ
+        }
+    )
 
     ticker_html = "<div style='display:flex; flex-wrap:wrap; gap:10px; margin-top:-6px; padding:6px 10px; background:#08090c; border:1px solid #1a1d26; border-radius:6px; font-family:monospace;'>"
     for it in ticker_items:
@@ -396,7 +438,7 @@ def render_cross_asset_ecosystem_report():
     """, unsafe_allow_html=True)
 
 # ══════════════════════════════════════════════════════════
-# 3. หน้าต่างโมดอลย่อยหลัก (ใช้ st.tabs ไม่เกิด Rerun / ไม่เด้งปิด)
+# 3. หน้าต่างโมดอลย่อยหลัก
 # ══════════════════════════════════════════════════════════
 @st.dialog("🪙 ตลาดคริปโตเคอร์เรนซี (โครงสร้างกลุ่ม & ตัวแทนตลาด)", width="large")
 def show_crypto_modal():
@@ -522,7 +564,7 @@ def show_macro_comparison_modal():
         render_cross_asset_ecosystem_report()
 
 # ══════════════════════════════════════════════════════════
-# 4. ศูนย์วิเคราะห์ระบบนิเวศและกระแสเงินทุนโลก (Capital Flow Command Center)
+# 4. ศูนย์วิเคราะห์ระบบนิเวศและกระแสเงินทุนโลก
 # ══════════════════════════════════════════════════════════
 @st.dialog("🧭 ศูนย์วิเคราะห์ระบบนิเวศและเงินทุนโลก (Global Macro & Capital Ecosystem)", width="large")
 def show_flow_analysis_modal():
