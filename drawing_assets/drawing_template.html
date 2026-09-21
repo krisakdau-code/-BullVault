@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Trading Terminal</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        /* INJECT_CSS_HERE */
+        .draw-toolbar { display: {{TOOLBAR_DISPLAY}} !important; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="main-pane-container">
+            <div class="draw-toolbar" id="main-draw-toolbar">
+                <div class="drag-handle" id="tb-drag-handle" title="คลิกค้างเพื่อลากย้าย">⋮⋮</div>
+                <button class="tool-btn active" id="btn-cursor" title="↖ เคอร์เซอร์ / เลือกวัตถุ (V)">↖</button>
+                <button class="tool-btn" id="btn-eraser" title="🧽 ยางลบเจาะจง (E)">🧽</button>
+                <div class="tool-sep"></div>
+                
+                <button class="tool-btn" id="btn-trend" title="เส้นแนวโน้ม (Trendline)">╱</button>
+                <button class="tool-btn" id="btn-horz" title="เส้นแนวนอน (Horizontal Level)">―</button>
+
+                <!-- Submenu 1: Fib & Gann -->
+                <div class="tool-item-wrap">
+                    <button class="tool-btn has-sub" id="btn-fib-group" title="เครื่องมือ Fibonacci">📐</button>
+                    <div class="sub-menu">
+                        <div class="sub-header">Gann & Fibonacci</div>
+                        <div class="sub-item" data-tool="fib">📐 Fib Retracement (Manual)</div>
+                        <div class="sub-item" data-tool="fib_ext">📈 Trend-Based Fib Extension</div>
+                    </div>
+                </div>
+
+                <!-- Submenu 2: Patterns & Waves -->
+                <div class="tool-item-wrap">
+                    <button class="tool-btn has-sub" id="btn-pattern-group" title="รูปแบบชาร์ตและคลื่น">🕸️</button>
+                    <div class="sub-menu">
+                        <div class="sub-header">Chart Patterns</div>
+                        <div class="sub-item" data-tool="head_shoulders">👤 Head & Shoulders</div>
+                        <div class="sub-item" data-tool="triangle">🔺 Triangle Pattern</div>
+                        <div class="sub-header">Elliott Waves</div>
+                        <div class="sub-item" data-tool="elliott_impulse">🌊 Elliott Wave (1-2-3-4-5)</div>
+                        <div class="sub-item" data-tool="elliott_abc">〰️ Elliott Wave (A-B-C)</div>
+                    </div>
+                </div>
+
+                <!-- Submenu 3: Prediction & Measurement -->
+                <div class="tool-item-wrap">
+                    <button class="tool-btn has-sub" id="btn-calc-group" title="การคาดการณ์และเครื่องมือวัด">⚖️</button>
+                    <div class="sub-menu">
+                        <div class="sub-header">การคาดการณ์</div>
+                        <div class="sub-item" data-tool="pos_long">🟢 สถานะ Long (Risk:Reward)</div>
+                        <div class="sub-item" data-tool="pos_short">🔴 สถานะ Short (Risk:Reward)</div>
+                        <div class="sub-header">เครื่องมือวัด</div>
+                        <div class="sub-item" data-tool="price_range">↕️ ช่วงราคา (Price Range)</div>
+                        <div class="sub-item" data-tool="date_range">↔️ ช่วงเวลา (Date Range)</div>
+                    </div>
+                </div>
+
+                <div class="tool-sep"></div>
+                
+                <!-- Auto Fib Control Panel -->
+                <div class="autofib-panel" title="Auto Fib Retracement Settings">
+                    <label class="autofib-toggle">
+                        <input type="checkbox" id="autofib-enable">
+                        <span>🤖 Auto Fib</span>
+                    </label>
+                    <div class="autofib-slider-row">
+                        <span>Lookback: <strong id="autofib-val">120</strong></span>
+                        <input type="range" id="autofib-lookback" min="50" max="300" value="120" step="10">
+                    </div>
+                    <label class="autofib-toggle">
+                        <input type="checkbox" id="autofib-gp" checked>
+                        <span>✨ Golden Pocket</span>
+                    </label>
+                </div>
+
+                <div class="tool-sep"></div>
+                <button class="tool-btn" id="btn-box" title="กล่องโซน (Rectangle Zone)">▭</button>
+                <button class="tool-btn" id="btn-circle" title="วงกลมไฮไลต์ (Circle)">⭕</button>
+                <button class="tool-btn" id="btn-pen" title="ปากกาวาดอิสระ (Pen Brush)">✏️</button>
+                <button class="tool-btn" id="btn-text" title="ข้อความกำกับ (Text Note)">T</button>
+                <div class="tool-sep"></div>
+                <button class="tool-btn danger-btn" id="btn-delete-selected" title="ลบวัตถุที่เลือก (Delete Key)">🗑️</button>
+                <button class="tool-btn" id="btn-undo" title="ย้อนกลับ (Undo)">↩</button>
+                <button class="tool-btn danger-btn" id="btn-clear" title="ล้างทั้งหมด">💥</button>
+            </div>
+
+            <div class="chart-legend" id="main-chart-legend">
+                <span class="legend-symbol" id="leg-symbol">{{DISPLAY_TITLE}}</span>
+                <span class="legend-badge">{{EXCHANGE_NAME}}</span>
+                <span class="legend-price" id="leg-price">--</span>
+                <span class="legend-change" id="leg-change">--</span>
+                <span class="legend-ohlc" id="leg-ohlc"></span>
+
+                <div class="quick-trade-box">
+                    <button class="qt-btn qt-sell" id="btn-qt-sell" title="เปิดคำสั่งขาย (Sell)">
+                        <span class="qt-side">SELL</span>
+                        <span class="qt-val" id="qt-sell-val">--</span>
+                    </button>
+                    <button class="qt-btn qt-buy" id="btn-qt-buy" title="เปิดคำสั่งซื้อ (Buy)">
+                        <span class="qt-side">BUY</span>
+                        <span class="qt-val" id="qt-buy-val">--</span>
+                    </button>
+                </div>
+            </div>
+
+            <div id="chart-main"></div>
+            <canvas id="drawing-canvas"></canvas>
+            
+            <div id="text-overlay-box">
+                <input type="text" id="text-input" placeholder="พิมพ์ข้อความแล้วกด Enter..." />
+            </div>
+        </div>
+        <div id="sub-panes"></div>
+    </div>
+
+    <script>
+        window.__CHART_CONFIG__ = {{CHART_JSON}};
+    </script>
+    <script>
+        /* INJECT_JS_HERE */
+    </script>
+</body>
+</html>
