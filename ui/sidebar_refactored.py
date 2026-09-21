@@ -1,4 +1,4 @@
-# ui/sidebar_refactored.py — Full Terminal Sidebar (Only Dropdown #1 Removed)
+# ui/sidebar_refactored.py — Streamlined Terminal Sidebar (Compact Watchlist Rows)
 import streamlit as st
 import datetime
 import json
@@ -241,7 +241,7 @@ def render_sidebar():
     if "wl_sort_mode" not in st.session_state:
         st.session_state["wl_sort_mode"] = "none"
 
-    # สไตล์ UI TradingView + ปุ่มหัวตารางสำหรับคลิกจัดเรียง
+    # สไตล์ UI TradingView + เพิ่มการบีบระยะห่างแถว Watchlist ให้กระชับ
     st.markdown("""
     <style>
     /* สไตล์ปุ่มหัวตารางสำหรับจัดเรียง */
@@ -280,6 +280,30 @@ def render_sidebar():
         color: #ff7d1e !important;
     }
 
+    /* ── บีบระยะห่างแถว Watchlist ให้ชิดกระชับ ── */
+   div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) {
+    gap: 10px !important;
+}
+div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) {
+    margin-bottom: -6px !important;   /* <--- ตัวนี้ควบคุมความชิดระหว่างแถว */
+}
+div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElementContainer"] {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+    div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) button {
+        min-height: 24px !important;
+        height: 24px !important;
+        padding: 0px 6px !important;
+        font-size: 11px !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stPopover"] button {
+        min-height: 24px !important;
+        height: 24px !important;
+        width: 24px !important;
+        padding: 0 !important;
+    }
+
     /* ปุ่มจุดส้มนีออนหลังชื่อเหรียญ */
     .tv-neon-wrap div[data-testid="stPopover"] button {
         background: rgba(255, 107, 0, 0.18) !important;
@@ -302,8 +326,8 @@ def render_sidebar():
         box-shadow: 0 0 12px #FF7D1E !important;
     }
     .tv-val-up {
-        color: #089981;
-        font-size: 11px;
+        color: #1CED0D;
+        font-size: 15px;
         font-weight: 700;
         white-space: nowrap;
     }
@@ -314,20 +338,11 @@ def render_sidebar():
         white-space: nowrap;
     }
     .tv-vol-text {
-        color: #8b949e;
-        font-size: 11px;
+        color: #E37D1C;
+        font-size: 15px;
         font-weight: 600;
         text-align: right;
         white-space: nowrap;
-    }
-    .tv-quick-badge-on {
-        background: rgba(0, 255, 102, 0.15);
-        color: #00FF66;
-        border: 1px solid #00FF66;
-        padding: 1px 8px;
-        border-radius: 4px;
-        font-size: 10px;
-        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -347,7 +362,6 @@ def render_sidebar():
     # TAB 1: ตลาด
     # ──────────────────────────────────────────────────────────
     if st.session_state["sidebar_active_tab"] == "market":
-        # จุดที่ปรับปรุง: ตัด st.selectbox("1. กลุ่มสินทรัพย์", ...) ออกตามที่ตกลงไว้
         selected_sym = st.session_state.get("current_symbol", "BTCUSDT")
         meta = resolve_market_info(selected_sym)
         tag = meta.get("exchange", "BINANCE")
@@ -358,7 +372,7 @@ def render_sidebar():
             st.session_state["custom_watchlist"].insert(0, (norm_sym(selected_sym), "-", "-", True))
             save_watchlist_data()
 
-        # ปุ่มค้นหาเหรียญเต็มความกว้าง (ช่องทางเดียวสำหรับเปิด Symbol Search)
+        # ปุ่มค้นหาเหรียญเต็มความกว้าง
         if st.button(f"🔍 {selected_sym}  [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
             render_symbol_modal()
 
@@ -470,7 +484,7 @@ def render_sidebar():
                 "v_num": v_num
             })
 
-        # ดำเนินการจัดเรียงลำดับตามที่ผู้ใช้เลือก
+        # จัดเรียงลำดับ
         if sort_mode == "sym_asc":
             display_rows.sort(key=lambda x: x["sym"])
         elif sort_mode == "sym_desc":
@@ -482,7 +496,7 @@ def render_sidebar():
         elif sort_mode == "vol_desc":
             display_rows.sort(key=lambda x: x["v_num"], reverse=True)
 
-        # กรอบคอนเทนเนอร์พร้อมเลื่อนด้วยเมาส์
+        # กรอบคอนเทนเนอร์พร้อมเลื่อนด้วยเมาส์ (แถวชิดกระชับ ความสูง 24px)
         with st.container(height=480):
             for item in display_rows:
                 sym = item["sym"]
@@ -505,7 +519,7 @@ def render_sidebar():
                 with c3:
                     cls = "tv-val-up" if is_up else "tv-val-down"
                     st.markdown(
-                        f'<div style="display:flex; justify-content:space-between; align-items:center; height:28px; width:100%; padding-left:4px;">'
+                        f'<div style="display:flex; justify-content:space-between; align-items:center; height:24px; width:100%; padding-left:4px;">'
                         f'<span class="{cls}">{c_val}</span>'
                         f'<span class="tv-vol-text">{v_val}</span>'
                         f'</div>',
@@ -513,12 +527,11 @@ def render_sidebar():
                     )
 
     # ──────────────────────────────────────────────────────────
-    # TAB 2: กราฟเปรียบเทียบ (มีปุ่ม 6 หมวด + 1 บทวิเคราะห์เงินทุนไหล)
+    # TAB 2: กราฟเปรียบเทียบ
     # ──────────────────────────────────────────────────────────
     else:
         st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ หมวดหมู่เปรียบเทียบ</div>", unsafe_allow_html=True)
         
-        # แถวที่ 1
         c1, c2 = st.columns(2)
         with c1:
             if st.button("🌾 ตลาดข้าว", key="btn_rice_modal", use_container_width=True, type="secondary"):
@@ -529,7 +542,6 @@ def render_sidebar():
                 from ui import macro_comparison_modal
                 macro_comparison_modal.show_crypto_modal()
 
-        # แถวที่ 2
         c3, c4 = st.columns(2)
         with c3:
             if st.button("📈 หุ้น (GICS)", key="btn_stocks_modal", use_container_width=True, type="secondary"):
@@ -540,7 +552,6 @@ def render_sidebar():
                 from ui import macro_comparison_modal
                 macro_comparison_modal.show_metals_mining_modal()
 
-        # แถวที่ 3
         c5, c6 = st.columns(2)
         with c5:
             if st.button("💵 สกุลเงิน FX", key="btn_forex_modal", use_container_width=True, type="secondary"):
@@ -551,14 +562,13 @@ def render_sidebar():
                 from ui import macro_comparison_modal
                 macro_comparison_modal.show_macro_comparison_modal()
 
-        # แถวที่ 4: ปุ่มบทวิเคราะห์กระแสเงินทุน
         st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
         if st.button("🧭 บทวิเคราะห์เงินทุนไหล (Capital Flow)", key="btn_flow_modal", use_container_width=True, type="primary"):
             from ui import macro_comparison_modal
             macro_comparison_modal.show_flow_analysis_modal()
 
     # -------------------------------------------------------------
-    # แถบล่างสุด: ตั้งค่า + นาฬิกา (แสดงค้างไว้ทั้ง 2 แท็บ)
+    # แถบล่างสุด: ตั้งค่า + นาฬิกา
     # -------------------------------------------------------------
     st.markdown("<hr style='margin: 14px 0 10px 0; border: 0.5px solid #2a2e39;'>", unsafe_allow_html=True)
 
