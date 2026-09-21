@@ -84,24 +84,47 @@ st.markdown("""
         padding: 0px !important;
         margin: 0px !important;
     }
+   /* 1. ซ่อนกล่องพื้นที่ว่างของ Iframe ด้านบน */
+    div[data-testid="stElementContainer"]:has(iframe[height="0"]) {
+        display: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        height: 0px !important;
+    }
+
+    /* 2. สั่งย้ายตัว ☰ (#toggle-btn-anchor) ลงมาอยู่หน้าเลข 5m โดยตรง */
+    #toggle-btn-anchor {
+        position: fixed !important;
+        top: 52px !important;          /* <--- ปรับระดับ ขึ้น-ลง ให้ตรงแถวเลข 5m (ปรับได้ระหว่าง 48px - 56px) */
+        left: 14px !important;         /* <--- ปรับ ซ้าย-ขวา ให้อยู่หน้า 5m */
+        z-index: 9999999 !important;
+        background: rgba(255, 255, 255, 0.05) !important;
+        border: 1px solid #2a2e39 !important;
+        border-radius: 4px !important;
+        width: 32px !important;
+        height: 26px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        cursor: pointer !important;
+    }
 
     [data-testid="stSidebar"] { top: 0 !important; }
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* 2. ดึงเนื้อหาขึ้นชิดบนสุด */
-    .block-container,
-    .stMainBlockContainer,
-    [data-testid="stMainBlockContainer"],
-    [data-testid="stAppViewBlockContainer"],
-    section[data-testid="stMain"] .block-container {
-        padding-top: 2px !important;
+    /* 3. ดึงเนื้อหาทั้งหมดชิดขอบบนสุด (แก้จุดขีดส้ม) */
+    .stApp [data-testid="stMain"],
+    .stApp [data-testid="stMainBlockContainer"],
+    section[data-testid="stMain"] .block-container,
+    .block-container {
+        padding-top: 0px !important;
+        margin-top: -38px !important;  /* <--- ปรับช่องว่างขอบบน (ยิ่งติดลบมาก ยิ่งชิดขอบบน เช่น -40px) */
         padding-bottom: 0rem !important;
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
         max-width: 100% !important;
     }
-
     /* 3. สไตล์ปุ่มแท็บด้านบนสุด: ส้มเรืองแสงโปร่งแสง 50% */
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="primary"],
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-primary"] {
@@ -534,7 +557,7 @@ def dashboard():
     # =========================================================================
     # แถวที่ 1 (บนสุด): แถบแท็บสินทรัพย์ (Dynamic Column Iterator - ปลอดภัย 100%)
     has_close = len(tabs) > 1
-    col_widths = [0.25]
+    col_widths = [0.01]  # ลดความกว้างช่องแรกเพื่อให้แท็บ BTC ชิดซ้ายสวยงาม
     for _ in tabs:
         col_widths.append(1.0)
         if has_close:
@@ -545,10 +568,9 @@ def dashboard():
     t_cols = st.columns(col_widths, gap="small")
     col_iter = iter(t_cols)
 
-    # 1. ตัวระบุ Marker สำหรับ CSS และปุ่มเมนูสามขีด (☰)
+    # 1. ตัวระบุ Marker สำหรับ CSS แท็บด้านบน
     with next(col_iter):
-        st.markdown('<div id="top-tabs-marker"></div><div id="toggle-btn-anchor" style="height:28px; display:flex; align-items:center; font-size:15px; color:#9aa0a6;">☰</div>', unsafe_allow_html=True)
-
+        st.markdown('<div id="top-tabs-marker"></div>', unsafe_allow_html=True)
     # 2. วาดแท็บและปุ่มปิด
     for t in tabs:
         is_active = (t["id"] == active_id)
@@ -582,8 +604,11 @@ def dashboard():
             st.session_state["current_symbol"] = new_sym
             st.rerun()
 
-    # แถวที่ 2: Timeframe และ Indicators (มีคอลัมน์ c_right_blank ป้องกันปุ่มล้นไปวงสีแดง)
+   # แถวที่ 2: Timeframe และ Indicators (ใส่ปุ่ม ☰ ไว้หน้าแถว 5m)
     c_space, c_tf, c_ind, c_right_blank = st.columns([0.35, 5.2, 2.5, 2.0], gap="small")
+
+    with c_space:
+        st.markdown('<div id="toggle-btn-anchor" style="height:28px; width:34px; display:flex; align-items:center; justify-content:center; font-size:16px; color:#9aa0a6; cursor:pointer; background:rgba(255,255,255,0.06); border:1px solid #2a2e39; border-radius:4px; margin-top:2px;">☰</div>', unsafe_allow_html=True)
 
     with c_tf:
         st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
@@ -597,11 +622,10 @@ def dashboard():
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-    # จุดวงเขียว 2: ปุ่ม Indicators + ปุ่มลัดชิปเฉพาะตัวที่ติ๊กดาว ⭐ เท่านั้น
+   # จุดวงเขียว 2: ปุ่ม Indicators
     with c_ind:
-        with c_ind:
-            if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
-                show_indicators_modal()
+        if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
+            show_indicators_modal()
 
     # =========================================================================
     # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก (มี Draggable Splitters คั่นกลาง)
