@@ -19,7 +19,6 @@
     const mainH = mainConfig.chart?.height || 520;
     mainPaneBox.style.height = mainH + 'px';
 
-    // ล็อกขนาดพิกเซลของ Canvas ทันที ป้องกันตัวหนังสือแตกบวม
     canvas.width = initWidth;
     canvas.height = mainH;
 
@@ -187,9 +186,8 @@
         const saved = localStorage.getItem(storageKey);
         if (saved) {
             const parsed = JSON.parse(saved);
-            // กรองวัตถุที่บันทึกพิกัดเพี้ยนออก
             if (Array.isArray(parsed)) {
-                drawings = parsed.filter(d => d && d.tool && (d.p1 !== undefined || d.points));
+                drawings = parsed.filter(d => d && d.tool && (d.p1 !== undefined || d.points || d.l1 !== undefined));
             }
         }
     } catch (e) {}
@@ -204,6 +202,8 @@
     let penPoints = [];
     let fibClickPoints = [];
     let extPoints = [];
+    let tzPoints = []; // จุดสะสมสำหรับ Fib Time Zones (2 จุด)
+    let patternClickPoints = [];
     let dragOrigObj = null;
 
     function getLogicalFromX(x) {
@@ -233,6 +233,8 @@
         currentTool = tool;
         fibClickPoints = [];
         extPoints = [];
+        tzPoints = [];
+        patternClickPoints = [];
         isDrawing = false;
 
         Object.keys(toolBtns).forEach(k => {
@@ -246,7 +248,7 @@
             el.classList.toggle('active', el.dataset.tool === tool);
         });
 
-        const fibTools = ['fib', 'fib_ext'];
+        const fibTools = ['fib', 'fib_ext', 'fib_tz'];
         const patTools = ['head_shoulders', 'triangle', 'elliott_impulse', 'elliott_abc'];
         const calcTools = ['pos_long', 'pos_short', 'price_range', 'date_range'];
         
@@ -300,7 +302,7 @@
             const chosen = item.dataset.tool;
             const wrap = item.closest('.tool-item-wrap');
             if (wrap) wrap.classList.remove('open');
-            setTool(chosen);
+            if (chosen) setTool(chosen);
         });
     });
 
@@ -309,6 +311,42 @@
             toolItemWraps.forEach(w => w.classList.remove('open'));
         }
     });
+
+    // ── ระบบเปิด-ปิด Modal ตั้งค่า Fibonacci ──
+    const fibModal = document.getElementById('fib-settings-modal');
+    const btnOpenFibSettings = document.getElementById('btn-open-fib-settings');
+    const btnCloseFibSettings = document.getElementById('btn-close-fib-settings');
+    const btnSaveFibSettings = document.getElementById('btn-save-fib-settings');
+    const inputExtLen = document.getElementById('cfg-fib-ext-len');
+    const inputOpacity = document.getElementById('cfg-fib-opacity');
+
+    if (btnOpenFibSettings && fibModal) {
+        btnOpenFibSettings.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (window.FibonacciTool) {
+                if (inputExtLen) inputExtLen.value = window.FibonacciTool.settings.extLength || 160;
+                if (inputOpacity) inputOpacity.value = window.FibonacciTool.settings.opacity || 12;
+            }
+            fibModal.classList.add('open');
+            document.querySelectorAll('.tool-item-wrap').forEach(w => w.classList.remove('open'));
+        });
+    }
+
+    if (btnCloseFibSettings && fibModal) {
+        btnCloseFibSettings.addEventListener('click', () => fibModal.classList.remove('open'));
+    }
+
+    if (btnSaveFibSettings && fibModal) {
+        btnSaveFibSettings.addEventListener('click', () => {
+            const extLen = parseInt(inputExtLen?.value, 10) || 160;
+            const op = parseInt(inputOpacity?.value, 10) || 12;
+            if (window.FibonacciTool) {
+                window.FibonacciTool.saveSettings({ extLength: extLen, opacity: op });
+            }
+            fibModal.classList.remove('open');
+            redrawAll();
+        });
+    }
 
     function updateSelectionUI() {
         if (!btnDeleteSelected) return;
@@ -356,6 +394,7 @@
             drawings = [];
             fibClickPoints = [];
             extPoints = [];
+            tzPoints = [];
             selectedIdx = -1;
             updateSelectionUI();
             try { localStorage.removeItem(storageKey); } catch(e) {}
@@ -367,7 +406,9 @@
         if (e.key === 'Escape') {
             fibClickPoints = [];
             extPoints = [];
+            tzPoints = [];
             isDrawing = false;
+            if (fibModal) fibModal.classList.remove('open');
             redrawAll();
             setTool('cursor');
         } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIdx !== -1) {
@@ -455,6 +496,14 @@
             } else if (d.tool === 'fib_ext') {
                 if (window.FibonacciTool && window.FibonacciTool.hitTestExt(x, y, d, mainChart, mainSeries)) {
                     return { idx: i, handle: 'body' };
+                }
+            } else if (d.tool === 'fib_tz') {
+                if (window.FibonacciTool && window.FibonacciTool.hitTestTimeZones(x, y, d, mainChart)) {
+                    return { idx: i, handle: 'body' };
+                }
+                } else if (window.PatternTool && window.PatternTool.isPatternTool(d.tool)) {
+            if (window.PatternTool.hitTest(x, y, d, mainChart, mainSeries)) {
+                return { idx: i, handle: 'body' };
                 }
             } else if (d.tool === 'box' || d.tool === 'pos_long' || d.tool === 'pos_short' || d.tool === 'price_range' || d.tool === 'date_range') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
@@ -591,6 +640,47 @@
             return;
         }
 
+        // โหมดคลิก 2 จุดสำหรับ Fib Time Zones
+        if (currentTool === 'fib_tz') {
+            const l = getLogicalFromX(mouseX);
+            const p = getPriceFromY(mouseY);
+            if (tzPoints.length === 0) {
+                tzPoints.push({ x: mouseX, y: mouseY, l: l, p: p });
+                redrawAll();
+            } else if (tzPoints.length === 1) {
+                drawings.push({
+                    tool: 'fib_tz',
+                    l1: tzPoints[0].l, p1: tzPoints[0].p,
+                    l2: l, p2: p,
+                    color: '#00FFA3'
+                });
+                tzPoints = [];
+                setTool('cursor');
+                saveAndRedraw();
+            }
+            return;
+        }
+        // โหมดคลิกสำหรับ Chart Patterns (14 รูปแบบ)
+        if (window.PatternTool && window.PatternTool.isPatternTool(currentTool)) {
+            const l = getLogicalFromX(mouseX);
+            const p = getPriceFromY(mouseY);
+            patternClickPoints.push({ x: mouseX, y: mouseY, l: l, p: p });
+            const req = window.PatternTool.getRequiredPoints(currentTool);
+            if (patternClickPoints.length === req) {
+                drawings.push({
+                    tool: currentTool,
+                    points: [...patternClickPoints],
+                    color: '#00FFA3'
+                });
+                patternClickPoints = [];
+                setTool('cursor');
+                saveAndRedraw();
+            } else {
+                redrawAll();
+            }
+            return;
+        }
+
         if (currentTool === 'text') {
             if (textOverlay && textInput) {
                 textOverlay.style.left = mouseX + 'px';
@@ -700,6 +790,21 @@
             return;
         }
 
+        // Live Preview: Fib Time Zones
+        if (currentTool === 'fib_tz' && tzPoints.length === 1) {
+            redrawAll();
+            if (window.FibonacciTool) {
+                window.FibonacciTool.drawTimeZonesPreview(ctx, tzPoints[0], currentPx, mainChart, canvas.height);
+            }
+            return;
+        }
+        // Live Preview: Chart Patterns
+     if (patternClickPoints.length > 0 && window.PatternTool && window.PatternTool.isPatternTool(currentTool)) {
+         redrawAll();
+         window.PatternTool.drawPreview(ctx, currentTool, patternClickPoints, currentPx, mainChart, mainSeries, canvas.width, canvas.height);
+         return;
+     }
+
         if (!isDrawing) return;
         if (currentTool === 'pen') {
             penPoints.push({ x: mouseX, y: mouseY });
@@ -717,7 +822,7 @@
             return;
         }
 
-        if (currentTool === 'fib' || currentTool === 'fib_ext') {
+        if (currentTool === 'fib' || currentTool === 'fib_ext' || currentTool === 'fib_tz' || (window.PatternTool && window.PatternTool.isPatternTool(currentTool))) {
             return;
         }
 
@@ -859,6 +964,13 @@
                 if (window.FibonacciTool) {
                     window.FibonacciTool.drawExt(ctx, d, mainChart, mainSeries, isSelected, canvas.width, drawHandle);
                 }
+            } else if (d.tool === 'fib_tz') {
+                if (window.FibonacciTool) {
+                    window.FibonacciTool.drawTimeZones(ctx, d, mainChart, isSelected, canvas.height, drawHandle);
+                }
+                else if (window.PatternTool && window.PatternTool.isPatternTool(d.tool)) {
+                window.PatternTool.draw(ctx, d, mainChart, mainSeries, isSelected, canvas.width, canvas.height, drawHandle);
+            }
             } else if (d.tool === 'box') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
                     const w = x2 - x1, h = y2 - y1;
@@ -1215,7 +1327,6 @@
         });
     });
 
-    // เริ่มต้นปรับขนาดและวาดใหม่อย่างแม่นยำ
     resizeCanvas();
     window.addEventListener('resize', updateAllWidths);
     window.addEventListener('resize', () => { try { paneResizeAll(); } catch(e) {} });

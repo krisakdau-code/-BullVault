@@ -1,107 +1,214 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Trading Terminal</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{DISPLAY_TITLE}}</title>
     <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         /* INJECT_CSS_HERE */
-        .draw-toolbar { display: {{TOOLBAR_DISPLAY}} !important; }
+        
+        /* สไตล์ Modal ตั้งค่า Fibonacci */
+        .fib-modal-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+        }
+        .fib-modal-backdrop.open {
+            display: flex;
+        }
+        .fib-modal-box {
+            background: #181b22;
+            border: 1px solid #2a2e39;
+            border-radius: 8px;
+            width: 320px;
+            padding: 16px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            color: #d1d4dc;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 13px;
+        }
+        .fib-modal-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 700;
+            color: #00FFA3;
+            border-bottom: 1px solid #2a2e39;
+            padding-bottom: 8px;
+            margin-bottom: 14px;
+        }
+        .fib-modal-close {
+            background: none; border: none; color: #787b86; cursor: pointer; font-size: 16px;
+        }
+        .fib-modal-close:hover { color: #ffffff; }
+        .fib-setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        .fib-setting-input {
+            width: 80px;
+            background: #2a2e39;
+            border: 1px solid #363a45;
+            border-radius: 4px;
+            color: #ffffff;
+            padding: 4px 8px;
+            font-size: 12px;
+            text-align: right;
+            outline: none;
+        }
+        .fib-setting-input:focus { border-color: #00FFA3; }
+        .fib-btn-save {
+            width: 100%;
+            background: rgba(0, 255, 163, 0.2);
+            border: 1px solid #00FFA3;
+            color: #00FFA3;
+            border-radius: 4px;
+            padding: 7px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-top: 6px;
+        }
+        .fib-btn-save:hover { background: #00FFA3; color: #000000; }
     </style>
 </head>
 <body>
     <div id="container">
-        <div id="main-pane-container">
-            <div class="draw-toolbar" id="main-draw-toolbar">
-                <div class="drag-handle" id="tb-drag-handle" title="คลิกค้างเพื่อลากย้าย">⋮⋮</div>
-                <button class="tool-btn active" id="btn-cursor" title="↖ เคอร์เซอร์ / เลือกวัตถุ (V)">↖</button>
-                <button class="tool-btn" id="btn-eraser" title="🧽 ยางลบเจาะจง (E)">🧽</button>
-                <div class="tool-sep"></div>
-                
-                <button class="tool-btn" id="btn-trend" title="เส้นแนวโน้ม (Trendline)">╱</button>
-                <button class="tool-btn" id="btn-horz" title="เส้นแนวนอน (Horizontal Level)">―</button>
+        <div class="chart-legend">
+            <span class="legend-symbol">{{DISPLAY_TITLE}}</span>
+            <span class="legend-badge">{{EXCHANGE_NAME}}</span>
+            <span id="leg-price" class="legend-price">--</span>
+            <span id="leg-change" class="legend-change">--</span>
+            <span id="leg-ohlc" class="legend-ohlc"></span>
+            
+            <div class="quick-trade-box">
+                <button class="qt-btn qt-sell">
+                    <span class="qt-side">SELL</span>
+                    <span id="qt-sell-val" class="qt-val">--</span>
+                </button>
+                <button class="qt-btn qt-buy">
+                    <span class="qt-side">BUY</span>
+                    <span id="qt-buy-val" class="qt-val">--</span>
+                </button>
+            </div>
+        </div>
 
-                <!-- Submenu 1: Fib & Gann -->
+        <div id="main-pane-container">
+            <div id="chart-main"></div>
+            <canvas id="drawing-canvas"></canvas>
+
+            <div class="draw-toolbar" id="main-draw-toolbar" style="display: {{TOOLBAR_DISPLAY}};">
+                <div class="drag-handle" id="tb-drag-handle" title="ลากเพื่อย้ายแถบเครื่องมือ">⋮⋮</div>
+                
+                <button class="tool-btn active" id="btn-cursor" title="เคอร์เซอร์ (V)">↖</button>
+                <button class="tool-btn danger-btn" id="btn-eraser" title="ยางลบ (E)">🧽</button>
+                
+                <div class="tool-sep"></div>
+
+                <button class="tool-btn" id="btn-trend" title="เส้นแนวโน้ม (Trendline)">╱</button>
+                <button class="tool-btn" id="btn-horz" title="เส้นแนวนอน (Horizontal Line)">―</button>
+
                 <div class="tool-item-wrap">
                     <button class="tool-btn has-sub" id="btn-fib-group" title="เครื่องมือ Fibonacci">📐</button>
                     <div class="sub-menu">
-                        <div class="sub-header">Gann & Fibonacci</div>
+                        <div class="sub-header">GANN & FIBONACCI</div>
                         <div class="sub-item" data-tool="fib">📐 Fib Retracement</div>
                         <div class="sub-item" data-tool="fib_ext">📈 Trend-Based Fib Extension</div>
+                        <div class="sub-item" data-tool="fib_tz">⏱️ Fib Time Zones</div>
+                        <div class="tool-sep" style="width:100%;margin:4px 0;"></div>
+                        <div class="sub-item" id="btn-open-fib-settings" style="color:#00FFA3;">⚙️ ตั้งค่า Fibonacci</div>
                     </div>
                 </div>
 
-                <!-- Submenu 2: Patterns & Waves -->
+              <!-- กลุ่ม Patterns (รูปแบบชาร์ต 14 รูปแบบ) -->
                 <div class="tool-item-wrap">
-                    <button class="tool-btn has-sub" id="btn-pattern-group" title="รูปแบบชาร์ตและคลื่น">🕸️</button>
-                    <div class="sub-menu">
-                        <div class="sub-header">Chart Patterns</div>
-                        <div class="sub-item" data-tool="head_shoulders">👤 Head & Shoulders</div>
-                        <div class="sub-item" data-tool="triangle">🔺 Triangle Pattern</div>
-                        <div class="sub-header">Elliott Waves</div>
-                        <div class="sub-item" data-tool="elliott_impulse">🌊 Elliott Wave (1-2-3-4-5)</div>
-                        <div class="sub-item" data-tool="elliott_abc">〰️ Elliott Wave (A-B-C)</div>
+                    <button class="tool-btn has-sub" id="btn-pattern-group" title="รูปแบบชาร์ต (Patterns)">🕸️</button>
+                    <div class="sub-menu" style="max-height: 480px; overflow-y: auto;">
+                        <div class="sub-header">รูปแบบชาร์ต</div>
+                        <div class="sub-item" data-tool="pat_xabcd">📐 XABCD Pattern</div>
+                        <div class="sub-item" data-tool="pat_cypher">🪃 รูปแบบ Cypher</div>
+                        <div class="sub-item" data-tool="head_shoulders">👤 Head and Shoulders</div>
+                        <div class="sub-item" data-tool="pat_abcd">⚡ ABCD Pattern</div>
+                        <div class="sub-item" data-tool="triangle">🔺 รูปแบบ Triangle</div>
+                        <div class="sub-item" data-tool="pat_threedrives">🔱 รูปแบบ Three Drives</div>
+
+                        <div class="sub-header">ELLIOTT WAVES</div>
+                        <div class="sub-item" data-tool="elliott_impulse">🌊 Elliott impulse wave (1-2-3-4-5)</div>
+                        <div class="sub-item" data-tool="elliott_abc">📉 Elliott correction wave (A-B-C)</div>
+                        <div class="sub-item" data-tool="elliott_triangle">📐 Elliott triangle wave (A-B-C-D-E)</div>
+                        <div class="sub-item" data-tool="elliott_double">〰️ Elliott double combo wave (W-X-Y)</div>
+                        <div class="sub-item" data-tool="elliott_triple">〰️ Elliott triple combo wave (W-X-Y-X-Z)</div>
+
+                        <div class="sub-header">วัฏจักร</div>
+                        <div class="sub-item" data-tool="cycle_lines">⏸️ เส้นวัฏจักร</div>
+                        <div class="sub-item" data-tool="time_cycles">➰ รอบเวลา</div>
+                        <div class="sub-item" data-tool="sine_line">〰️ เส้น Sine</div>
                     </div>
                 </div>
 
-                <!-- Submenu 3: Prediction & Measurement -->
                 <div class="tool-item-wrap">
-                    <button class="tool-btn has-sub" id="btn-calc-group" title="การคาดการณ์และเครื่องมือวัด">⚖️</button>
+                    <button class="tool-btn has-sub" id="btn-calc-group" title="คำนวณกำไร/ความเสี่ยง & ไม้บรรทัด">⚖️</button>
                     <div class="sub-menu">
-                        <div class="sub-header">การคาดการณ์</div>
-                        <div class="sub-item" data-tool="pos_long">🟢 สถานะ Long (Risk:Reward)</div>
-                        <div class="sub-item" data-tool="pos_short">🔴 สถานะ Short (Risk:Reward)</div>
-                        <div class="sub-header">เครื่องมือวัด</div>
-                        <div class="sub-item" data-tool="price_range">↕️ ช่วงราคา (Price Range)</div>
-                        <div class="sub-item" data-tool="date_range">↔️ ช่วงเวลา (Date Range)</div>
+                        <div class="sub-header">POSITION TOOLS</div>
+                        <div class="sub-item" data-tool="pos_long">🟢 สถานะ Long</div>
+                        <div class="sub-item" data-tool="pos_short">🔴 สถานะ Short</div>
+                        <div class="sub-header">MEASURE TOOLS</div>
+                        <div class="sub-item" data-tool="price_range">📏 ไม้บรรทัดราคา (Price Range)</div>
+                        <div class="sub-item" data-tool="date_range">📅 ไม้บรรทัดเวลา (Date Range)</div>
                     </div>
                 </div>
 
                 <div class="tool-sep"></div>
-                <button class="tool-btn" id="btn-box" title="กล่องโซน (Rectangle Zone)">▭</button>
-                <button class="tool-btn" id="btn-circle" title="วงกลมไฮไลต์ (Circle)">⭕</button>
-                <button class="tool-btn" id="btn-pen" title="ปากกาวาดอิสระ (Pen Brush)">✏️</button>
-                <button class="tool-btn" id="btn-text" title="ข้อความกำกับ (Text Note)">T</button>
+
+                <button class="tool-btn" id="btn-box" title="กล่องโซน (Rectangle)">▭</button>
+                <button class="tool-btn" id="btn-circle" title="วงกลม (Circle)">◯</button>
+                <button class="tool-btn" id="btn-pen" title="ปากกาวาดอิสระ (Pen)">✏️</button>
+                <button class="tool-btn" id="btn-text" title="ข้อความ (Text)">T</button>
+
                 <div class="tool-sep"></div>
-                <button class="tool-btn danger-btn" id="btn-delete-selected" title="ลบวัตถุที่เลือก (Delete Key)">🗑️</button>
+
+                <button class="tool-btn danger-btn" id="btn-delete-selected" title="ลบวัตถุที่เลือก (Del)">🗑️</button>
                 <button class="tool-btn" id="btn-undo" title="ย้อนกลับ (Undo)">↩</button>
-                <button class="tool-btn danger-btn" id="btn-clear" title="ล้างทั้งหมด">💥</button>
+                <button class="tool-btn danger-btn" id="btn-clear" title="ล้างภาพวาดทั้งหมด (Clear All)">💥</button>
             </div>
 
-            <div class="chart-legend" id="main-chart-legend">
-                <span class="legend-symbol" id="leg-symbol">{{DISPLAY_TITLE}}</span>
-                <span class="legend-badge">{{EXCHANGE_NAME}}</span>
-                <span class="legend-price" id="leg-price">--</span>
-                <span class="legend-change" id="leg-change">--</span>
-                <span class="legend-ohlc" id="leg-ohlc"></span>
-
-                <div class="quick-trade-box">
-                    <button class="qt-btn qt-sell" id="btn-qt-sell" title="เปิดคำสั่งขาย (Sell)">
-                        <span class="qt-side">SELL</span>
-                        <span class="qt-val" id="qt-sell-val">--</span>
-                    </button>
-                    <button class="qt-btn qt-buy" id="btn-qt-buy" title="เปิดคำสั่งซื้อ (Buy)">
-                        <span class="qt-side">BUY</span>
-                        <span class="qt-val" id="qt-buy-val">--</span>
-                    </button>
-                </div>
-            </div>
-
-            <div id="chart-main"></div>
-            <canvas id="drawing-canvas"></canvas>
-            
             <div id="text-overlay-box">
-                <input type="text" id="text-input" placeholder="พิมพ์ข้อความแล้วกด Enter..." />
+                <input type="text" id="text-input" placeholder="พิมพ์ข้อความแล้วกด Enter...">
             </div>
         </div>
+
         <div id="sub-panes"></div>
+    </div>
+
+    <div class="fib-modal-backdrop" id="fib-settings-modal">
+        <div class="fib-modal-box">
+            <div class="fib-modal-title">
+                <span>⚙️ ตั้งค่า Fibonacci</span>
+                <button class="fib-modal-close" id="btn-close-fib-settings">✕</button>
+            </div>
+            <div class="fib-setting-row">
+                <span>ความยาว Fib Extension (px):</span>
+                <input type="number" class="fib-setting-input" id="cfg-fib-ext-len" value="160" min="40" max="1000" step="10">
+            </div>
+            <div class="fib-setting-row">
+                <span>ความโปร่งแสงแถบสี (%):</span>
+                <input type="number" class="fib-setting-input" id="cfg-fib-opacity" value="12" min="0" max="100" step="1">
+            </div>
+            <button class="fib-btn-save" id="btn-save-fib-settings">บันทึกการตั้งค่า</button>
+        </div>
     </div>
 
     <script>
         window.__CHART_CONFIG__ = {{CHART_JSON}};
-    </script>
-    <script>
         /* INJECT_JS_HERE */
     </script>
 </body>

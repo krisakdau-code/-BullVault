@@ -1,6 +1,6 @@
 /**
  * fibonacci_tool.js
- * โมดูลคำนวณและวาด Fib Retracement, Fib Extension, Fib Time Zones สไตล์ TradingView
+ * โมดูลคำนวณและวาด Fib Retracement, Fib Extension และ Fib Time Zones สไตล์ TradingView
  */
 window.FibonacciTool = {
     settings: {
@@ -57,6 +57,7 @@ window.FibonacciTool = {
         { r: 4.236, c: '#e91e63', bg: 'rgba(233, 30, 99, 0.15)',   lbl: '4.236' }
     ],
 
+    // ลำดับสัดส่วน Fib Time Zone ตามมาตรฐาน TradingView
     tzSequence: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89],
 
     _getCoordX: function(tScale, l, t) {
@@ -88,7 +89,7 @@ window.FibonacciTool = {
         ctx.restore();
     },
 
-    // ── 1. FIB RETRACEMENT (2 จุด) ──
+    // ── 1. FIB RETRACEMENT ──
     drawPreview: function(ctx, startPx, currentPx, mainSeries) {
         if (!startPx || !currentPx) return;
         const minX = Math.min(startPx.x, currentPx.x);
@@ -198,7 +199,7 @@ window.FibonacciTool = {
         return (x >= minX && x <= maxX && y >= minY && y <= maxY);
     },
 
-    // ── 2. TREND-BASED FIB EXTENSION (3 จุด A->B->C) ──
+    // ── 2. TREND-BASED FIB EXTENSION ──
     drawExtPreview: function(ctx, pts, curPx, mainSeries, canvasWidth) {
         if (!pts || pts.length === 0) return;
         ctx.save();
@@ -376,12 +377,12 @@ window.FibonacciTool = {
         return false;
     },
 
-    // ── 3. FIBONACCI TIME ZONES (2 จุด) ──
+    // ── 3. FIBONACCI TIME ZONES (2 จุดคลิกตามวิดีโอ) ──
     drawTimeZonesPreview: function(ctx, startPx, curPx, mainChart, canvasHeight) {
         if (!startPx || !curPx || !mainChart) return;
         const tScale = mainChart.timeScale();
-        const l1 = startPx.l;
-        const l2 = curPx.l;
+        const l1 = (startPx.l !== undefined && startPx.l !== null) ? startPx.l : 0;
+        const l2 = (curPx.l !== undefined && curPx.l !== null) ? curPx.l : l1;
         const deltaL = Math.max(1, Math.abs(l2 - l1));
         const dir = (l2 >= l1) ? 1 : -1;
 
@@ -399,10 +400,10 @@ window.FibonacciTool = {
         ctx.stroke();
 
         ctx.setLineDash([4, 3]);
-        this.tzSequence.forEach((num, idx) => {
+        this.tzSequence.forEach((num) => {
             const targetL = l1 + (dir * deltaL * num);
             const cx = tScale.logicalToCoordinate(targetL);
-            if (cx !== null && cx >= 0 && cx <= ctx.canvas.width + 100) {
+            if (cx !== null && cx >= -50 && cx <= ctx.canvas.width + 100) {
                 const col = (num === 0 || num === 1) ? '#00FFA3' : '#2962ff';
                 ctx.strokeStyle = col;
                 ctx.lineWidth = 1.2;
@@ -420,10 +421,10 @@ window.FibonacciTool = {
     },
 
     drawTimeZones: function(ctx, d, mainChart, isSelected, canvasHeight, drawHandleFn) {
-        if (!mainChart) return;
+        if (!mainChart || !ctx) return;
         const tScale = mainChart.timeScale();
-        const l1 = d.l1;
-        const l2 = d.l2;
+        const l1 = (d.l1 !== undefined && d.l1 !== null) ? d.l1 : 0;
+        const l2 = (d.l2 !== undefined && d.l2 !== null) ? d.l2 : (l1 + 10);
         const deltaL = Math.max(1, Math.abs(l2 - l1));
         const dir = (l2 >= l1) ? 1 : -1;
         const x1 = this._getCoordX(tScale, d.l1, d.t1);
@@ -437,7 +438,7 @@ window.FibonacciTool = {
             if (cx !== null) coords.push({ x: cx, num: num });
         });
 
-        // ระบายแถบสีโปร่งแสงสลับโซน
+        // ระบายแถบสีสลับโซน
         for (let i = 0; i < coords.length - 1; i++) {
             const leftX = coords[i].x;
             const rightX = coords[i + 1].x;
@@ -447,9 +448,9 @@ window.FibonacciTool = {
             }
         }
 
-        // วาดเส้นแนวตั้งและตัวเลข
+        // วาดเส้นแนวตั้งเต็มจอตามวิดีโอ
         coords.forEach(pt => {
-            if (pt.x >= -20 && pt.x <= ctx.canvas.width + 50) {
+            if (pt.x >= -30 && pt.x <= ctx.canvas.width + 50) {
                 ctx.strokeStyle = isSelected ? '#00FFA3' : ((pt.num === 0 || pt.num === 1) ? '#00FFA3' : '#64b5f6');
                 ctx.lineWidth = (pt.num === 0 || pt.num === 1) ? 1.5 : 1;
                 ctx.setLineDash([4, 4]);
@@ -464,6 +465,7 @@ window.FibonacciTool = {
             }
         });
 
+        // จุด Handle สำหรับคลิกย้าย
         if (isSelected && typeof drawHandleFn === 'function' && x1 !== null && x2 !== null) {
             drawHandleFn(x1, 30);
             drawHandleFn(x2, 30);
@@ -474,7 +476,8 @@ window.FibonacciTool = {
     hitTestTimeZones: function(x, y, d, mainChart) {
         if (!mainChart) return false;
         const tScale = mainChart.timeScale();
-        const l1 = d.l1, l2 = d.l2;
+        const l1 = (d.l1 !== undefined && d.l1 !== null) ? d.l1 : 0;
+        const l2 = (d.l2 !== undefined && d.l2 !== null) ? d.l2 : (l1 + 10);
         const deltaL = Math.max(1, Math.abs(l2 - l1));
         const dir = (l2 >= l1) ? 1 : -1;
         for (let num of this.tzSequence) {

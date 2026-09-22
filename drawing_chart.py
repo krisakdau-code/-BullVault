@@ -48,8 +48,9 @@ def render_drawing_chart(
     html_template = _load_asset("drawing_template.html")
     css_content = _load_asset("drawing_style.css")
     js_fib = _load_asset("fibonacci_tool.js")
+    js_pat = _load_asset("pattern_tool.js")
     js_engine = _load_asset("drawing_engine.js")
-    js_content = js_fib + "\n" + js_engine
+    js_content = js_fib + "\n" + js_pat + "\n" + js_engine
 
     rendered_html = (
         html_template
