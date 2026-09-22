@@ -35,6 +35,23 @@ window.FibonacciTool = {
         { r: 4.236, c: '#e91e63', bg: 'rgba(233, 30, 99, 0.15)',   lbl: '4.236' }
     ],
 
+    _getCoordX: function(tScale, l, t) {
+        if (!tScale) return null;
+        if (l !== undefined && l !== null) {
+            try {
+                const x = tScale.logicalToCoordinate(l);
+                if (x !== null && !isNaN(x)) return x;
+            } catch(e) {}
+        }
+        if (t !== undefined && t !== null && t !== 0 && t !== '') {
+            try {
+                const x = tScale.timeToCoordinate(t);
+                if (x !== null && !isNaN(x)) return x;
+            } catch(e) {}
+        }
+        return null;
+    },
+
     _drawCircle: function(ctx, x, y, r, color) {
         ctx.save();
         ctx.beginPath();
@@ -178,7 +195,7 @@ window.FibonacciTool = {
             ctx.fillStyle = '#00FFA3';
             ctx.font = 'bold 12px sans-serif';
             ctx.fillText('A', pts[0].x + 8, pts[0].y - 8);
-            ctx.fillText('B (คลิกกำหนดจุด B)', curPx.x + 8, curPx.y - 8);
+            ctx.fillText('B (คลิกจุดที่ 2)', curPx.x + 8, curPx.y - 8);
         } else if (pts.length === 2) {
             ctx.strokeStyle = '#00FFA3';
             ctx.lineWidth = 1.5;
@@ -198,13 +215,13 @@ window.FibonacciTool = {
             ctx.font = 'bold 12px sans-serif';
             ctx.fillText('A', pts[0].x + 8, pts[0].y - 8);
             ctx.fillText('B', pts[1].x + 8, pts[1].y - 8);
-            ctx.fillText('C (คลิกกำหนดจุด C)', curPx.x + 8, curPx.y - 8);
+            ctx.fillText('C (คลิกจุดที่ 3)', curPx.x + 8, curPx.y - 8);
 
             const p1 = pts[0].p, p2 = pts[1].p;
             const p3 = (mainSeries ? mainSeries.coordinateToPrice(curPx.y) : null) || 0;
             const diffP = p2 - p1;
             const startX = curPx.x;
-            const endX = Math.max(startX + 180, canvasWidth);
+            const endX = startX + 160; // กำหนดความยาวพรีวิวคงที่ 160px จากจุด C
 
             const yLevels = this.extLevels.map(lvl => {
                 const targetPrice = p3 + diffP * lvl.r;
@@ -238,12 +255,12 @@ window.FibonacciTool = {
 
     drawExt: function(ctx, d, mainChart, mainSeries, isSelected, canvasWidth, drawHandleFn) {
         const tScale = mainChart.timeScale();
-        const x1 = tScale.timeToCoordinate(d.t1);
-        const y1 = mainSeries.priceToCoordinate(d.p1);
-        const x2 = tScale.timeToCoordinate(d.t2);
-        const y2 = mainSeries.priceToCoordinate(d.p2);
-        const x3 = tScale.timeToCoordinate(d.t3);
-        const y3 = mainSeries.priceToCoordinate(d.p3);
+        const x1 = this._getCoordX(tScale, d.l1, d.t1);
+        const y1 = (d.p1 !== undefined && d.p1 !== null) ? mainSeries.priceToCoordinate(d.p1) : null;
+        const x2 = this._getCoordX(tScale, d.l2, d.t2);
+        const y2 = (d.p2 !== undefined && d.p2 !== null) ? mainSeries.priceToCoordinate(d.p2) : null;
+        const x3 = this._getCoordX(tScale, d.l3, d.t3);
+        const y3 = (d.p3 !== undefined && d.p3 !== null) ? mainSeries.priceToCoordinate(d.p3) : null;
 
         if (x1 === null || y1 === null || x2 === null || y2 === null || x3 === null || y3 === null) return;
 
@@ -265,7 +282,7 @@ window.FibonacciTool = {
 
         const diffP = d.p2 - d.p1;
         const startX = x3;
-        const endX = Math.max(startX + 180, canvasWidth);
+        const endX = startX + 160; // กำหนดความยาวหลังวางเสร็จคงที่ 160px จากจุด C
 
         const yLevels = this.extLevels.map(lvl => {
             const price = d.p3 + diffP * lvl.r;
@@ -307,9 +324,12 @@ window.FibonacciTool = {
 
     hitTestExt: function(x, y, d, mainChart, mainSeries) {
         const tScale = mainChart.timeScale();
-        const x1 = tScale.timeToCoordinate(d.t1), y1 = mainSeries.priceToCoordinate(d.p1);
-        const x2 = tScale.timeToCoordinate(d.t2), y2 = mainSeries.priceToCoordinate(d.p2);
-        const x3 = tScale.timeToCoordinate(d.t3), y3 = mainSeries.priceToCoordinate(d.p3);
+        const x1 = this._getCoordX(tScale, d.l1, d.t1);
+        const y1 = (d.p1 !== undefined && d.p1 !== null) ? mainSeries.priceToCoordinate(d.p1) : null;
+        const x2 = this._getCoordX(tScale, d.l2, d.t2);
+        const y2 = (d.p2 !== undefined && d.p2 !== null) ? mainSeries.priceToCoordinate(d.p2) : null;
+        const x3 = this._getCoordX(tScale, d.l3, d.t3);
+        const y3 = (d.p3 !== undefined && d.p3 !== null) ? mainSeries.priceToCoordinate(d.p3) : null;
         if (x1 === null || y1 === null || x2 === null || y2 === null || x3 === null || y3 === null) return false;
 
         const dist = (px, py, ax, ay, bx, by) => {
@@ -324,7 +344,8 @@ window.FibonacciTool = {
         const diffP = d.p2 - d.p1;
         for (let lvl of this.extLevels) {
             const ly = mainSeries.priceToCoordinate(d.p3 + diffP * lvl.r);
-            if (ly !== null && Math.abs(y - ly) < 8 && x >= x3 - 10) return true;
+            // ตรวจจับการคลิกโดนเฉพาะภายในช่วงความยาวของเส้น (x3 ถึง x3 + 170)
+            if (ly !== null && Math.abs(y - ly) < 8 && x >= x3 - 10 && x <= x3 + 170) return true;
         }
         return false;
     }

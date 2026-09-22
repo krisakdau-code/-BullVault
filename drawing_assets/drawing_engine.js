@@ -19,6 +19,10 @@
     const mainH = mainConfig.chart?.height || 520;
     mainPaneBox.style.height = mainH + 'px';
 
+    // ล็อกขนาดพิกเซลของ Canvas ทันที ป้องกันตัวหนังสือแตกบวม
+    canvas.width = initWidth;
+    canvas.height = mainH;
+
     const mainChart = LightweightCharts.createChart(mainContainer, {
         ...(mainConfig.chart || {}),
         width: initWidth,
@@ -181,7 +185,13 @@
     let drawings = [];
     try {
         const saved = localStorage.getItem(storageKey);
-        if (saved) drawings = JSON.parse(saved);
+        if (saved) {
+            const parsed = JSON.parse(saved);
+            // กรองวัตถุที่บันทึกพิกัดเพี้ยนออก
+            if (Array.isArray(parsed)) {
+                drawings = parsed.filter(d => d && d.tool && (d.p1 !== undefined || d.points));
+            }
+        }
     } catch (e) {}
 
     let currentTool = 'cursor';
@@ -196,14 +206,12 @@
     let extPoints = [];
     let dragOrigObj = null;
 
-    // แปลงพิกัด X เป็น Logical Index (ไม่กระโดด)
     function getLogicalFromX(x) {
         if (!mainChart) return 0;
         const logical = mainChart.timeScale().coordinateToLogical(x);
         return logical !== null ? logical : 0;
     }
 
-    // แปลงพิกัด Y เป็น ราคา
     function getPriceFromY(y) {
         if (!mainSeries) return 0;
         const p = mainSeries.coordinateToPrice(y);
@@ -350,7 +358,8 @@
             extPoints = [];
             selectedIdx = -1;
             updateSelectionUI();
-            saveAndRedraw();
+            try { localStorage.removeItem(storageKey); } catch(e) {}
+            redrawAll();
         });
     }
 
@@ -376,8 +385,12 @@
     }
 
     function resizeCanvas() {
-        canvas.width = mainPaneBox.clientWidth;
-        canvas.height = mainPaneBox.clientHeight;
+        const w = mainPaneBox.clientWidth || container.clientWidth || window.innerWidth;
+        const h = mainPaneBox.clientHeight || mainH;
+        if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
+            canvas.width = w;
+            canvas.height = h;
+        }
         redrawAll();
     }
 
@@ -390,14 +403,30 @@
         return ptDist(px, py, x1 + t*(x2 - x1), y1 + t*(y2 - y1));
     }
 
-    function getScreenCoords(d) {
+    function safeCoordX(l, t) {
         const tScale = mainChart.timeScale();
-        let x1 = (d.l1 !== undefined && d.l1 !== null) ? tScale.logicalToCoordinate(d.l1) : tScale.timeToCoordinate(d.t1);
-        let x2 = (d.l2 !== undefined && d.l2 !== null) ? tScale.logicalToCoordinate(d.l2) : tScale.timeToCoordinate(d.t2);
-        let x3 = (d.l3 !== undefined && d.l3 !== null) ? tScale.logicalToCoordinate(d.l3) : (d.t3 ? tScale.timeToCoordinate(d.t3) : null);
-        let y1 = mainSeries.priceToCoordinate(d.p1);
-        let y2 = mainSeries.priceToCoordinate(d.p2);
-        let y3 = (d.p3 !== undefined && d.p3 !== null) ? mainSeries.priceToCoordinate(d.p3) : null;
+        if (l !== undefined && l !== null) {
+            try {
+                const cx = tScale.logicalToCoordinate(l);
+                if (cx !== null && !isNaN(cx)) return cx;
+            } catch(e) {}
+        }
+        if (t !== undefined && t !== null && t !== 0 && t !== '') {
+            try {
+                const cx = tScale.timeToCoordinate(t);
+                if (cx !== null && !isNaN(cx)) return cx;
+            } catch(e) {}
+        }
+        return null;
+    }
+
+    function getScreenCoords(d) {
+        const x1 = safeCoordX(d.l1, d.t1);
+        const x2 = safeCoordX(d.l2, d.t2);
+        const x3 = safeCoordX(d.l3, d.t3);
+        const y1 = (d.p1 !== undefined && d.p1 !== null) ? mainSeries.priceToCoordinate(d.p1) : null;
+        const y2 = (d.p2 !== undefined && d.p2 !== null) ? mainSeries.priceToCoordinate(d.p2) : null;
+        const y3 = (d.p3 !== undefined && d.p3 !== null) ? mainSeries.priceToCoordinate(d.p3) : null;
         return { x1, y1, x2, y2, x3, y3 };
     }
 
@@ -448,11 +477,10 @@
                     if (Math.abs(x - x1) < 60 && Math.abs(y - y1) < 20) return { idx: i, handle: 'body' };
                 }
             } else if (d.tool === 'pen' && d.points) {
-                const tScale = mainChart.timeScale();
                 for (let j = 0; j < d.points.length - 1; j++) {
-                    const px1 = d.points[j].l !== undefined ? tScale.logicalToCoordinate(d.points[j].l) : tScale.timeToCoordinate(d.points[j].t);
+                    const px1 = safeCoordX(d.points[j].l, d.points[j].t);
                     const py1 = mainSeries.priceToCoordinate(d.points[j].p);
-                    const px2 = d.points[j+1].l !== undefined ? tScale.logicalToCoordinate(d.points[j+1].l) : tScale.timeToCoordinate(d.points[j+1].t);
+                    const px2 = safeCoordX(d.points[j+1].l, d.points[j+1].t);
                     const py2 = mainSeries.priceToCoordinate(d.points[j+1].p);
                     if (px1 && py1 && px2 && py2 && distToSegment(x, y, px1, py1, px2, py2) < 8) {
                         return { idx: i, handle: 'body' };
@@ -801,8 +829,6 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!mainSeries) return;
 
-        const tScale = mainChart.timeScale();
-
         drawings.forEach((d, idx) => {
             const isSelected = (idx === selectedIdx);
             ctx.save();
@@ -913,7 +939,7 @@
                 ctx.beginPath();
                 let started = false;
                 for (let pt of d.points) {
-                    const px = pt.l !== undefined ? tScale.logicalToCoordinate(pt.l) : tScale.timeToCoordinate(pt.t);
+                    const px = safeCoordX(pt.l, pt.t);
                     const py = mainSeries.priceToCoordinate(pt.p);
                     if (px !== null && py !== null) {
                         if (!started) { ctx.moveTo(px, py); started = true; }
@@ -940,11 +966,13 @@
 
     function paneResizeAll() {
         paneRegistry.forEach(p => {
-            if (!p.chart || !p.boxEl || !p.viewEl) return;
-            if (p.boxEl.dataset.collapsed) return;
+            if (!p || !p.chart || !p.boxEl || !p.viewEl) return;
+            if (p.boxEl.dataset && p.boxEl.dataset.collapsed) return;
             const h = Math.max(30, p.boxEl.clientHeight);
-            const w = p.boxEl.clientWidth || p.viewEl.clientWidth;
-            p.viewEl.style.height = h + 'px';
+            const w = p.boxEl.clientWidth || (p.viewEl ? p.viewEl.clientWidth : 0);
+            if (p.viewEl && p.viewEl.style) {
+                p.viewEl.style.height = h + 'px';
+            }
             try { p.chart.applyOptions({ width: w, height: h }); } catch(e) {}
         });
         _spRedrawHooks();
@@ -982,7 +1010,7 @@
             const hdr = _spDrag.up.querySelector('.pane-header');
             const hdrH = hdr ? hdr.offsetHeight : 0;
             const view = _spDrag.up.querySelector('.chart-view') || _spDrag.up.children[0];
-            if (view) view.style.height = Math.max(20, newH - hdrH) + 'px';
+            if (view && view.style) view.style.height = Math.max(20, newH - hdrH) + 'px';
             if (typeof container !== 'undefined' && container) container.style.height = 'auto';
         } else {
             _spDrag.up.style.flex = 'none';
@@ -1009,7 +1037,7 @@
 
     function togglePaneVisibility(key) {
         const p = paneRegistry.find(r => r.key === key);
-        if (!p) return;
+        if (!p || !p.viewEl) return;
         const hidden = p.viewEl.style.visibility === 'hidden';
         p.viewEl.style.visibility = hidden ? 'visible' : 'hidden';
         const b = p.headerEl && p.headerEl.querySelector('[data-act="eye"]');
@@ -1021,7 +1049,7 @@
 
     function togglePaneCollapse(boxId) {
         const p = paneRegistry.find(r => r.boxEl && r.boxEl.id === boxId);
-        if (!p) return;
+        if (!p || !p.boxEl || !p.viewEl) return;
         const box = p.boxEl;
         if (!box.dataset.collapsed) {
             box.dataset.prevH = box.clientHeight + 'px';
@@ -1039,7 +1067,7 @@
 
     function closePaneBox(boxId) {
         const p = paneRegistry.find(r => r.boxEl && r.boxEl.id === boxId);
-        if (!p) return;
+        if (!p || !p.boxEl) return;
         p.boxEl.style.display = 'none';
         if (p.splitterEl) p.splitterEl.style.display = 'none';
         paneResizeAll();
@@ -1139,7 +1167,8 @@
     }
 
     if (!vBadge && chartWrap) {
-        vBadge = document.getElementById('global-sync-vbadge');
+        vBadge = document.createElement('div');
+        vBadge.id = 'global-sync-vbadge';
         vBadge.style.cssText = 'position:absolute;bottom:2px;transform:translateX(-50%);background:#1e222d;color:#d1d4dc;border:1px solid #363a45;border-radius:2px;padding:2px 6px;font-size:11px;font-family:-apple-system,BlinkMacSystemFont,"Trebuchet MS",Roboto,sans-serif;pointer-events:none;z-index:95;display:none;white-space:nowrap;line-height:16px;box-shadow:0 2px 5px rgba(0,0,0,0.6);font-weight:500;';
         chartWrap.appendChild(vBadge);
     }
@@ -1150,7 +1179,7 @@
         let dt;
         if (typeof t === 'number') {
             dt = new Date(t * 1000);
-        } else if (t.year && t.month && t.day) {
+        } else if (t && typeof t === 'object' && t.year && t.month && t.day) {
             dt = new Date(Date.UTC(t.year, t.month - 1, t.day));
         } else {
             return '';
@@ -1167,14 +1196,17 @@
         c.subscribeCrosshairMove(param => {
             if (!vLine) return;
             if (!param || !param.point || param.point.x === undefined || !param.time) {
-                vLine.style.display = 'none';
-                if (vBadge) vBadge.style.display = 'none';
+                if (vLine && vLine.style) vLine.style.display = 'none';
+                if (vBadge && vBadge.style) vBadge.style.display = 'none';
             } else {
-                const offLeft = (typeof mainView !== 'undefined' && mainView && chartWrap) ? (mainView.getBoundingClientRect().left - chartWrap.getBoundingClientRect().left) : 0;
+                const mainView = document.getElementById('chart-main');
+                const offLeft = (mainView && chartWrap) ? (mainView.getBoundingClientRect().left - chartWrap.getBoundingClientRect().left) : 0;
                 const posX = (param.point.x + offLeft) + 'px';
-                vLine.style.left = posX;
-                vLine.style.display = 'block';
-                if (vBadge) {
+                if (vLine && vLine.style) {
+                    vLine.style.left = posX;
+                    vLine.style.display = 'block';
+                }
+                if (vBadge && vBadge.style) {
                     vBadge.style.left = posX;
                     vBadge.innerText = _fmtTimeBadge(param.time);
                     vBadge.style.display = 'block';
@@ -1183,6 +1215,8 @@
         });
     });
 
+    // เริ่มต้นปรับขนาดและวาดใหม่อย่างแม่นยำ
+    resizeCanvas();
     window.addEventListener('resize', updateAllWidths);
     window.addEventListener('resize', () => { try { paneResizeAll(); } catch(e) {} });
     setTimeout(updateAllWidths, 100);
