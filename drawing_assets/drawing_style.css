@@ -123,7 +123,7 @@ html, body {
     height: 100%;
 }
 
-/* แถบเครื่องมือ TradingView & Submenu (ปรับให้กะทัดรัด ผอมลง ไม่บังจอ) */
+/* แถบเครื่องมือ TradingView ผอมเพรียวมาตรฐานแถวเดี่ยว */
 .draw-toolbar {
     position: absolute;
     top: 12px;
@@ -132,8 +132,7 @@ html, body {
     display: flex;
     flex-direction: column;
     gap: 3px;
-    max-height: 85vh;
-    overflow-y: auto;
+    width: 38px;
     background: rgba(20, 24, 35, 0.85) !important;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -142,13 +141,6 @@ html, body {
     padding: 3px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
     user-select: none;
-}
-.draw-toolbar::-webkit-scrollbar {
-    width: 3px;
-}
-.draw-toolbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 2px;
 }
 
 .drag-handle {
@@ -166,17 +158,22 @@ html, body {
 }
 
 .tool-btn {
-    width: 30px; height: 30px; background: transparent; border: 1px solid transparent;
-    border-radius: 4px; color: #b2b5be; font-size: 14px; display: flex; align-items: center;
+    width: 32px; height: 32px; background: transparent; border: 1.5px solid transparent;
+    border-radius: 5px; color: #b2b5be; font-size: 15px; display: flex; align-items: center;
     justify-content: center; cursor: pointer; transition: all 0.15s ease;
     position: relative;
     margin: 0 auto;
 }
 .tool-btn:hover { background: #2a2e39; color: #ffffff; }
-.tool-btn.active {
-    background: rgba(0, 255, 163, 0.15); border-color: #00FFA3; color: #00FFA3;
-    box-shadow: 0 0 8px rgba(0, 255, 163, 0.3);
+
+/* สไตล์กรอบเขียวนีออนตามรูปที่ 2 */
+.tool-btn.active, .tool-item-wrap.open .tool-btn {
+    background: rgba(0, 255, 163, 0.15) !important;
+    border: 1.8px solid #00FFA3 !important;
+    color: #00FFA3 !important;
+    box-shadow: 0 0 10px rgba(0, 255, 163, 0.45) !important;
 }
+
 .tool-btn.danger-active {
     background: rgba(242, 54, 69, 0.3) !important; color: #f23645 !important;
     border-color: #f23645 !important; box-shadow: 0 0 8px rgba(242, 54, 69, 0.5) !important;
@@ -191,25 +188,39 @@ html, body {
     color: #787b86;
 }
 
-/* ป๊อปอัปเมนูย่อย (Flyout Submenu) */
+/* ป๊อปอัปเมนูย่อย (เปิดค้างเมื่อคลิก ไม่แวบหาย) */
 .sub-menu {
     display: none;
     position: absolute;
     left: 36px;
-    top: 0;
+    top: -2px;
     background: #181b22;
     border: 1px solid #2a2e39;
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.85);
     border-radius: 6px;
     padding: 5px;
-    min-width: 170px;
+    min-width: 180px;
     z-index: 100;
     flex-direction: column;
     gap: 2px;
 }
+
+/* แสดงเมนูเมื่อถูกคลิกเปิด (.open) หรือชี้เมาส์ */
+.tool-item-wrap.open .sub-menu,
 .tool-item-wrap:hover .sub-menu {
     display: flex;
 }
+
+/* สะพานเชื่อมไม่ให้เมาส์หลุด */
+.sub-menu::before {
+    content: '';
+    position: absolute;
+    left: -10px;
+    top: 0;
+    width: 10px;
+    height: 100%;
+}
+
 .sub-item {
     display: flex;
     align-items: center;
@@ -226,7 +237,7 @@ html, body {
     color: #00FFA3;
 }
 .sub-item.active {
-    background: rgba(0, 255, 163, 0.2);
+    background: rgba(0, 255, 163, 0.25);
     color: #00FFA3;
     font-weight: bold;
 }
@@ -273,47 +284,3 @@ html, body {
 .qt-sell:hover { background: #f23645; color: #ffffff; box-shadow: 0 0 8px rgba(242, 54, 69, 0.4); }
 .qt-buy { background: rgba(0, 255, 163, 0.18); border-color: rgba(0, 255, 163, 0.4); color: #00FFA3; }
 .qt-buy:hover { background: #00FFA3; color: #000000; box-shadow: 0 0 8px rgba(0, 255, 163, 0.4); }
-
-/* Auto Fib Control Panel (ปรับให้กะทัดรัด ไม่เกะกะ) */
-.autofib-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    padding: 5px 6px;
-    background: rgba(15, 18, 26, 0.7);
-    border: 1px solid rgba(42, 46, 57, 0.7);
-    border-radius: 4px;
-    margin: 2px auto;
-    font-size: 10px;
-    color: #d1d4dc;
-    width: 114px;
-}
-.autofib-toggle {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    cursor: pointer;
-    user-select: none;
-    font-weight: 600;
-    color: #00FFA3;
-    font-size: 10px;
-}
-.autofib-toggle input[type="checkbox"] {
-    accent-color: #00FFA3;
-    cursor: pointer;
-    width: 12px;
-    height: 12px;
-}
-.autofib-slider-row {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    font-size: 9px;
-    color: #9aa0a6;
-}
-.autofib-slider-row input[type="range"] {
-    width: 100%;
-    height: 3px;
-    accent-color: #00FFA3;
-    cursor: pointer;
-}

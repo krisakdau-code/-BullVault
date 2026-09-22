@@ -133,48 +133,35 @@
     let isTbDragging = false;
     let tbOffsetX = 0, tbOffsetY = 0;
 
-    dragHandle.addEventListener('mousedown', (e) => {
-        isTbDragging = true;
-        tbOffsetX = e.clientX - toolbar.offsetLeft;
-        tbOffsetY = e.clientY - toolbar.offsetTop;
-        dragHandle.style.cursor = 'grabbing';
-        e.preventDefault();
-        e.stopPropagation();
-    });
+    if (dragHandle && toolbar) {
+        dragHandle.addEventListener('mousedown', (e) => {
+            isTbDragging = true;
+            tbOffsetX = e.clientX - toolbar.offsetLeft;
+            tbOffsetY = e.clientY - toolbar.offsetTop;
+            dragHandle.style.cursor = 'grabbing';
+            e.preventDefault();
+            e.stopPropagation();
+        });
 
-    window.addEventListener('mousemove', (e) => {
-        if (!isTbDragging) return;
-        let newX = e.clientX - tbOffsetX;
-        let newY = e.clientY - tbOffsetY;
-        const maxX = mainPaneBox.clientWidth - toolbar.offsetWidth - 6;
-        const maxY = mainPaneBox.clientHeight - toolbar.offsetHeight - 6;
-        newX = Math.max(6, Math.min(newX, maxX));
-        newY = Math.max(6, Math.min(newY, maxY));
-        toolbar.style.left = newX + 'px';
-        toolbar.style.top = newY + 'px';
-    });
+        window.addEventListener('mousemove', (e) => {
+            if (!isTbDragging) return;
+            let newX = e.clientX - tbOffsetX;
+            let newY = e.clientY - tbOffsetY;
+            const maxX = mainPaneBox.clientWidth - toolbar.offsetWidth - 6;
+            const maxY = mainPaneBox.clientHeight - toolbar.offsetHeight - 6;
+            newX = Math.max(6, Math.min(newX, maxX));
+            newY = Math.max(6, Math.min(newY, maxY));
+            toolbar.style.left = newX + 'px';
+            toolbar.style.top = newY + 'px';
+        });
 
-    window.addEventListener('mouseup', () => {
-        if (isTbDragging) {
-            isTbDragging = false;
-            dragHandle.style.cursor = 'grab';
-        }
-    });
-
-    // Auto Fib Control Listeners
-    const autoFibEnable = document.getElementById('autofib-enable');
-    const autoFibLookback = document.getElementById('autofib-lookback');
-    const autoFibVal = document.getElementById('autofib-val');
-    const autoFibGp = document.getElementById('autofib-gp');
-
-    if (autoFibLookback) {
-        autoFibLookback.addEventListener('input', () => {
-            if (autoFibVal) autoFibVal.textContent = autoFibLookback.value;
-            redrawAll();
+        window.addEventListener('mouseup', () => {
+            if (isTbDragging) {
+                isTbDragging = false;
+                dragHandle.style.cursor = 'grab';
+            }
         });
     }
-    if (autoFibEnable) autoFibEnable.addEventListener('change', redrawAll);
-    if (autoFibGp) autoFibGp.addEventListener('change', redrawAll);
 
     let isSyncing = false;
     allCharts.forEach((c, idx) => {
@@ -205,7 +192,23 @@
     let startPx = null;
     let currentPx = null;
     let penPoints = [];
+    let fibClickPoints = [];
+    let extPoints = [];
     let dragOrigObj = null;
+
+    // แปลงพิกัด X เป็น Logical Index (ไม่กระโดด)
+    function getLogicalFromX(x) {
+        if (!mainChart) return 0;
+        const logical = mainChart.timeScale().coordinateToLogical(x);
+        return logical !== null ? logical : 0;
+    }
+
+    // แปลงพิกัด Y เป็น ราคา
+    function getPriceFromY(y) {
+        if (!mainSeries) return 0;
+        const p = mainSeries.coordinateToPrice(y);
+        return p !== null ? p : 0;
+    }
 
     const toolBtns = {
         cursor: document.getElementById('btn-cursor'),
@@ -220,6 +223,10 @@
 
     function setTool(tool) {
         currentTool = tool;
+        fibClickPoints = [];
+        extPoints = [];
+        isDrawing = false;
+
         Object.keys(toolBtns).forEach(k => {
             if (toolBtns[k]) {
                 toolBtns[k].classList.toggle('active', k === tool && tool !== 'eraser');
@@ -235,9 +242,12 @@
         const patTools = ['head_shoulders', 'triangle', 'elliott_impulse', 'elliott_abc'];
         const calcTools = ['pos_long', 'pos_short', 'price_range', 'date_range'];
         
-        document.getElementById('btn-fib-group').classList.toggle('active', fibTools.includes(tool));
-        document.getElementById('btn-pattern-group').classList.toggle('active', patTools.includes(tool));
-        document.getElementById('btn-calc-group').classList.toggle('active', calcTools.includes(tool));
+        const bFib = document.getElementById('btn-fib-group');
+        const bPat = document.getElementById('btn-pattern-group');
+        const bCalc = document.getElementById('btn-calc-group');
+        if (bFib) bFib.classList.toggle('active', fibTools.includes(tool));
+        if (bPat) bPat.classList.toggle('active', patTools.includes(tool));
+        if (bCalc) bCalc.classList.toggle('active', calcTools.includes(tool));
 
         if (tool === 'cursor') {
             canvas.style.pointerEvents = (selectedIdx !== -1) ? 'auto' : 'none';
@@ -252,18 +262,48 @@
     }
 
     Object.keys(toolBtns).forEach(tool => {
-        if (toolBtns[tool]) toolBtns[tool].addEventListener('click', () => setTool(tool));
+        if (toolBtns[tool]) {
+            toolBtns[tool].addEventListener('click', (e) => {
+                e.stopPropagation();
+                document.querySelectorAll('.tool-item-wrap').forEach(w => w.classList.remove('open'));
+                setTool(tool);
+            });
+        }
+    });
+
+    const toolItemWraps = document.querySelectorAll('.tool-item-wrap');
+    toolItemWraps.forEach(wrap => {
+        const btn = wrap.querySelector('.tool-btn.has-sub');
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const wasOpen = wrap.classList.contains('open');
+                toolItemWraps.forEach(w => w.classList.remove('open'));
+                if (!wasOpen) {
+                    wrap.classList.add('open');
+                }
+            });
+        }
     });
 
     document.querySelectorAll('.sub-item').forEach(item => {
         item.addEventListener('click', (e) => {
             e.stopPropagation();
             const chosen = item.dataset.tool;
+            const wrap = item.closest('.tool-item-wrap');
+            if (wrap) wrap.classList.remove('open');
             setTool(chosen);
         });
     });
 
+    window.addEventListener('click', (e) => {
+        if (!e.target.closest('.tool-item-wrap')) {
+            toolItemWraps.forEach(w => w.classList.remove('open'));
+        }
+    });
+
     function updateSelectionUI() {
+        if (!btnDeleteSelected) return;
         if (selectedIdx !== -1) {
             btnDeleteSelected.classList.add('danger-active');
             btnDeleteSelected.style.opacity = '1';
@@ -282,30 +322,46 @@
         }
     }
 
-    btnDeleteSelected.addEventListener('click', () => {
-        if (selectedIdx >= 0 && selectedIdx < drawings.length) {
-            deleteSelected();
-        } else {
-            setTool('eraser');
-        }
-    });
+    if (btnDeleteSelected) {
+        btnDeleteSelected.addEventListener('click', () => {
+            if (selectedIdx >= 0 && selectedIdx < drawings.length) {
+                deleteSelected();
+            } else {
+                setTool('eraser');
+            }
+        });
+    }
 
-    document.getElementById('btn-undo').addEventListener('click', () => {
-        drawings.pop();
-        selectedIdx = -1;
-        updateSelectionUI();
-        saveAndRedraw();
-    });
+    const btnUndo = document.getElementById('btn-undo');
+    if (btnUndo) {
+        btnUndo.addEventListener('click', () => {
+            drawings.pop();
+            selectedIdx = -1;
+            updateSelectionUI();
+            saveAndRedraw();
+        });
+    }
 
-    document.getElementById('btn-clear').addEventListener('click', () => {
-        drawings = [];
-        selectedIdx = -1;
-        updateSelectionUI();
-        saveAndRedraw();
-    });
+    const btnClear = document.getElementById('btn-clear');
+    if (btnClear) {
+        btnClear.addEventListener('click', () => {
+            drawings = [];
+            fibClickPoints = [];
+            extPoints = [];
+            selectedIdx = -1;
+            updateSelectionUI();
+            saveAndRedraw();
+        });
+    }
 
     window.addEventListener('keydown', (e) => {
-        if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIdx !== -1) {
+        if (e.key === 'Escape') {
+            fibClickPoints = [];
+            extPoints = [];
+            isDrawing = false;
+            redrawAll();
+            setTool('cursor');
+        } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIdx !== -1) {
             deleteSelected();
         } else if (e.key === 'e' || e.key === 'E') {
             setTool('eraser');
@@ -336,11 +392,13 @@
 
     function getScreenCoords(d) {
         const tScale = mainChart.timeScale();
-        const x1 = tScale.timeToCoordinate(d.t1);
-        const x2 = tScale.timeToCoordinate(d.t2);
-        const y1 = mainSeries.priceToCoordinate(d.p1);
-        const y2 = mainSeries.priceToCoordinate(d.p2);
-        return { x1, y1, x2, y2 };
+        let x1 = (d.l1 !== undefined && d.l1 !== null) ? tScale.logicalToCoordinate(d.l1) : tScale.timeToCoordinate(d.t1);
+        let x2 = (d.l2 !== undefined && d.l2 !== null) ? tScale.logicalToCoordinate(d.l2) : tScale.timeToCoordinate(d.t2);
+        let x3 = (d.l3 !== undefined && d.l3 !== null) ? tScale.logicalToCoordinate(d.l3) : (d.t3 ? tScale.timeToCoordinate(d.t3) : null);
+        let y1 = mainSeries.priceToCoordinate(d.p1);
+        let y2 = mainSeries.priceToCoordinate(d.p2);
+        let y3 = (d.p3 !== undefined && d.p3 !== null) ? mainSeries.priceToCoordinate(d.p3) : null;
+        return { x1, y1, x2, y2, x3, y3 };
     }
 
     function hitTest(x, y) {
@@ -348,8 +406,9 @@
         if (selectedIdx !== -1 && drawings[selectedIdx]) {
             const d = drawings[selectedIdx];
             const pts = getScreenCoords(d);
-            if (pts.x1 !== null && pts.y1 !== null && ptDist(x, y, pts.x1, pts.y1) < 10) return { idx: selectedIdx, handle: 'h1' };
-            if (pts.x2 !== null && pts.y2 !== null && ptDist(x, y, pts.x2, pts.y2) < 10) return { idx: selectedIdx, handle: 'h2' };
+            if (pts.x1 !== null && pts.y1 !== null && ptDist(x, y, pts.x1, pts.y1) < 12) return { idx: selectedIdx, handle: 'h1' };
+            if (pts.x2 !== null && pts.y2 !== null && ptDist(x, y, pts.x2, pts.y2) < 12) return { idx: selectedIdx, handle: 'h2' };
+            if (pts.x3 !== null && pts.y3 !== null && ptDist(x, y, pts.x3, pts.y3) < 12) return { idx: selectedIdx, handle: 'h3' };
         }
 
         for (let i = drawings.length - 1; i >= 0; i--) {
@@ -360,9 +419,13 @@
             if (d.tool === 'horz') {
                 const targetY = y1 !== null ? y1 : d.fixedY;
                 if (targetY !== null && Math.abs(y - targetY) < 8) return { idx: i, handle: 'body' };
-            } else if (d.tool === 'trend' || d.tool === 'fib_ext') {
+            } else if (d.tool === 'trend') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
                     if (distToSegment(x, y, x1, y1, x2, y2) < 8) return { idx: i, handle: 'body' };
+                }
+            } else if (d.tool === 'fib_ext') {
+                if (window.FibonacciTool && window.FibonacciTool.hitTestExt(x, y, d, mainChart, mainSeries)) {
+                    return { idx: i, handle: 'body' };
                 }
             } else if (d.tool === 'box' || d.tool === 'pos_long' || d.tool === 'pos_short' || d.tool === 'price_range' || d.tool === 'date_range') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
@@ -371,14 +434,8 @@
                     if (x >= minX - 6 && x <= maxX + 6 && y >= minY - 6 && y <= maxY + 6) return { idx: i, handle: 'body' };
                 }
             } else if (d.tool === 'fib') {
-                if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
-                    const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0];
-                    for (let lvl of levels) {
-                        const curY = y1 + (y2 - y1) * lvl;
-                        if (Math.abs(y - curY) < 8 && x >= Math.min(x1, x2) - 10 && x <= Math.max(x1, x2) + 160) {
-                            return { idx: i, handle: 'body' };
-                        }
-                    }
+                if (window.FibonacciTool && window.FibonacciTool.hitTest(x, y, pts)) {
+                    return { idx: i, handle: 'body' };
                 }
             } else if (d.tool === 'circle') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
@@ -393,9 +450,9 @@
             } else if (d.tool === 'pen' && d.points) {
                 const tScale = mainChart.timeScale();
                 for (let j = 0; j < d.points.length - 1; j++) {
-                    const px1 = tScale.timeToCoordinate(d.points[j].t);
+                    const px1 = d.points[j].l !== undefined ? tScale.logicalToCoordinate(d.points[j].l) : tScale.timeToCoordinate(d.points[j].t);
                     const py1 = mainSeries.priceToCoordinate(d.points[j].p);
-                    const px2 = tScale.timeToCoordinate(d.points[j+1].t);
+                    const px2 = d.points[j+1].l !== undefined ? tScale.logicalToCoordinate(d.points[j+1].l) : tScale.timeToCoordinate(d.points[j+1].t);
                     const py2 = mainSeries.priceToCoordinate(d.points[j+1].p);
                     if (px1 && py1 && px2 && py2 && distToSegment(x, y, px1, py1, px2, py2) < 8) {
                         return { idx: i, handle: 'body' };
@@ -416,7 +473,7 @@
             const hit = hitTest(mouseX, mouseY);
             if (hit.idx !== -1) {
                 canvas.style.pointerEvents = 'auto';
-                canvas.style.cursor = (hit.handle === 'h1' || hit.handle === 'h2') ? 'pointer' : 'move';
+                canvas.style.cursor = (hit.handle && hit.handle.startsWith('h')) ? 'pointer' : 'move';
             } else if (selectedIdx === -1) {
                 canvas.style.pointerEvents = 'none';
             }
@@ -463,12 +520,57 @@
             return;
         }
 
+        // โหมดคลิก 2 จุดสำหรับ Fib Retracement
+        if (currentTool === 'fib') {
+            const l = getLogicalFromX(mouseX);
+            const p = getPriceFromY(mouseY);
+            if (fibClickPoints.length === 0) {
+                fibClickPoints.push({ x: mouseX, y: mouseY, l: l, p: p });
+                redrawAll();
+            } else if (fibClickPoints.length === 1) {
+                drawings.push({
+                    tool: 'fib',
+                    l1: fibClickPoints[0].l, p1: fibClickPoints[0].p,
+                    l2: l, p2: p,
+                    color: '#00FFA3'
+                });
+                fibClickPoints = [];
+                setTool('cursor');
+                saveAndRedraw();
+            }
+            return;
+        }
+
+        // โหมดคลิก 3 จุดสำหรับ Trend-Based Fib Extension
+        if (currentTool === 'fib_ext') {
+            const l = getLogicalFromX(mouseX);
+            const p = getPriceFromY(mouseY);
+            extPoints.push({ x: mouseX, y: mouseY, l: l, p: p });
+            if (extPoints.length === 3) {
+                drawings.push({
+                    tool: 'fib_ext',
+                    l1: extPoints[0].l, p1: extPoints[0].p,
+                    l2: extPoints[1].l, p2: extPoints[1].p,
+                    l3: extPoints[2].l, p3: extPoints[2].p,
+                    color: '#00FFA3'
+                });
+                extPoints = [];
+                setTool('cursor');
+                saveAndRedraw();
+            } else {
+                redrawAll();
+            }
+            return;
+        }
+
         if (currentTool === 'text') {
-            textOverlay.style.left = mouseX + 'px';
-            textOverlay.style.top = mouseY + 'px';
-            textOverlay.style.display = 'block';
-            textInput.value = '';
-            textInput.focus();
+            if (textOverlay && textInput) {
+                textOverlay.style.left = mouseX + 'px';
+                textOverlay.style.top = mouseY + 'px';
+                textOverlay.style.display = 'block';
+                textInput.value = '';
+                textInput.focus();
+            }
             startPx = { x: mouseX, y: mouseY };
             return;
         }
@@ -481,58 +583,68 @@
         }
     });
 
-    textInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const val = textInput.value.trim();
-            if (val && startPx && mainSeries) {
-                const t1 = mainChart.timeScale().coordinateToTime(startPx.x);
-                const p1 = mainSeries.coordinateToPrice(startPx.y);
-                if (p1 !== null) {
-                    drawings.push({
-                        tool: 'text',
-                        text: val,
-                        t1: t1 || 0,
-                        p1: p1,
-                        color: '#ffffff'
-                    });
-                    saveAndRedraw();
+    if (textInput && textOverlay) {
+        textInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                const val = textInput.value.trim();
+                if (val && startPx && mainSeries) {
+                    const l1 = getLogicalFromX(startPx.x);
+                    const p1 = getPriceFromY(startPx.y);
+                    if (p1 !== null) {
+                        drawings.push({
+                            tool: 'text',
+                            text: val,
+                            l1: l1,
+                            p1: p1,
+                            color: '#ffffff'
+                        });
+                        saveAndRedraw();
+                    }
                 }
+                textOverlay.style.display = 'none';
+                setTool('cursor');
+            } else if (e.key === 'Escape') {
+                textOverlay.style.display = 'none';
             }
-            textOverlay.style.display = 'none';
-            setTool('cursor');
-        } else if (e.key === 'Escape') {
-            textOverlay.style.display = 'none';
-        }
-    });
+        });
+    }
 
     canvas.addEventListener('mousemove', (e) => {
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
+        currentPx = { x: mouseX, y: mouseY, l: getLogicalFromX(mouseX), p: getPriceFromY(mouseY) };
 
         if (isDragging && selectedIdx !== -1 && dragOrigObj && mainSeries) {
             const dx = mouseX - startPx.x;
             const dy = mouseY - startPx.y;
             const d = drawings[selectedIdx];
-            const tScale = mainChart.timeScale();
 
             if (activeHandle === 'h1') {
                 const curOrig = getScreenCoords(dragOrigObj);
-                d.t1 = tScale.coordinateToTime(curOrig.x1 + dx) || d.t1;
-                d.p1 = mainSeries.coordinateToPrice(curOrig.y1 + dy) || d.p1;
+                d.l1 = getLogicalFromX(curOrig.x1 + dx);
+                d.p1 = getPriceFromY(curOrig.y1 + dy);
             } else if (activeHandle === 'h2') {
                 const curOrig = getScreenCoords(dragOrigObj);
-                d.t2 = tScale.coordinateToTime(curOrig.x2 + dx) || d.t2;
-                d.p2 = mainSeries.coordinateToPrice(curOrig.y2 + dy) || d.p2;
+                d.l2 = getLogicalFromX(curOrig.x2 + dx);
+                d.p2 = getPriceFromY(curOrig.y2 + dy);
+            } else if (activeHandle === 'h3') {
+                const curOrig = getScreenCoords(dragOrigObj);
+                d.l3 = getLogicalFromX(curOrig.x3 + dx);
+                d.p3 = getPriceFromY(curOrig.y3 + dy);
             } else if (activeHandle === 'body') {
                 const curOrig = getScreenCoords(dragOrigObj);
                 if (curOrig.x1 !== null && curOrig.y1 !== null) {
-                    d.t1 = tScale.coordinateToTime(curOrig.x1 + dx) || d.t1;
-                    d.p1 = mainSeries.coordinateToPrice(curOrig.y1 + dy) || d.p1;
+                    d.l1 = getLogicalFromX(curOrig.x1 + dx);
+                    d.p1 = getPriceFromY(curOrig.y1 + dy);
                 }
                 if (curOrig.x2 !== null && curOrig.y2 !== null) {
-                    d.t2 = tScale.coordinateToTime(curOrig.x2 + dx) || d.t2;
-                    d.p2 = mainSeries.coordinateToPrice(curOrig.y2 + dy) || d.p2;
+                    d.l2 = getLogicalFromX(curOrig.x2 + dx);
+                    d.p2 = getPriceFromY(curOrig.y2 + dy);
+                }
+                if (curOrig.x3 !== null && curOrig.y3 !== null) {
+                    d.l3 = getLogicalFromX(curOrig.x3 + dx);
+                    d.p3 = getPriceFromY(curOrig.y3 + dy);
                 }
                 if (d.tool === 'horz') {
                     d.fixedY = (dragOrigObj.fixedY || curOrig.y1) + dy;
@@ -542,8 +654,25 @@
             return;
         }
 
+        // Live Preview: Fib Retracement
+        if (currentTool === 'fib' && fibClickPoints.length === 1) {
+            redrawAll();
+            if (window.FibonacciTool) {
+                window.FibonacciTool.drawPreview(ctx, fibClickPoints[0], currentPx, mainSeries);
+            }
+            return;
+        }
+
+        // Live Preview: Trend-Based Fib Extension
+        if (currentTool === 'fib_ext' && extPoints.length > 0) {
+            redrawAll();
+            if (window.FibonacciTool) {
+                window.FibonacciTool.drawExtPreview(ctx, extPoints, currentPx, mainSeries, canvas.width);
+            }
+            return;
+        }
+
         if (!isDrawing) return;
-        currentPx = { x: mouseX, y: mouseY };
         if (currentTool === 'pen') {
             penPoints.push({ x: mouseX, y: mouseY });
         }
@@ -560,20 +689,23 @@
             return;
         }
 
+        if (currentTool === 'fib' || currentTool === 'fib_ext') {
+            return;
+        }
+
         if (!isDrawing) return;
         isDrawing = false;
 
         if (startPx && currentPx && mainSeries) {
-            const tScale = mainChart.timeScale();
-            const t1 = tScale.coordinateToTime(startPx.x);
-            const t2 = tScale.coordinateToTime(currentPx.x);
-            const p1 = mainSeries.coordinateToPrice(startPx.y);
-            const p2 = mainSeries.coordinateToPrice(currentPx.y);
+            const l1 = getLogicalFromX(startPx.x);
+            const l2 = getLogicalFromX(currentPx.x);
+            const p1 = getPriceFromY(startPx.y);
+            const p2 = getPriceFromY(currentPx.y);
 
             if (currentTool === 'pen') {
                 const pts = penPoints.map(pt => ({
-                    t: tScale.coordinateToTime(pt.x) || 0,
-                    p: mainSeries.coordinateToPrice(pt.y) || 0
+                    l: getLogicalFromX(pt.x),
+                    p: getPriceFromY(pt.y)
                 }));
                 if (pts.length > 1) {
                     drawings.push({ tool: 'pen', points: pts, color: '#f5c518' });
@@ -583,9 +715,9 @@
             } else if (p1 !== null) {
                 drawings.push({
                     tool: currentTool,
-                    t1: t1 || 0,
+                    l1: l1,
                     p1: p1,
-                    t2: t2 || 0,
+                    l2: l2,
                     p2: p2 !== null ? p2 : p1,
                     fixedY: startPx.y,
                     color: '#00FFA3'
@@ -603,7 +735,7 @@
         ctx.lineWidth = 2;
         ctx.setLineDash([4, 4]);
 
-        if (currentTool === 'trend' || currentTool === 'fib_ext') {
+        if (currentTool === 'trend') {
             ctx.beginPath();
             ctx.moveTo(startPx.x, startPx.y);
             ctx.lineTo(currentPx.x, currentPx.y);
@@ -642,15 +774,6 @@
             ctx.fillStyle = 'rgba(239, 83, 80, 0.12)';
             ctx.fill();
             ctx.stroke();
-        } else if (currentTool === 'fib') {
-            const levels = [0, 0.236, 0.382, 0.5, 0.618, 0.786, 1.0];
-            levels.forEach(lvl => {
-                const y = startPx.y + (currentPx.y - startPx.y) * lvl;
-                ctx.beginPath();
-                ctx.moveTo(startPx.x, y);
-                ctx.lineTo(currentPx.x + 80, y);
-                ctx.stroke();
-            });
         } else if (currentTool === 'pen' && penPoints.length > 1) {
             ctx.setLineDash([]);
             ctx.strokeStyle = '#f5c518';
@@ -662,78 +785,10 @@
         ctx.restore();
     }
 
-    // ฟังก์ชันคำนวณและวาด Auto Fib Retracement
-    function drawAutoFib() {
-        if (!autoFibEnable || !autoFibEnable.checked || !mainSeries) return;
-        const rawSeries = mainConfig.series.find(s => s.type === "Candlestick" && s.data);
-        if (!rawSeries || !rawSeries.data || rawSeries.data.length === 0) return;
-
-        const lookback = parseInt(autoFibLookback?.value || 120, 10);
-        const data = rawSeries.data;
-        const slice = data.slice(-Math.min(data.length, lookback));
-        if (slice.length < 2) return;
-
-        let hi = -Infinity, lo = Infinity;
-        let timeHi = null, timeLo = null;
-        slice.forEach(bar => {
-            if (bar.high > hi) { hi = bar.high; timeHi = bar.time; }
-            if (bar.low < lo) { lo = bar.low; timeLo = bar.time; }
-        });
-
-        const uptrend = timeLo <= timeHi;
-        const diff = hi - lo;
-        const ratios = [
-            { r: 0.0, c: '#787b86', lbl: '0.0%' },
-            { r: 0.236, c: '#f23645', lbl: '23.6%' },
-            { r: 0.382, c: '#ff9800', lbl: '38.2%' },
-            { r: 0.5, c: '#4caf50', lbl: '50.0%' },
-            { r: 0.618, c: '#00bcd4', lbl: '61.8% (Golden)' },
-            { r: 0.786, c: '#2196f3', lbl: '78.6%' },
-            { r: 1.0, c: '#787b86', lbl: '100%' }
-        ];
-
-        const tScale = mainChart.timeScale();
-        const x0 = tScale.timeToCoordinate(slice[0].time);
-        const x1 = tScale.timeToCoordinate(slice[slice.length - 1].time);
-        if (x0 === null || x1 === null) return;
-
-        ctx.save();
-        
-        if (autoFibGp && autoFibGp.checked) {
-            const y618 = mainSeries.priceToCoordinate(uptrend ? (hi - diff * 0.618) : (lo + diff * 0.618));
-            const y65 = mainSeries.priceToCoordinate(uptrend ? (hi - diff * 0.65) : (lo + diff * 0.65));
-            if (y618 !== null && y65 !== null) {
-                ctx.fillStyle = 'rgba(0, 188, 212, 0.12)';
-                ctx.fillRect(Math.min(x0, x1), Math.min(y618, y65), Math.abs(x1 - x0) + 120, Math.abs(y65 - y618));
-            }
-        }
-
-        ratios.forEach(lvl => {
-            const price = uptrend ? (hi - diff * lvl.r) : (lo + diff * lvl.r);
-            const y = mainSeries.priceToCoordinate(price);
-            if (y === null) return;
-
-            ctx.strokeStyle = lvl.c;
-            ctx.lineWidth = (lvl.r === 0.5 || lvl.r === 0.618) ? 1.5 : 1;
-            ctx.setLineDash(lvl.r === 0 || lvl.r === 1 ? [] : [3, 3]);
-            
-            ctx.beginPath();
-            ctx.moveTo(Math.min(x0, x1), y);
-            ctx.lineTo(Math.max(x0, x1) + 120, y);
-            ctx.stroke();
-
-            ctx.fillStyle = lvl.c;
-            ctx.font = '10px Roboto Mono, monospace';
-            ctx.fillText(`${lvl.lbl} (${price.toFixed(2)})`, Math.max(x0, x1) + 125, y + 3);
-        });
-
-        ctx.restore();
-    }
-
     function drawHandle(x, y) {
         ctx.save();
         ctx.beginPath();
-        ctx.arc(x, y, 5, 0, Math.PI * 2);
+        ctx.arc(x, y, 4.5, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         ctx.strokeStyle = '#00FFA3';
@@ -745,9 +800,6 @@
     function redrawAll() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         if (!mainSeries) return;
-
-        // วาด Auto Fib Retracement
-        drawAutoFib();
 
         const tScale = mainChart.timeScale();
 
@@ -769,13 +821,17 @@
                     ctx.stroke();
                     if (isSelected) drawHandle(canvas.width / 2, targetY);
                 }
-            } else if (d.tool === 'trend' || d.tool === 'fib_ext') {
+            } else if (d.tool === 'trend') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
                     ctx.beginPath();
                     ctx.moveTo(x1, y1);
                     ctx.lineTo(x2, y2);
                     ctx.stroke();
                     if (isSelected) { drawHandle(x1, y1); drawHandle(x2, y2); }
+                }
+            } else if (d.tool === 'fib_ext') {
+                if (window.FibonacciTool) {
+                    window.FibonacciTool.drawExt(ctx, d, mainChart, mainSeries, isSelected, canvas.width, drawHandle);
                 }
             } else if (d.tool === 'box') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
@@ -842,31 +898,8 @@
                     if (isSelected) { drawHandle(x1, y1); drawHandle(x2, y2); }
                 }
             } else if (d.tool === 'fib') {
-                if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
-                    const levels = [
-                        { r: 0.0, c: '#787b86' },
-                        { r: 0.236, c: '#f23645' },
-                        { r: 0.382, c: '#ff9800' },
-                        { r: 0.5, c: '#4caf50' },
-                        { r: 0.618, c: '#089981' },
-                        { r: 0.786, c: '#00bcd4' },
-                        { r: 1.0, c: '#787b86' }
-                    ];
-                    const maxX = Math.max(x1, x2) + 140;
-                    const minX = Math.min(x1, x2);
-                    levels.forEach(lvl => {
-                        const curY = y1 + (y2 - y1) * lvl.r;
-                        ctx.strokeStyle = lvl.c;
-                        ctx.beginPath();
-                        ctx.moveTo(minX, curY);
-                        ctx.lineTo(maxX, curY);
-                        ctx.stroke();
-
-                        ctx.fillStyle = lvl.c;
-                        ctx.font = '10px Roboto Mono, monospace';
-                        ctx.fillText(lvl.r + ' (' + (mainSeries.coordinateToPrice(curY)?.toFixed(2) || '') + ')', maxX - 65, curY - 3);
-                    });
-                    if (isSelected) { drawHandle(x1, y1); drawHandle(x2, y2); }
+                if (window.FibonacciTool) {
+                    window.FibonacciTool.draw(ctx, d, pts, isSelected, mainSeries, drawHandle);
                 }
             } else if (d.tool === 'text') {
                 if (x1 !== null && y1 !== null) {
@@ -880,7 +913,7 @@
                 ctx.beginPath();
                 let started = false;
                 for (let pt of d.points) {
-                    const px = tScale.timeToCoordinate(pt.t);
+                    const px = pt.l !== undefined ? tScale.logicalToCoordinate(pt.l) : tScale.timeToCoordinate(pt.t);
                     const py = mainSeries.priceToCoordinate(pt.p);
                     if (px !== null && py !== null) {
                         if (!started) { ctx.moveTo(px, py); started = true; }
@@ -1106,8 +1139,7 @@
     }
 
     if (!vBadge && chartWrap) {
-        vBadge = document.createElement('div');
-        vBadge.id = 'global-sync-vbadge';
+        vBadge = document.getElementById('global-sync-vbadge');
         vBadge.style.cssText = 'position:absolute;bottom:2px;transform:translateX(-50%);background:#1e222d;color:#d1d4dc;border:1px solid #363a45;border-radius:2px;padding:2px 6px;font-size:11px;font-family:-apple-system,BlinkMacSystemFont,"Trebuchet MS",Roboto,sans-serif;pointer-events:none;z-index:95;display:none;white-space:nowrap;line-height:16px;box-shadow:0 2px 5px rgba(0,0,0,0.6);font-weight:500;';
         chartWrap.appendChild(vBadge);
     }
