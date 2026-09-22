@@ -1,492 +1,248 @@
 /**
- * fibonacci_tool.js
- * โมดูลคำนวณและวาด Fib Retracement, Fib Extension และ Fib Time Zones สไตล์ TradingView
+ * pattern_tool.js — Professional Edition
+ * โมดูลคำนวณและวาดรูปแบบชาร์ต 14 รูปแบบ (Chart Patterns, Harmonic, Elliott Waves & Cycles)
+ * พร้อมระบบคำนวณสัดส่วน Fibonacci Ratios และโครงสร้างทางเทคนิคระดับมืออาชีพ
  */
-window.FibonacciTool = {
+
+window.PatternTool = {
     settings: {
-        extLength: 160,
-        opacity: 12
+        lineColor: '#00FFA3',
+        selectedColor: '#00e5ff',
+        fillOpacity: 12,
+        showRatios: true,
+        showLabels: true
     },
 
-    initSettings: function() {
-        try {
-            const saved = localStorage.getItem('tv_fib_user_settings');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                this.settings = Object.assign(this.settings, parsed);
-            }
-        } catch(e) {}
+    toolsConfig: {
+        'pat_xabcd':        { name: 'XABCD Pattern', points: 5, labels: ['X', 'A', 'B', 'C', 'D'], type: 'harmonic' },
+        'pat_cypher':       { name: 'Cypher Pattern', points: 5, labels: ['X', 'A', 'B', 'C', 'D'], type: 'harmonic' },
+        'head_shoulders':   { name: 'Head and Shoulders', points: 5, labels: ['LS', 'NL1', 'H', 'NL2', 'RS'], type: 'head_shoulders' },
+        'pat_abcd':         { name: 'ABCD Pattern', points: 4, labels: ['A', 'B', 'C', 'D'], type: 'abcd' },
+        'triangle':         { name: 'Triangle Pattern', points: 4, labels: ['A', 'B', 'C', 'D'], type: 'triangle' },
+        'pat_threedrives':  { name: 'Three Drives Pattern', points: 5, labels: ['1', 'A', '2', 'B', '3'], type: 'harmonic' },
+        'elliott_impulse':  { name: 'Elliott Impulse (1-2-3-4-5)', points: 5, labels: ['1', '2', '3', '4', '5'], type: 'elliott_impulse' },
+        'elliott_abc':      { name: 'Elliott Correction (A-B-C)', points: 3, labels: ['A', 'B', 'C'], type: 'elliott_abc' },
+        'elliott_triangle': { name: 'Elliott Triangle (A-B-C-D-E)', points: 5, labels: ['A', 'B', 'C', 'D', 'E'], type: 'elliott_triangle' },
+        'elliott_double':   { name: 'Elliott Double Combo (W-X-Y)', points: 3, labels: ['W', 'X', 'Y'], type: 'elliott_combo' },
+        'elliott_triple':   { name: 'Elliott Triple Combo (W-X-Y-X-Z)', points: 5, labels: ['W', 'X', 'Y', 'X', 'Z'], type: 'elliott_combo' },
+        'cycle_lines':      { name: 'Cyclic Lines', points: 2, labels: ['1', '2'], type: 'cycle_lines' },
+        'time_cycles':      { name: 'Time Cycles', points: 2, labels: ['1', '2'], type: 'time_cycles' },
+        'sine_line':        { name: 'Sine Line', points: 2, labels: ['P1', 'P2'], type: 'sine_line' }
     },
 
-    saveSettings: function(newCfg) {
-        this.settings = Object.assign(this.settings, newCfg);
-        try {
-            localStorage.setItem('tv_fib_user_settings', JSON.stringify(this.settings));
-        } catch(e) {}
-    },
+    isPatternTool: function(tool) { return !!this.toolsConfig[tool]; },
+    getRequiredPoints: function(tool) { return this.toolsConfig[tool] ? this.toolsConfig[tool].points : 0; },
 
-    retrLevels: [
-        { r: 0.0,   c: '#787b86', bg: 'rgba(120, 123, 134, 0.10)', lbl: '0' },
-        { r: 0.236, c: '#f23645', bg: 'rgba(242, 54, 69, 0.12)',   lbl: '0.236' },
-        { r: 0.382, c: '#81c784', bg: 'rgba(129, 199, 132, 0.12)', lbl: '0.382' },
-        { r: 0.5,   c: '#4caf50', bg: 'rgba(76, 175, 80, 0.12)',   lbl: '0.5' },
-        { r: 0.618, c: '#00bcd4', bg: 'rgba(0, 188, 212, 0.14)',  lbl: '0.618' },
-        { r: 0.786, c: '#64b5f6', bg: 'rgba(100, 181, 246, 0.12)', lbl: '0.786' },
-        { r: 1.0,   c: '#787b86', bg: 'rgba(120, 123, 134, 0.14)', lbl: '1' },
-        { r: 1.618, c: '#2962ff', bg: 'rgba(41, 98, 255, 0.15)',   lbl: '1.618' },
-        { r: 2.0,   c: '#009688', bg: 'rgba(0, 150, 136, 0.12)',   lbl: '2' },
-        { r: 2.618, c: '#f23645', bg: 'rgba(242, 54, 69, 0.14)',   lbl: '2.618' },
-        { r: 3.0,   c: '#2196f3', bg: 'rgba(33, 150, 243, 0.12)',  lbl: '3' },
-        { r: 3.618, c: '#9c27b0', bg: 'rgba(156, 39, 176, 0.14)',  lbl: '3.618' },
-        { r: 4.236, c: '#e91e63', bg: 'rgba(233, 30, 99, 0.15)',   lbl: '4.236' }
-    ],
-
-    extLevels: [
-        { r: 0.0,   c: '#787b86', bg: 'rgba(120, 123, 134, 0.10)', lbl: '0' },
-        { r: 0.236, c: '#f23645', bg: 'rgba(242, 54, 69, 0.12)',   lbl: '0.236' },
-        { r: 0.382, c: '#81c784', bg: 'rgba(129, 199, 132, 0.12)', lbl: '0.382' },
-        { r: 0.5,   c: '#4caf50', bg: 'rgba(76, 175, 80, 0.12)',   lbl: '0.5' },
-        { r: 0.618, c: '#00bcd4', bg: 'rgba(0, 188, 212, 0.14)',  lbl: '0.618' },
-        { r: 0.786, c: '#64b5f6', bg: 'rgba(100, 181, 246, 0.12)', lbl: '0.786' },
-        { r: 1.0,   c: '#787b86', bg: 'rgba(120, 123, 134, 0.14)', lbl: '1' },
-        { r: 1.272, c: '#ff9800', bg: 'rgba(255, 152, 0, 0.14)',   lbl: '1.272' },
-        { r: 1.618, c: '#2962ff', bg: 'rgba(41, 98, 255, 0.15)',   lbl: '1.618' },
-        { r: 2.0,   c: '#009688', bg: 'rgba(0, 150, 136, 0.12)',   lbl: '2' },
-        { r: 2.618, c: '#f23645', bg: 'rgba(242, 54, 69, 0.14)',   lbl: '2.618' },
-        { r: 3.618, c: '#9c27b0', bg: 'rgba(156, 39, 176, 0.14)',  lbl: '3.618' },
-        { r: 4.236, c: '#e91e63', bg: 'rgba(233, 30, 99, 0.15)',   lbl: '4.236' }
-    ],
-
-    // ลำดับสัดส่วน Fib Time Zone ตามมาตรฐาน TradingView
-    tzSequence: [0, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89],
-
-    _getCoordX: function(tScale, l, t) {
-        if (!tScale) return null;
-        if (l !== undefined && l !== null) {
-            try {
-                const x = tScale.logicalToCoordinate(l);
-                if (x !== null && !isNaN(x)) return x;
-            } catch(e) {}
+    getScreenPoint: function(pt, mainChart, mainSeries) {
+        let x = pt.x, y = pt.y;
+        if (mainChart && pt.l !== undefined && pt.l !== null) {
+            try { const cx = mainChart.timeScale().logicalToCoordinate(pt.l); if (cx !== null && !isNaN(cx)) x = cx; } catch(e) {}
         }
-        if (t !== undefined && t !== null && t !== 0 && t !== '') {
-            try {
-                const x = tScale.timeToCoordinate(t);
-                if (x !== null && !isNaN(x)) return x;
-            } catch(e) {}
+        if (mainSeries && pt.p !== undefined && pt.p !== null) {
+            try { const cy = mainSeries.priceToCoordinate(pt.p); if (cy !== null && !isNaN(cy)) y = cy; } catch(e) {}
         }
-        return null;
+        return { x: x, y: y };
     },
 
-    _drawCircle: function(ctx, x, y, r, color) {
+    draw: function(ctx, d, mainChart, mainSeries, isSelected, canvasWidth, canvasHeight, drawHandleFn) {
+        const conf = this.toolsConfig[d.tool];
+        if (!conf || !d.points || d.points.length < conf.points) return;
+
+        const pts = d.points.map(pt => this.getScreenPoint(pt, mainChart, mainSeries));
+        const color = isSelected ? '#00e5ff' : (d.color || '#00FFA3');
+        const alpha = (this.settings.fillOpacity / 100).toFixed(2);
+        const fillRgba = isSelected ? 'rgba(0, 229, 255, 0.15)' : `rgba(0, 255, 163, ${alpha})`;
+
         ctx.save();
-        ctx.beginPath();
-        ctx.arc(x, y, r || 4, 0, Math.PI * 2);
-        ctx.fillStyle = '#ffffff';
-        ctx.fill();
-        ctx.strokeStyle = color || '#00FFA3';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.restore();
-    },
+        ctx.strokeStyle = color;
+        ctx.fillStyle = fillRgba;
+        ctx.lineWidth = isSelected ? 2.5 : 2;
 
-    // ── 1. FIB RETRACEMENT ──
-    drawPreview: function(ctx, startPx, currentPx, mainSeries) {
-        if (!startPx || !currentPx) return;
-        const minX = Math.min(startPx.x, currentPx.x);
-        const maxX = Math.max(startPx.x, currentPx.x);
-        const w = Math.max(1, maxX - minX);
-        const baseY = currentPx.y;
-        const diffY = startPx.y - currentPx.y;
-        const p1 = (startPx.p !== undefined) ? startPx.p : (mainSeries ? mainSeries.coordinateToPrice(startPx.y) : null);
-        const p2 = (currentPx.p !== undefined) ? currentPx.p : (mainSeries ? mainSeries.coordinateToPrice(currentPx.y) : null);
-        const baseP = p2 !== null ? p2 : 0;
-        const diffP = (p1 !== null && p2 !== null) ? (p1 - p2) : 0;
-
-        for (let i = 0; i < this.retrLevels.length - 1; i++) {
-            const yA = baseY + diffY * this.retrLevels[i].r;
-            const yB = baseY + diffY * this.retrLevels[i + 1].r;
-            ctx.fillStyle = this.retrLevels[i + 1].bg;
-            ctx.fillRect(minX, Math.min(yA, yB), w, Math.abs(yB - yA));
+        switch (conf.type) {
+            case 'head_shoulders': this.drawHeadAndShoulders(ctx, pts, color, isSelected); break;
+            case 'harmonic': this.drawHarmonic(ctx, pts, d.points, color); break;
+            case 'abcd': this.drawABCD(ctx, pts, d.points, color); break;
+            case 'triangle': this.drawTriangle(ctx, pts, color); break;
+            case 'elliott_impulse':
+            case 'elliott_abc':
+            case 'elliott_triangle':
+            case 'elliott_combo': this.drawElliott(ctx, pts, d.points, color); break;
+            case 'cycle_lines':
+            case 'time_cycles':
+            case 'sine_line': this.drawCycles(ctx, conf.type, pts, color, canvasWidth, canvasHeight); break;
         }
 
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.45)';
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(startPx.x, startPx.y);
-        ctx.lineTo(currentPx.x, currentPx.y);
-        ctx.stroke();
-
-        ctx.setLineDash([]);
-        this._drawCircle(ctx, startPx.x, startPx.y, 4, '#00FFA3');
-        this._drawCircle(ctx, currentPx.x, currentPx.y, 4, '#00FFA3');
-
-        this.retrLevels.forEach(lvl => {
-            const y = baseY + diffY * lvl.r;
-            const price = baseP + diffP * lvl.r;
-            ctx.strokeStyle = lvl.c;
-            ctx.lineWidth = (lvl.r === 0.5 || lvl.r === 0.618 || lvl.r === 1.618) ? 1.5 : 1;
-            ctx.beginPath();
-            ctx.moveTo(minX, y);
-            ctx.lineTo(maxX, y);
-            ctx.stroke();
-
-            ctx.fillStyle = lvl.c;
-            ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, sans-serif';
-            const priceStr = (p1 !== null && p2 !== null) ? ` (${price.toFixed(4)})` : '';
-            ctx.fillText(`${lvl.lbl}${priceStr}`, minX + 6, y - 4);
-        });
-    },
-
-    draw: function(ctx, d, pts, isSelected, mainSeries, drawHandleFn) {
-        const { x1, y1, x2, y2 } = pts;
-        if (x1 === null || y1 === null || x2 === null || y2 === null) return;
-
-        const minX = Math.min(x1, x2);
-        const maxX = Math.max(x1, x2);
-        const w = Math.max(1, maxX - minX);
-        const baseY = y2;
-        const diffY = y1 - y2;
-        const baseP = d.p2;
-        const diffP = d.p1 - d.p2;
-
-        for (let i = 0; i < this.retrLevels.length - 1; i++) {
-            const yA = baseY + diffY * this.retrLevels[i].r;
-            const yB = baseY + diffY * this.retrLevels[i + 1].r;
-            ctx.fillStyle = this.retrLevels[i + 1].bg;
-            ctx.fillRect(minX, Math.min(yA, yB), w, Math.abs(yB - yA));
-        }
-
-        ctx.strokeStyle = isSelected ? '#00FFA3' : 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.stroke();
-
-        ctx.setLineDash([]);
-        this.retrLevels.forEach(lvl => {
-            const curY = baseY + diffY * lvl.r;
-            const price = baseP + diffP * lvl.r;
-            ctx.strokeStyle = isSelected ? '#00FFA3' : lvl.c;
-            ctx.lineWidth = (lvl.r === 0.5 || lvl.r === 0.618 || lvl.r === 1.618) ? 1.5 : 1;
-            ctx.beginPath();
-            ctx.moveTo(minX, curY);
-            ctx.lineTo(maxX, curY);
-            ctx.stroke();
-
-            ctx.fillStyle = lvl.c;
-            ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, sans-serif';
-            ctx.fillText(`${lvl.lbl} (${price.toFixed(4)})`, minX + 6, curY - 4);
-        });
-
-        if (isSelected && typeof drawHandleFn === 'function') {
-            drawHandleFn(x1, y1);
-            drawHandleFn(x2, y2);
-        }
-    },
-
-    hitTest: function(x, y, pts) {
-        const { x1, y1, x2, y2 } = pts;
-        if (x1 === null || y1 === null || x2 === null || y2 === null) return false;
-        const minX = Math.min(x1, x2) - 10;
-        const maxX = Math.max(x1, x2) + 10;
-        const baseY = y2;
-        const diffY = y1 - y2;
-        const allY = this.retrLevels.map(lvl => baseY + diffY * lvl.r);
-        const minY = Math.min(...allY) - 10;
-        const maxY = Math.max(...allY) + 10;
-        return (x >= minX && x <= maxX && y >= minY && y <= maxY);
-    },
-
-    // ── 2. TREND-BASED FIB EXTENSION ──
-    drawExtPreview: function(ctx, pts, curPx, mainSeries, canvasWidth) {
-        if (!pts || pts.length === 0) return;
-        ctx.save();
-
-        if (pts.length === 1) {
-            ctx.strokeStyle = '#00FFA3';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([3, 3]);
-            ctx.beginPath();
-            ctx.moveTo(pts[0].x, pts[0].y);
-            ctx.lineTo(curPx.x, curPx.y);
-            ctx.stroke();
-
-            ctx.setLineDash([]);
-            this._drawCircle(ctx, pts[0].x, pts[0].y, 4.5, '#00FFA3');
-            this._drawCircle(ctx, curPx.x, curPx.y, 4.5, '#00FFA3');
-
-            ctx.fillStyle = '#00FFA3';
-            ctx.font = 'bold 12px sans-serif';
-            ctx.fillText('A', pts[0].x + 8, pts[0].y - 8);
-            ctx.fillText('B (คลิกจุดที่ 2)', curPx.x + 8, curPx.y - 8);
-        } else if (pts.length === 2) {
-            ctx.strokeStyle = '#00FFA3';
-            ctx.lineWidth = 1.5;
-            ctx.setLineDash([3, 3]);
-            ctx.beginPath();
-            ctx.moveTo(pts[0].x, pts[0].y);
-            ctx.lineTo(pts[1].x, pts[1].y);
-            ctx.lineTo(curPx.x, curPx.y);
-            ctx.stroke();
-
-            ctx.setLineDash([]);
-            this._drawCircle(ctx, pts[0].x, pts[0].y, 4.5, '#00FFA3');
-            this._drawCircle(ctx, pts[1].x, pts[1].y, 4.5, '#00FFA3');
-            this._drawCircle(ctx, curPx.x, curPx.y, 4.5, '#00FFA3');
-
-            ctx.fillStyle = '#00FFA3';
-            ctx.font = 'bold 12px sans-serif';
-            ctx.fillText('A', pts[0].x + 8, pts[0].y - 8);
-            ctx.fillText('B', pts[1].x + 8, pts[1].y - 8);
-            ctx.fillText('C (คลิกจุดที่ 3)', curPx.x + 8, curPx.y - 8);
-
-            const p1 = pts[0].p, p2 = pts[1].p;
-            const p3 = (mainSeries ? mainSeries.coordinateToPrice(curPx.y) : null) || 0;
-            const diffP = p2 - p1;
-            const startX = curPx.x;
-            const extLen = parseInt(this.settings.extLength, 10) || 160;
-            const endX = startX + extLen;
-
-            const yLevels = this.extLevels.map(lvl => {
-                const targetPrice = p3 + diffP * lvl.r;
-                const ly = mainSeries ? mainSeries.priceToCoordinate(targetPrice) : null;
-                return { y: ly, price: targetPrice, lvl: lvl };
-            }).filter(item => item.y !== null);
-
-            for (let i = 0; i < yLevels.length - 1; i++) {
-                const yA = yLevels[i].y;
-                const yB = yLevels[i + 1].y;
-                ctx.fillStyle = yLevels[i + 1].lvl.bg;
-                ctx.fillRect(startX, Math.min(yA, yB), endX - startX, Math.abs(yB - yA));
-            }
-
-            ctx.setLineDash([]);
-            yLevels.forEach(item => {
-                ctx.strokeStyle = item.lvl.c;
-                ctx.lineWidth = (item.lvl.r === 0.618 || item.lvl.r === 1.0 || item.lvl.r === 1.618) ? 1.5 : 1;
-                ctx.beginPath();
-                ctx.moveTo(startX, item.y);
-                ctx.lineTo(endX, item.y);
-                ctx.stroke();
-
-                ctx.fillStyle = item.lvl.c;
-                ctx.font = 'bold 11px -apple-system, sans-serif';
-                ctx.fillText(`${item.lvl.lbl} (${item.price.toFixed(4)})`, startX + 6, item.y - 4);
+        if (this.settings.showLabels) {
+            pts.forEach((p, idx) => {
+                const label = conf.labels && conf.labels[idx] ? conf.labels[idx] : String(idx + 1);
+                this.drawPointBadge(ctx, p.x, p.y, label, color, isSelected);
+                if (isSelected && typeof drawHandleFn === 'function') drawHandleFn(p.x, p.y);
             });
         }
         ctx.restore();
     },
 
-    drawExt: function(ctx, d, mainChart, mainSeries, isSelected, canvasWidth, drawHandleFn) {
-        const tScale = mainChart.timeScale();
-        const x1 = this._getCoordX(tScale, d.l1, d.t1);
-        const y1 = (d.p1 !== undefined && d.p1 !== null) ? mainSeries.priceToCoordinate(d.p1) : null;
-        const x2 = this._getCoordX(tScale, d.l2, d.t2);
-        const y2 = (d.p2 !== undefined && d.p2 !== null) ? mainSeries.priceToCoordinate(d.p2) : null;
-        const x3 = this._getCoordX(tScale, d.l3, d.t3);
-        const y3 = (d.p3 !== undefined && d.p3 !== null) ? mainSeries.priceToCoordinate(d.p3) : null;
-
-        if (x1 === null || y1 === null || x2 === null || y2 === null || x3 === null || y3 === null) return;
-
-        ctx.save();
-        ctx.strokeStyle = isSelected ? '#00FFA3' : 'rgba(255, 255, 255, 0.5)';
-        ctx.lineWidth = 1.5;
-        ctx.setLineDash([3, 3]);
+    drawHeadAndShoulders: function(ctx, pts, color, isSelected) {
         ctx.beginPath();
-        ctx.moveTo(x1, y1);
-        ctx.lineTo(x2, y2);
-        ctx.lineTo(x3, y3);
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
+        ctx.fill();
 
-        ctx.fillStyle = isSelected ? '#00FFA3' : 'rgba(255, 255, 255, 0.8)';
-        ctx.font = 'bold 11px sans-serif';
-        ctx.fillText('A', x1 + 6, y1 - 6);
-        ctx.fillText('B', x2 + 6, y2 - 6);
-        ctx.fillText('C', x3 + 6, y3 - 6);
-
-        const diffP = d.p2 - d.p1;
-        const startX = x3;
-        const extLen = parseInt(this.settings.extLength, 10) || 160;
-        const endX = startX + extLen;
-
-        const yLevels = this.extLevels.map(lvl => {
-            const price = d.p3 + diffP * lvl.r;
-            return {
-                y: mainSeries.priceToCoordinate(price),
-                price: price,
-                lvl: lvl
-            };
-        }).filter(item => item.y !== null);
-
-        for (let i = 0; i < yLevels.length - 1; i++) {
-            const yA = yLevels[i].y;
-            const yB = yLevels[i + 1].y;
-            ctx.fillStyle = yLevels[i + 1].lvl.bg;
-            ctx.fillRect(startX, Math.min(yA, yB), endX - startX, Math.abs(yB - yA));
-        }
-
-        ctx.setLineDash([]);
-        yLevels.forEach(item => {
-            ctx.strokeStyle = isSelected ? '#00FFA3' : item.lvl.c;
-            ctx.lineWidth = (item.lvl.r === 0.618 || item.lvl.r === 1.0 || item.lvl.r === 1.618) ? 1.5 : 1;
+        if (pts.length >= 4) {
+            ctx.save();
+            ctx.strokeStyle = isSelected ? '#ffffff' : '#ffd54f';
+            ctx.lineWidth = 1.8;
+            ctx.setLineDash([6, 4]);
+            const dx = pts[3].x - pts[1].x, dy = pts[3].y - pts[1].y;
             ctx.beginPath();
-            ctx.moveTo(startX, item.y);
-            ctx.lineTo(endX, item.y);
+            ctx.moveTo(pts[1].x - dx * 0.3, pts[1].y - dy * 0.3);
+            ctx.lineTo(pts[3].x + dx * 0.6, pts[3].y + dy * 0.6);
             ctx.stroke();
-
-            ctx.fillStyle = item.lvl.c;
-            ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Trebuchet MS", Roboto, sans-serif';
-            ctx.fillText(`${item.lvl.lbl} (${item.price.toFixed(4)})`, startX + 6, item.y - 4);
-        });
-
-        if (isSelected && typeof drawHandleFn === 'function') {
-            drawHandleFn(x1, y1);
-            drawHandleFn(x2, y2);
-            drawHandleFn(x3, y3);
+            ctx.fillStyle = '#ffd54f';
+            ctx.font = 'bold 10px Roboto Mono, monospace';
+            ctx.fillText('Neckline', pts[3].x + 8, pts[3].y - 4);
+            ctx.restore();
         }
-        ctx.restore();
     },
 
-    hitTestExt: function(x, y, d, mainChart, mainSeries) {
-        const tScale = mainChart.timeScale();
-        const x1 = this._getCoordX(tScale, d.l1, d.t1);
-        const y1 = (d.p1 !== undefined && d.p1 !== null) ? mainSeries.priceToCoordinate(d.p1) : null;
-        const x2 = this._getCoordX(tScale, d.l2, d.t2);
-        const y2 = (d.p2 !== undefined && d.p2 !== null) ? mainSeries.priceToCoordinate(d.p2) : null;
-        const x3 = this._getCoordX(tScale, d.l3, d.t3);
-        const y3 = (d.p3 !== undefined && d.p3 !== null) ? mainSeries.priceToCoordinate(d.p3) : null;
-        if (x1 === null || y1 === null || x2 === null || y2 === null || x3 === null || y3 === null) return false;
-
-        const dist = (px, py, ax, ay, bx, by) => {
-            const l2 = (bx - ax)**2 + (by - ay)**2;
-            if (l2 === 0) return Math.hypot(px - ax, py - ay);
-            let t = Math.max(0, Math.min(1, ((px - ax)*(bx - ax) + (py - ay)*(by - ay)) / l2));
-            return Math.hypot(px - (ax + t*(bx - ax)), py - (ay + t*(by - ay)));
-        };
-
-        if (dist(x, y, x1, y1, x2, y2) < 8 || dist(x, y, x2, y2, x3, y3) < 8) return true;
-
-        const diffP = d.p2 - d.p1;
-        const extLen = parseInt(this.settings.extLength, 10) || 160;
-        for (let lvl of this.extLevels) {
-            const ly = mainSeries.priceToCoordinate(d.p3 + diffP * lvl.r);
-            if (ly !== null && Math.abs(y - ly) < 8 && x >= x3 - 10 && x <= x3 + extLen + 10) return true;
+    drawHarmonic: function(ctx, pts, rawPts, color) {
+        if (pts.length >= 5) {
+            ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[1].x, pts[1].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.closePath(); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(pts[2].x, pts[2].y); ctx.lineTo(pts[3].x, pts[3].y); ctx.lineTo(pts[4].x, pts[4].y); ctx.closePath(); ctx.fill();
         }
-        return false;
-    },
-
-    // ── 3. FIBONACCI TIME ZONES (2 จุดคลิกตามวิดีโอ) ──
-    drawTimeZonesPreview: function(ctx, startPx, curPx, mainChart, canvasHeight) {
-        if (!startPx || !curPx || !mainChart) return;
-        const tScale = mainChart.timeScale();
-        const l1 = (startPx.l !== undefined && startPx.l !== null) ? startPx.l : 0;
-        const l2 = (curPx.l !== undefined && curPx.l !== null) ? curPx.l : l1;
-        const deltaL = Math.max(1, Math.abs(l2 - l1));
-        const dir = (l2 >= l1) ? 1 : -1;
-
-        ctx.save();
-        this._drawCircle(ctx, startPx.x, startPx.y, 4.5, '#00FFA3');
-        this._drawCircle(ctx, curPx.x, curPx.y, 4.5, '#00FFA3');
-
-        // วาดเส้นประเชื่อม 2 จุดตั้งต้น
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(startPx.x, startPx.y);
-        ctx.lineTo(curPx.x, curPx.y);
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
         ctx.stroke();
 
-        ctx.setLineDash([4, 3]);
-        this.tzSequence.forEach((num) => {
-            const targetL = l1 + (dir * deltaL * num);
-            const cx = tScale.logicalToCoordinate(targetL);
-            if (cx !== null && cx >= -50 && cx <= ctx.canvas.width + 100) {
-                const col = (num === 0 || num === 1) ? '#00FFA3' : '#2962ff';
-                ctx.strokeStyle = col;
-                ctx.lineWidth = 1.2;
-                ctx.beginPath();
-                ctx.moveTo(cx, 0);
-                ctx.lineTo(cx, canvasHeight);
-                ctx.stroke();
-
-                ctx.fillStyle = col;
-                ctx.font = 'bold 11px -apple-system, sans-serif';
-                ctx.fillText(String(num), cx + 4, 18);
-            }
-        });
-        ctx.restore();
+        if (this.settings.showRatios && rawPts.length >= 5) {
+            ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.beginPath();
+            ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[2].x, pts[2].y);
+            ctx.moveTo(pts[1].x, pts[1].y); ctx.lineTo(pts[3].x, pts[3].y);
+            ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[4].x, pts[4].y);
+            ctx.stroke();
+            const ratio = (a, b, c) => Math.abs(b - a) > 0 ? (Math.abs(c - b) / Math.abs(b - a)).toFixed(3) : '0.000';
+            const badge = (p1, p2, txt) => {
+                const mx = (p1.x + p2.x)/2, my = (p1.y + p2.y)/2;
+                ctx.fillStyle = '#1e222d'; ctx.strokeStyle = color; ctx.font = 'bold 9px monospace';
+                const tw = ctx.measureText(txt).width + 6;
+                ctx.fillRect(mx - tw/2, my - 7, tw, 14); ctx.strokeRect(mx - tw/2, my - 7, tw, 14);
+                ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, mx, my);
+            };
+            badge(pts[0], pts[2], ratio(rawPts[0].p, rawPts[1].p, rawPts[2].p));
+            badge(pts[1], pts[3], ratio(rawPts[1].p, rawPts[2].p, rawPts[3].p));
+            badge(pts[0], pts[4], ratio(rawPts[0].p, rawPts[1].p, rawPts[4].p));
+            ctx.restore();
+        }
     },
 
-    drawTimeZones: function(ctx, d, mainChart, isSelected, canvasHeight, drawHandleFn) {
-        if (!mainChart || !ctx) return;
-        const tScale = mainChart.timeScale();
-        const l1 = (d.l1 !== undefined && d.l1 !== null) ? d.l1 : 0;
-        const l2 = (d.l2 !== undefined && d.l2 !== null) ? d.l2 : (l1 + 10);
-        const deltaL = Math.max(1, Math.abs(l2 - l1));
-        const dir = (l2 >= l1) ? 1 : -1;
-        const x1 = this._getCoordX(tScale, d.l1, d.t1);
-        const x2 = this._getCoordX(tScale, d.l2, d.t2);
+    drawABCD: function(ctx, pts, rawPts, color) {
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+        if (this.settings.showRatios && rawPts.length >= 4) {
+            const ab = Math.abs(rawPts[1].p - rawPts[0].p), bc = Math.abs(rawPts[2].p - rawPts[1].p), cd = Math.abs(rawPts[3].p - rawPts[2].p);
+            ctx.save(); ctx.font = 'bold 10px monospace'; ctx.fillStyle = '#00FFA3';
+            ctx.fillText(`BC/AB: ${ab > 0 ? (bc/ab).toFixed(3) : '0'}`, (pts[1].x+pts[2].x)/2+6, (pts[1].y+pts[2].y)/2);
+            ctx.fillText(`CD/BC: ${bc > 0 ? (cd/bc).toFixed(3) : '0'}`, (pts[2].x+pts[3].x)/2+6, (pts[2].y+pts[3].y)/2);
+            ctx.restore();
+        }
+    },
 
+    drawTriangle: function(ctx, pts, color) {
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.closePath(); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[2].x, pts[2].y);
+        ctx.moveTo(pts[1].x, pts[1].y); ctx.lineTo(pts[3].x, pts[3].y);
+        ctx.stroke();
+    },
+
+    drawElliott: function(ctx, pts, rawPts, color) {
+        ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
+        ctx.stroke();
+        if (this.settings.showRatios && pts.length >= 3) {
+            ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.setLineDash([2,2]);
+            ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y); ctx.lineTo(pts[2].x, pts[2].y); ctx.stroke();
+            ctx.restore();
+        }
+    },
+
+    drawCycles: function(ctx, type, pts, color, canvasWidth, canvasHeight) {
+        if (pts.length < 2) return;
+        const dx = Math.abs(pts[1].x - pts[0].x);
+        if (dx < 6) return;
         ctx.save();
-        const coords = [];
-        this.tzSequence.forEach(num => {
-            const targetL = l1 + (dir * deltaL * num);
-            const cx = tScale.logicalToCoordinate(targetL);
-            if (cx !== null) coords.push({ x: cx, num: num });
-        });
-
-        // ระบายแถบสีสลับโซน
-        for (let i = 0; i < coords.length - 1; i++) {
-            const leftX = coords[i].x;
-            const rightX = coords[i + 1].x;
-            if (rightX > 0 && leftX < ctx.canvas.width) {
-                ctx.fillStyle = (i % 2 === 0) ? 'rgba(41, 98, 255, 0.08)' : 'rgba(0, 255, 163, 0.05)';
-                ctx.fillRect(Math.min(leftX, rightX), 0, Math.abs(rightX - leftX), canvasHeight);
+        if (type === 'cycle_lines') {
+            ctx.setLineDash([4, 4]);
+            for (let x = (pts[0].x % dx); x < canvasWidth; x += dx) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasHeight); ctx.stroke();
             }
-        }
-
-        // วาดเส้นแนวตั้งเต็มจอตามวิดีโอ
-        coords.forEach(pt => {
-            if (pt.x >= -30 && pt.x <= ctx.canvas.width + 50) {
-                ctx.strokeStyle = isSelected ? '#00FFA3' : ((pt.num === 0 || pt.num === 1) ? '#00FFA3' : '#64b5f6');
-                ctx.lineWidth = (pt.num === 0 || pt.num === 1) ? 1.5 : 1;
-                ctx.setLineDash([4, 4]);
-                ctx.beginPath();
-                ctx.moveTo(pt.x, 0);
-                ctx.lineTo(pt.x, canvasHeight);
-                ctx.stroke();
-
-                ctx.fillStyle = isSelected ? '#00FFA3' : '#64b5f6';
-                ctx.font = 'bold 11px -apple-system, sans-serif';
-                ctx.fillText(String(pt.num), pt.x + 4, 18);
+        } else if (type === 'time_cycles') {
+            const radius = dx / 2, baseY = pts[0].y;
+            for (let cx = (Math.min(pts[0].x, pts[1].x) % dx); cx < canvasWidth + radius; cx += dx) {
+                ctx.beginPath(); ctx.arc(cx + radius, baseY, radius, 0, Math.PI, false); ctx.stroke();
             }
-        });
-
-        // จุด Handle สำหรับคลิกย้าย
-        if (isSelected && typeof drawHandleFn === 'function' && x1 !== null && x2 !== null) {
-            drawHandleFn(x1, 30);
-            drawHandleFn(x2, 30);
+        } else if (type === 'sine_line') {
+            const amp = Math.abs(pts[1].y - pts[0].y) || 40, midY = pts[0].y, period = dx * 2;
+            ctx.beginPath();
+            for (let x = 0; x < canvasWidth; x += 3) {
+                const y = midY + amp * Math.sin(((x - pts[0].x) / period) * Math.PI * 2);
+                if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
         }
         ctx.restore();
     },
 
-    hitTestTimeZones: function(x, y, d, mainChart) {
-        if (!mainChart) return false;
-        const tScale = mainChart.timeScale();
-        const l1 = (d.l1 !== undefined && d.l1 !== null) ? d.l1 : 0;
-        const l2 = (d.l2 !== undefined && d.l2 !== null) ? d.l2 : (l1 + 10);
-        const deltaL = Math.max(1, Math.abs(l2 - l1));
-        const dir = (l2 >= l1) ? 1 : -1;
-        for (let num of this.tzSequence) {
-            const targetL = l1 + (dir * deltaL * num);
-            const cx = tScale.logicalToCoordinate(targetL);
-            if (cx !== null && Math.abs(x - cx) < 8) return true;
+    drawPointBadge: function(ctx, x, y, label, color, isSelected) {
+        ctx.save();
+        ctx.beginPath(); ctx.arc(x, y, 11, 0, Math.PI * 2);
+        ctx.fillStyle = '#131722'; ctx.fill();
+        ctx.strokeStyle = color; ctx.lineWidth = isSelected ? 2 : 1.5; ctx.stroke();
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, x, y);
+        ctx.restore();
+    },
+
+    drawPreview: function(ctx, tool, points, currentMouse, mainChart, mainSeries) {
+        const conf = this.toolsConfig[tool];
+        if (!conf || points.length === 0) return;
+        const screenPts = points.map(pt => this.getScreenPoint(pt, mainChart, mainSeries));
+        ctx.save(); ctx.strokeStyle = '#00FFA3'; ctx.lineWidth = 1.8;
+        if (screenPts.length > 1) {
+            ctx.beginPath(); ctx.moveTo(screenPts[0].x, screenPts[0].y);
+            for (let i = 1; i < screenPts.length; i++) ctx.lineTo(screenPts[i].x, screenPts[i].y);
+            ctx.stroke();
+        }
+        const last = screenPts[screenPts.length - 1];
+        ctx.beginPath(); ctx.setLineDash([4, 4]); ctx.moveTo(last.x, last.y); ctx.lineTo(currentMouse.x, currentMouse.y); ctx.stroke();
+        screenPts.forEach((p, idx) => {
+            const label = conf.labels && conf.labels[idx] ? conf.labels[idx] : String(idx + 1);
+            this.drawPointBadge(ctx, p.x, p.y, label, '#00FFA3', false);
+        });
+        const nxt = screenPts.length;
+        this.drawPointBadge(ctx, currentMouse.x, currentMouse.y, conf.labels && conf.labels[nxt] ? conf.labels[nxt] : String(nxt + 1), '#00e5ff', true);
+        ctx.restore();
+    },
+
+    hitTest: function(x, y, d, mainChart, mainSeries) {
+        if (!d.points || d.points.length < 2) return false;
+        const screenPts = d.points.map(pt => this.getScreenPoint(pt, mainChart, mainSeries));
+        const dist = (x1, y1, x2, y2) => Math.hypot(x2 - x1, y2 - y1);
+        const segDist = (px, py, x1, y1, x2, y2) => {
+            const l2 = (x2 - x1)**2 + (y2 - y1)**2;
+            if (l2 === 0) return dist(px, py, x1, y1);
+            let t = ((px - x1)*(x2 - x1) + (py - y1)*(y2 - y1)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return dist(px, py, x1 + t*(x2 - x1), y1 + t*(y2 - y1));
+        };
+        for (let i = 0; i < screenPts.length - 1; i++) {
+            if (segDist(x, y, screenPts[i].x, screenPts[i].y, screenPts[i+1].x, screenPts[i+1].y) < 8) return true;
         }
         return false;
     }
 };
-
-window.FibonacciTool.initSettings();

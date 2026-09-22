@@ -202,7 +202,7 @@
     let penPoints = [];
     let fibClickPoints = [];
     let extPoints = [];
-    let tzPoints = []; // จุดสะสมสำหรับ Fib Time Zones (2 จุด)
+    let tzPoints = [];
     let patternClickPoints = [];
     let dragOrigObj = null;
 
@@ -237,26 +237,33 @@
         patternClickPoints = [];
         isDrawing = false;
 
-        Object.keys(toolBtns).forEach(k => {
-            if (toolBtns[k]) {
-                toolBtns[k].classList.toggle('active', k === tool && tool !== 'eraser');
-                toolBtns[k].classList.toggle('eraser-active', k === tool && tool === 'eraser');
-            }
+        document.querySelectorAll('.tool-btn, .sub-item').forEach(el => {
+            el.classList.remove('active', 'eraser-active');
         });
 
-        document.querySelectorAll('.sub-item').forEach(el => {
-            el.classList.toggle('active', el.dataset.tool === tool);
-        });
+        if (tool === 'cursor') {
+            const btn = document.getElementById('btn-cursor');
+            if (btn) btn.classList.add('active');
+        } else if (toolBtns && toolBtns[tool]) {
+            toolBtns[tool].classList.add(tool === 'eraser' ? 'eraser-active' : 'active');
+        } else {
+            const sub = document.querySelector(`[data-tool="${tool}"]`);
+            if (sub) {
+                sub.classList.add('active');
+                const parent = sub.closest('.tool-btn');
+                if (parent) parent.classList.add('active');
+            }
+        }
 
         const fibTools = ['fib', 'fib_ext', 'fib_tz'];
-        const patTools = ['head_shoulders', 'triangle', 'elliott_impulse', 'elliott_abc'];
+        const patTools = ['head_shoulders', 'triangle', 'elliott_impulse', 'elliott_abc', 'pat_xabcd', 'pat_cypher', 'pat_three_drives', 'pat_elliott_wave_12345', 'pat_elliott_wave_abc', 'pat_elliott_triangle', 'pat_elliott_double_combo', 'pat_elliott_triple_combo', 'pat_cyclic_lines', 'pat_time_cycles', 'pat_sine_line'];
         const calcTools = ['pos_long', 'pos_short', 'price_range', 'date_range'];
         
         const bFib = document.getElementById('btn-fib-group');
         const bPat = document.getElementById('btn-pattern-group');
         const bCalc = document.getElementById('btn-calc-group');
         if (bFib) bFib.classList.toggle('active', fibTools.includes(tool));
-        if (bPat) bPat.classList.toggle('active', patTools.includes(tool));
+        if (bPat) bPat.classList.toggle('active', (window.PatternTool && window.PatternTool.isPatternTool(tool)) || patTools.includes(tool));
         if (bCalc) bCalc.classList.toggle('active', calcTools.includes(tool));
 
         if (tool === 'cursor') {
@@ -270,6 +277,7 @@
         }
         redrawAll();
     }
+    window.setTool = setTool;
 
     Object.keys(toolBtns).forEach(tool => {
         if (toolBtns[tool]) {
@@ -395,6 +403,7 @@
             fibClickPoints = [];
             extPoints = [];
             tzPoints = [];
+            patternClickPoints = [];
             selectedIdx = -1;
             updateSelectionUI();
             try { localStorage.removeItem(storageKey); } catch(e) {}
@@ -407,6 +416,7 @@
             fibClickPoints = [];
             extPoints = [];
             tzPoints = [];
+            patternClickPoints = [];
             isDrawing = false;
             if (fibModal) fibModal.classList.remove('open');
             redrawAll();
@@ -501,9 +511,9 @@
                 if (window.FibonacciTool && window.FibonacciTool.hitTestTimeZones(x, y, d, mainChart)) {
                     return { idx: i, handle: 'body' };
                 }
-                } else if (window.PatternTool && window.PatternTool.isPatternTool(d.tool)) {
-            if (window.PatternTool.hitTest(x, y, d, mainChart, mainSeries)) {
-                return { idx: i, handle: 'body' };
+            } else if (window.PatternTool && window.PatternTool.isPatternTool(d.tool)) {
+                if (window.PatternTool.hitTest(x, y, d, mainChart, mainSeries)) {
+                    return { idx: i, handle: 'body' };
                 }
             } else if (d.tool === 'box' || d.tool === 'pos_long' || d.tool === 'pos_short' || d.tool === 'price_range' || d.tool === 'date_range') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
@@ -660,13 +670,15 @@
             }
             return;
         }
+
         // โหมดคลิกสำหรับ Chart Patterns (14 รูปแบบ)
         if (window.PatternTool && window.PatternTool.isPatternTool(currentTool)) {
             const l = getLogicalFromX(mouseX);
             const p = getPriceFromY(mouseY);
             patternClickPoints.push({ x: mouseX, y: mouseY, l: l, p: p });
             const req = window.PatternTool.getRequiredPoints(currentTool);
-            if (patternClickPoints.length === req) {
+
+            if (patternClickPoints.length >= req) {
                 drawings.push({
                     tool: currentTool,
                     points: [...patternClickPoints],
@@ -677,6 +689,20 @@
                 saveAndRedraw();
             } else {
                 redrawAll();
+                patternClickPoints.forEach((pt, i) => {
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = '#00FFA3';
+                    ctx.fill();
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    ctx.fillStyle = '#00FFA3';
+                    ctx.font = 'bold 12px sans-serif';
+                    ctx.fillText(String(i + 1), pt.x + 8, pt.y - 8);
+                    ctx.restore();
+                });
             }
             return;
         }
@@ -798,12 +824,27 @@
             }
             return;
         }
+
         // Live Preview: Chart Patterns
-     if (patternClickPoints.length > 0 && window.PatternTool && window.PatternTool.isPatternTool(currentTool)) {
-         redrawAll();
-         window.PatternTool.drawPreview(ctx, currentTool, patternClickPoints, currentPx, mainChart, mainSeries, canvas.width, canvas.height);
-         return;
-     }
+        if (patternClickPoints.length > 0 && window.PatternTool && window.PatternTool.isPatternTool(currentTool)) {
+            redrawAll();
+            window.PatternTool.drawPreview(ctx, currentTool, patternClickPoints, { x: mouseX, y: mouseY, l: getLogicalFromX(mouseX), p: getPriceFromY(mouseY) }, mainChart, mainSeries, canvas.width, canvas.height);
+            patternClickPoints.forEach((pt, i) => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(pt.x, pt.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = '#00FFA3';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                ctx.fillStyle = '#00FFA3';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(String(i + 1), pt.x + 8, pt.y - 8);
+                ctx.restore();
+            });
+            return;
+        }
 
         if (!isDrawing) return;
         if (currentTool === 'pen') {
@@ -968,9 +1009,8 @@
                 if (window.FibonacciTool) {
                     window.FibonacciTool.drawTimeZones(ctx, d, mainChart, isSelected, canvas.height, drawHandle);
                 }
-                else if (window.PatternTool && window.PatternTool.isPatternTool(d.tool)) {
+            } else if (window.PatternTool && window.PatternTool.isPatternTool(d.tool)) {
                 window.PatternTool.draw(ctx, d, mainChart, mainSeries, isSelected, canvas.width, canvas.height, drawHandle);
-            }
             } else if (d.tool === 'box') {
                 if (x1 !== null && y1 !== null && x2 !== null && y2 !== null) {
                     const w = x2 - x1, h = y2 - y1;
@@ -1334,4 +1374,35 @@
     setTimeout(paneResizeAll, 150);
     setTimeout(updateAllWidths, 300);
     setTimeout(paneResizeAll, 350);
+
+    // เผยแพร่ setTool ให้เรียกจากภายนอกได้
+    window.setTool = setTool;
+
+    // เชื่อมต่อการคลิกเลือกเครื่องมือรูปแบบชาร์ต (14 รูปแบบ)
+    document.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-tool]');
+        if (item) {
+            const tool = item.getAttribute('data-tool');
+            if (tool && tool !== 'cursor') {
+                e.stopPropagation();
+                setTool(tool);
+                // ปิดกล่องเมนูดรอปดาวน์ด้วยวิธีมาตรฐานเดิม โดยไม่ฝัง inline style
+                document.querySelectorAll('.tool-item-wrap').forEach(w => w.classList.remove('open'));
+            }
+        }
+    });
+
+    // สำรอง Event Delegation เผื่อคลิกโดนข้อความหรือไอคอนด้านใน
+    document.addEventListener('click', (e) => {
+        const item = e.target.closest('[data-tool]');
+        if (item) {
+            const tool = item.getAttribute('data-tool');
+            if (tool && tool !== 'cursor') {
+                setTool(tool);
+                document.querySelectorAll('.tool-dropdown-menu, .sub-menu, .sub-dropdown, .dropdown-menu').forEach(m => {
+                    m.style.display = 'none';
+                });
+            }
+        }
+    });
 })();
