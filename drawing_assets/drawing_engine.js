@@ -1529,4 +1529,81 @@
             redrawAll();
         });
     }
+    // =========================================================================
+   // =========================================================================
+    // ระบบ Dropdown สลับหน่วยราคา (ปุ่ม เดิม ⌵)
+    // =========================================================================
+    const btnScaleToggle = document.getElementById('btn-scale-toggle');
+    const scaleMenu = document.getElementById('price-scale-menu');
+    const activeLabel = document.getElementById('scale-active-label');
+    const USD_TO_THB_RATE = 35.0;
+
+    if (btnScaleToggle && scaleMenu) {
+        btnScaleToggle.onclick = function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            const isOpen = scaleMenu.style.display === 'flex';
+            scaleMenu.style.display = isOpen ? 'none' : 'flex';
+        };
+
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('#price-scale-dropdown-wrap')) {
+                scaleMenu.style.display = 'none';
+            }
+        });
+
+        const items = scaleMenu.querySelectorAll('.scale-menu-item');
+        items.forEach(function(item) {
+            item.onclick = function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+
+                items.forEach(function(b) {
+                    b.style.color = '#d1d4dc';
+                    b.classList.remove('active');
+                });
+                item.style.color = '#00FFA3';
+                item.classList.add('active');
+
+                const mode = item.getAttribute('data-mode');
+                const labelText = item.innerText.split(' ')[0];
+                if (activeLabel) activeLabel.innerText = labelText;
+
+                if (mainChart && mainSeries) {
+                    if (mode === 'percent') {
+                        mainChart.priceScale('right').applyOptions({ mode: 2 });
+                        mainSeries.applyOptions({ priceFormat: { type: 'percent' } });
+                    } else if (mode === 'thb') {
+                        mainChart.priceScale('right').applyOptions({ mode: 0 });
+                        mainSeries.applyOptions({
+                            priceFormat: {
+                                type: 'custom',
+                                formatter: function(p) {
+                                    return '฿' + (p * USD_TO_THB_RATE).toLocaleString('th-TH', { maximumFractionDigits: 0 });
+                                }
+                            }
+                        });
+                    } else if (mode === 'usd') {
+                        mainChart.priceScale('right').applyOptions({ mode: 0 });
+                        mainSeries.applyOptions({
+                            priceFormat: {
+                                type: 'custom',
+                                formatter: function(p) {
+                                    return '$' + p.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                                }
+                            }
+                        });
+                    } else {
+                        mainChart.priceScale('right').applyOptions({ mode: 0 });
+                        mainSeries.applyOptions({
+                            priceFormat: { type: 'price', precision: 2, minMove: 0.01 }
+                        });
+                    }
+                    if (typeof redrawAll === 'function') redrawAll();
+                }
+
+                scaleMenu.style.display = 'none';
+            };
+        });
+    }
 })();

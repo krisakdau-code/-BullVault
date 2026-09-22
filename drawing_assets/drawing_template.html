@@ -23,7 +23,7 @@
             display: flex;
         }
         .pro-modal-box {
-            background: #1e222d;
+            background: #000000;
             border: 1px solid #2a2e39;
             border-radius: 8px;
             width: 380px;
@@ -84,7 +84,7 @@
         }
         .pro-tab-btn.active {
             color: #ffffff;
-            border-bottom-color: #2962ff;
+            border-bottom-color: #FB932B;
         }
         .pro-tab-body {
             padding: 14px 18px;
@@ -111,7 +111,8 @@
             gap: 6px;
         }
         .pro-check {
-            accent-color: #2962ff;
+            border-bottom-color: #FB932B;
+            accent-color: #FB932B;
             cursor: pointer;
             width: 15px;
             height: 15px;
@@ -128,7 +129,7 @@
             text-align: right;
         }
         .pro-val-input:focus {
-            border-color: #2962ff;
+            border-color: #FB932B;
             outline: none;
         }
         .pro-color-btn {
@@ -162,7 +163,7 @@
         }
         .pro-slider {
             flex: 1;
-            accent-color: #2962ff;
+            accent-color: #FB932B;
             cursor: pointer;
         }
         .pro-coord-row {
@@ -187,7 +188,7 @@
             outline: none;
         }
         .pro-coord-input:focus {
-            border-color: #2962ff;
+            border-color: #FB932B;
         }
         .pro-modal-footer {
             display: flex;
@@ -213,7 +214,7 @@
             color: #ffffff;
         }
         .pro-btn-apply {
-            background: #2962ff;
+            background: #FB932B;
             border: none;
             color: #ffffff;
             padding: 6px 18px;
@@ -251,6 +252,20 @@
         <div id="main-pane-container">
             <div id="chart-main"></div>
             <canvas id="drawing-canvas"></canvas>
+            <!-- สวิตช์เลือกหน่วยราคา (วงสีแดง) -->
+            <!-- Dropdown สลับหน่วยราคา ซ่อนใต้ปุ่มลูกศร ⌵ -->
+            <div id="price-scale-dropdown-wrap" style="position: absolute; top: 6px; right: 115px; z-index: 120; pointer-events: auto;">
+                <button id="btn-scale-toggle" title="เลือกหน่วยแกนราคา" style="background: rgba(19, 23, 34, 0.85); border: 1px solid #2a2e39; color: #d1d4dc; border-radius: 4px; padding: 3px 8px; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px;">
+                    <span id="scale-active-label" style="color: #00FFA3;">เดิม</span>
+                    <span style="font-size: 9px;">⌵</span>
+                </button>
+                <div id="price-scale-menu" style="display: none; position: absolute; top: 100%; right: 0; margin-top: 4px; background: #1e222d; border: 1px solid #2a2e39; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.5); min-width: 90px; overflow: hidden; flex-direction: column;">
+                    <button class="scale-menu-item active" data-mode="normal" style="background: none; border: none; color: #00FFA3; padding: 6px 12px; text-align: left; font-size: 12px; cursor: pointer; width: 100%;">เดิม</button>
+                    <button class="scale-menu-item" data-mode="percent" style="background: none; border: none; color: #d1d4dc; padding: 6px 12px; text-align: left; font-size: 12px; cursor: pointer; width: 100%;">% (เปอร์เซ็นต์)</button>
+                    <button class="scale-menu-item" data-mode="usd" style="background: none; border: none; color: #d1d4dc; padding: 6px 12px; text-align: left; font-size: 12px; cursor: pointer; width: 100%;">USD ($)</button>
+                    <button class="scale-menu-item" data-mode="thb" style="background: none; border: none; color: #d1d4dc; padding: 6px 12px; text-align: left; font-size: 12px; cursor: pointer; width: 100%;">THB (฿)</button>
+                </div>
+            </div>
 
             <div class="draw-toolbar" id="main-draw-toolbar" style="display: {{TOOLBAR_DISPLAY}};">
                 <div class="drag-handle" id="tb-drag-handle" title="ลากเพื่อย้ายแถบเครื่องมือ">⋮⋮</div>

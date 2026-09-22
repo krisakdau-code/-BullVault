@@ -41,9 +41,9 @@ html, body {
     align-items: center;
     gap: 8px;
     font-size: 12px;
-    background: rgba(19, 23, 34, 0.75);
+    background: rgba(0 0 0 / 0.75);
     backdrop-filter: blur(6px);
-    border: 1px solid rgba(42, 46, 57, 0.8);
+    border: 1px solid rgba(0 0 0 / 0.8);
     padding: 3px 10px;
     border-radius: 6px;
     pointer-events: none;

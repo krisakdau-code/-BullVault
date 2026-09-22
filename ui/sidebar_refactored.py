@@ -36,6 +36,7 @@ def _format_vol(v: float) -> str:
 
 
 # ══════════════════════════════════════════════════════════════
+# ══════════════════════════════════════════════════════════════
 # ระบบดึงราคา % และ Volume (Fast Cache Ticker)
 # ══════════════════════════════════════════════════════════════
 @st.cache_data(ttl=15, show_spinner=False)
@@ -60,6 +61,35 @@ def _get_live_ticker(sym: str):
     return None
 
 
+@st.cache_data(ttl=5, show_spinner=False)
+def _get_active_candle(sym: str, tf_str: str = "1h"):
+    """ดึงแท่งเทียนล่าสุดตามไทม์เฟรมของกราฟ เพื่อให้ % Change ตรงกับกราฟหลัก 100%"""
+    try:
+        s = norm_sym(sym).upper()
+        if not any(s.endswith(x) for x in ["USDT", "BUSD", "USDC", "BTC"]):
+            s += "USDT"
+        tf_map = {
+            "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
+            "1h": "1h", "2h": "2h", "3h": "3h", "4h": "4h",
+            "D": "1d", "1D": "1d", "2D": "3d", "3D": "3d",
+            "W": "1w", "1W": "1w", "M": "1M", "1M": "1M"
+        }
+        interval = tf_map.get(tf_str, "1h")
+        url = f"https://api.binance.com/api/v3/klines?symbol={s}&interval={interval}&limit=2"
+        res = requests.get(url, timeout=1.5).json()
+        if isinstance(res, list) and len(res) >= 2:
+            prev_close = float(res[-2][4])
+            last_close = float(res[-1][4])
+            vol = float(res[-1][5])
+            diff = last_close - prev_close
+            pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
+            p_str = f"{last_close:,.2f}" if last_close >= 1 else f"{last_close:.4f}"
+            c_str = f"{pct:+.2f}%"
+            v_str = _format_vol(vol)
+            return p_str, c_str, v_str, (diff >= 0), pct, vol
+    except Exception:
+        pass
+    return None
 # ══════════════════════════════════════════════════════════════
 # ระบบบันทึกข้อมูล Watchlist และกลุ่มสีลงไฟล์ถาวร
 # ══════════════════════════════════════════════════════════════
@@ -448,7 +478,16 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
         if not rows:
             st.caption("ไม่มีเหรียญในกลุ่มนี้")
 
-        # เตรียมข้อมูลสำหรับแสดงผลและจัดเรียง
+        # ไทม์เฟรมปัจจุบันของชาร์ต
+        active_tf = (
+            st.session_state.get("timeframe") or 
+            st.session_state.get("selected_timeframe") or 
+            st.session_state.get("current_timeframe") or 
+            st.session_state.get("tf") or 
+            "1h"
+        )
+
+        # เตรียมข้อมูลสำหรับแสดงผลและจัดเรียง (ซิงค์ตามแท่งเทียนกราฟหลัก)
         display_rows = []
         for sym, p_val, c_val, is_up in rows:
             dot = get_sym_color_dot(sym)
@@ -456,22 +495,56 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
             c_num = 0.0
             v_num = 0.0
 
-            live_data = _get_live_ticker(sym)
-            if live_data:
-                p_val, c_val, v_val, is_up, c_num, v_num = live_data
-            elif norm_sym(sym) == norm_sym(selected_sym) and "df_data" in st.session_state:
-                df_act = st.session_state.get("df_data")
-                if df_act is not None and len(df_act) >= 2:
-                    l_close = float(df_act["close"].iloc[-1])
-                    l_open = float(df_act["open"].iloc[-1])
-                    l_vol = float(df_act["volume"].iloc[-1]) if "volume" in df_act.columns else 0.0
-                    pct = ((l_close - l_open) / l_open) * 100 if l_open != 0 else 0.0
-                    p_val = f"{l_close:,.2f}" if l_close >= 1 else f"{l_close:.4f}"
-                    c_val = f"{pct:+.2f}%"
-                    v_val = _format_vol(l_vol)
-                    is_up = (pct >= 0)
-                    c_num = pct
-                    v_num = l_vol
+            # ตรวจสอบว่าเป็นเหรียญเดียวกับที่กำลังเปิดกราฟอยู่หรือไม่
+            s_base = norm_sym(sym).upper().replace("USDT", "").replace("/", "").replace("-", "")
+            sel_base = norm_sym(selected_sym).upper().replace("USDT", "").replace("/", "").replace("-", "")
+            is_active = (s_base == sel_base) or (norm_sym(sym) == norm_sym(selected_sym))
+
+            if is_active:
+                matched = False
+                # 1. ค้นหาจาก DataFrame ใน session_state ก่อน
+                df_act = None
+                for k in ("df_data", "df", "chart_df", "data"):
+                    v_df = st.session_state.get(k)
+                    if v_df is not None and hasattr(v_df, "columns") and len(v_df) >= 2:
+                        df_act = v_df
+                        break
+
+                if df_act is not None:
+                    col_map = {str(c).lower(): c for c in df_act.columns}
+                    c_col = col_map.get("close")
+                    v_col = col_map.get("volume")
+                    if c_col:
+                        last_close = float(df_act[c_col].iloc[-1])
+                        prev_close = float(df_act[c_col].iloc[-2])
+                        l_vol = float(df_act[v_col].iloc[-1]) if v_col else 0.0
+                        diff = last_close - prev_close
+                        pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
+                        p_val = f"{last_close:,.2f}" if last_close >= 1 else f"{last_close:.4f}"
+                        c_val = f"{pct:+.2f}%"
+                        v_val = _format_vol(l_vol)
+                        is_up = (diff >= 0)
+                        c_num = pct
+                        v_num = l_vol
+                        matched = True
+
+                # 2. ถ้า session_state ยังไม่มี DataFrame ให้ดึงแท่งเทียนไทม์เฟรมปัจจุบันโดยตรง
+                if not matched:
+                    candle_data = _get_active_candle(sym, active_tf)
+                    if candle_data:
+                        p_val, c_val, v_val, is_up, c_num, v_num = candle_data
+                        matched = True
+
+                # 3. กรณีดึงแท่งเทียนไม่สำเร็จ ให้ใช้ Live Ticker เดิมเป็นตัวสำรอง
+                if not matched:
+                    live_data = _get_live_ticker(sym)
+                    if live_data:
+                        p_val, c_val, v_val, is_up, c_num, v_num = live_data
+            else:
+                # รายการอื่นที่ไม่ได้เปิดอยู่ ดึงผ่าน Live Ticker ตามปกติ
+                live_data = _get_live_ticker(sym)
+                if live_data:
+                    p_val, c_val, v_val, is_up, c_num, v_num = live_data
 
             display_rows.append({
                 "sym": sym,
