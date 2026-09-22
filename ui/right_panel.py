@@ -1,3 +1,5 @@
+from ui.technical_modal import show_technical_modal
+from ui.seasonality_modal import show_seasonality_modal
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -133,6 +135,9 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
             yaxis=dict(showgrid=True, gridcolor="#1e222d", tickfont=dict(size=9, color="#787b86"))
         )
         st.plotly_chart(fig_season, use_container_width=True, config={"displayModeBar": False})
+        # ปุ่มเปิดหน้าต่างฤดูกาลเพิ่มเติม (วางต่อท้ายตรงนี้)
+        if st.button("ฤดูกาลเพิ่มเติม", key="btn_open_seasonality_modal", use_container_width=True, type="secondary"):
+            show_seasonality_modal(sym=st.session_state.get("current_symbol", "BTCUSDT"))
 
       # บล็อก 8: Technical Gauge สไตล์ TradingView Pro ผ่าน Iframe (เรนเดอร์ตรง ไม่โดนตัด SVG)
         import math
@@ -260,13 +265,24 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
                     <circle cx="{cx}" cy="{cy}" r="5" fill="#161b22" stroke="{status_color}" stroke-width="2" />
                     <circle cx="{cx}" cy="{cy}" r="2" fill="#f0f6fc" />
                 </svg>
-
                 <div class="summary-txt">{status_text}</div>
-                <button class="more-btn">ทางเทคนิคเพิ่มเติม</button>
             </div>
         </body>
         </html>
         """
+
+        components.html(gauge_html, height=155)
+
+        # ปุ่มเปิดหน้าต่างทางเทคนิคเพิ่มเติม (ย่อหน้า 8 เคาะ ให้อยู่ใน tab_overview)
+        if st.button("ทางเทคนิคเพิ่มเติม", key="btn_open_technical_modal", use_container_width=True, type="secondary"):
+            show_technical_modal(sym=st.session_state.get("current_symbol", "BTCUSDT"))
+
+        # ปุ่มสำรวจดูโพสต์ชุมชน (วางต่อท้ายล่างสุด)
+        st.button("👥 สำรวจดูโพสต์ชุมชน ›", key="btn_community_post", use_container_width=True)
+       
+    # -------------------------------------------------------------
+    # แท็บ 2: ยุทธศาสตร์ & ข้อวิเคราะห์เทคนิค (พื้นที่ไม้ตาย)
+    # -------------------------------------------------------------
 
         components.html(gauge_html, height=185)
 
