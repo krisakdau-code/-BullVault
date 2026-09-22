@@ -33,9 +33,6 @@ def _format_vol(v: float) -> str:
     elif v > 0:
         return f"{v:,.0f}"
     return "-"
-
-
-# ══════════════════════════════════════════════════════════════
 # ══════════════════════════════════════════════════════════════
 # ระบบดึงราคา % และ Volume (Fast Cache Ticker)
 # ══════════════════════════════════════════════════════════════
@@ -78,8 +75,8 @@ def _get_active_candle(sym: str, tf_str: str = "1h"):
         url = f"https://api.binance.com/api/v3/klines?symbol={s}&interval={interval}&limit=2"
         res = requests.get(url, timeout=1.5).json()
         if isinstance(res, list) and len(res) >= 2:
-            prev_close = float(res[-2][4])
-            last_close = float(res[-1][4])
+            prev_close = float(res[-2][4])  # ราคา Close ของแท่งก่อนหน้า
+            last_close = float(res[-1][4])  # ราคา Close ปัจจุบัน
             vol = float(res[-1][5])
             diff = last_close - prev_close
             pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
@@ -510,13 +507,24 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
                         df_act = v_df
                         break
 
+            if is_active:
+                matched = False
+                # 1. ค้นหาจาก DataFrame ใน session_state ก่อน
+                df_act = None
+                for k in ("df_data", "df", "chart_df", "data"):
+                    v_df = st.session_state.get(k)
+                    if v_df is not None and hasattr(v_df, "columns") and len(v_df) >= 2:
+                        df_act = v_df
+                        break
+
                 if df_act is not None:
-                    col_map = {str(c).lower(): c for c in df_act.columns}
-                    c_col = col_map.get("close")
-                    v_col = col_map.get("volume")
-                    if c_col:
+                    # ค้นหาคอลัมน์ close และ volume แบบยืดหยุ่น รองรับทั้งคริปโตและหุ้นไทย
+                    c_col = next((c for c in df_act.columns if "close" in str(c).lower()), None)
+                    v_col = next((c for c in df_act.columns if "volume" in str(c).lower() or "vol" in str(c).lower()), None)
+
+                    if c_col and len(df_act) >= 2:
                         last_close = float(df_act[c_col].iloc[-1])
-                        prev_close = float(df_act[c_col].iloc[-2])
+                        prev_close = float(df_act[c_col].iloc[-2])  # เทียบกับราคาปิดแท่งก่อนหน้าเหมือน 3 วงสีเขียว
                         l_vol = float(df_act[v_col].iloc[-1]) if v_col else 0.0
                         diff = last_close - prev_close
                         pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
@@ -526,6 +534,11 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
                         is_up = (diff >= 0)
                         c_num = pct
                         v_num = l_vol
+                        matched = True
+                    elif c_col and len(df_act) == 1:
+                        last_close = float(df_act[c_col].iloc[-1])
+                        p_val = f"{last_close:,.2f}" if last_close >= 1 else f"{last_close:.4f}"
+                        c_val = "+0.00%"
                         matched = True
 
                 # 2. ถ้า session_state ยังไม่มี DataFrame ให้ดึงแท่งเทียนไทม์เฟรมปัจจุบันโดยตรง

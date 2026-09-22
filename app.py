@@ -493,14 +493,18 @@ HTTP_SESSION.mount("https://", HTTPAdapter(max_retries=retry_strategy))
 
 def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
     if symbol.startswith("RICE:") or symbol.startswith("FOB:") or "ZR=F" in symbol:
-        return generate_rice_ohlcv(symbol, bars=bars)
-
-    df = fetch_market_ohlcv(symbol=symbol, tf=tf, limit=bars)
-
+        df = generate_rice_ohlcv(symbol, bars=bars)
+    else:
+        df = fetch_market_ohlcv(symbol=symbol, tf=tf, limit=bars)
+    
     if not df.empty and "time" in df.columns:
         if pd.api.types.is_datetime64_any_dtype(df["time"]):
             df["time"] = (df["time"].astype("int64") // 10**9)
-        return df.dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
+        df = df.dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
+
+    # บันทึกข้อมูลแท่งเทียนลง session_state ให้ Watchlist ดึงไปใช้ชุดเดียวกันเป๊ะ
+    if df is not None and not df.empty:
+        st.session_state["df_data"] = df
 
     return df
 
