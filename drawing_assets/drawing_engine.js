@@ -256,7 +256,7 @@
         }
 
         const fibTools = ['fib', 'fib_ext', 'fib_tz'];
-        const patTools = ['head_shoulders', 'triangle', 'elliott_impulse', 'elliott_abc', 'pat_xabcd', 'pat_cypher', 'pat_three_drives', 'pat_elliott_wave_12345', 'pat_elliott_wave_abc', 'pat_elliott_triangle', 'pat_elliott_double_combo', 'pat_elliott_triple_combo', 'pat_cyclic_lines', 'pat_time_cycles', 'pat_sine_line'];
+        const patTools = ['head_shoulders', 'triangle', 'elliott_impulse', 'elliott_abc', 'pat_xabcd', 'pat_cypher', 'pat_threedrives', 'pat_abcd', 'elliott_triangle', 'elliott_double', 'elliott_triple', 'cycle_lines', 'time_cycles', 'sine_line'];
         const calcTools = ['pos_long', 'pos_short', 'price_range', 'date_range'];
         
         const bFib = document.getElementById('btn-fib-group');
@@ -320,42 +320,6 @@
         }
     });
 
-    // ── ระบบเปิด-ปิด Modal ตั้งค่า Fibonacci ──
-    const fibModal = document.getElementById('fib-settings-modal');
-    const btnOpenFibSettings = document.getElementById('btn-open-fib-settings');
-    const btnCloseFibSettings = document.getElementById('btn-close-fib-settings');
-    const btnSaveFibSettings = document.getElementById('btn-save-fib-settings');
-    const inputExtLen = document.getElementById('cfg-fib-ext-len');
-    const inputOpacity = document.getElementById('cfg-fib-opacity');
-
-    if (btnOpenFibSettings && fibModal) {
-        btnOpenFibSettings.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (window.FibonacciTool) {
-                if (inputExtLen) inputExtLen.value = window.FibonacciTool.settings.extLength || 160;
-                if (inputOpacity) inputOpacity.value = window.FibonacciTool.settings.opacity || 12;
-            }
-            fibModal.classList.add('open');
-            document.querySelectorAll('.tool-item-wrap').forEach(w => w.classList.remove('open'));
-        });
-    }
-
-    if (btnCloseFibSettings && fibModal) {
-        btnCloseFibSettings.addEventListener('click', () => fibModal.classList.remove('open'));
-    }
-
-    if (btnSaveFibSettings && fibModal) {
-        btnSaveFibSettings.addEventListener('click', () => {
-            const extLen = parseInt(inputExtLen?.value, 10) || 160;
-            const op = parseInt(inputOpacity?.value, 10) || 12;
-            if (window.FibonacciTool) {
-                window.FibonacciTool.saveSettings({ extLength: extLen, opacity: op });
-            }
-            fibModal.classList.remove('open');
-            redrawAll();
-        });
-    }
-
     function updateSelectionUI() {
         if (!btnDeleteSelected) return;
         if (selectedIdx !== -1) {
@@ -418,7 +382,10 @@
             tzPoints = [];
             patternClickPoints = [];
             isDrawing = false;
-            if (fibModal) fibModal.classList.remove('open');
+            const fMod = document.getElementById('fib-settings-modal');
+            const pMod = document.getElementById('pattern-settings-modal');
+            if (fMod) fMod.classList.remove('open');
+            if (pMod) pMod.classList.remove('open');
             redrawAll();
             setTool('cursor');
         } else if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIdx !== -1) {
@@ -1375,9 +1342,6 @@
     setTimeout(updateAllWidths, 300);
     setTimeout(paneResizeAll, 350);
 
-    // เผยแพร่ setTool ให้เรียกจากภายนอกได้
-    window.setTool = setTool;
-
     // เชื่อมต่อการคลิกเลือกเครื่องมือรูปแบบชาร์ต (14 รูปแบบ)
     document.addEventListener('click', (e) => {
         const item = e.target.closest('[data-tool]');
@@ -1386,23 +1350,183 @@
             if (tool && tool !== 'cursor') {
                 e.stopPropagation();
                 setTool(tool);
-                // ปิดกล่องเมนูดรอปดาวน์ด้วยวิธีมาตรฐานเดิม โดยไม่ฝัง inline style
                 document.querySelectorAll('.tool-item-wrap').forEach(w => w.classList.remove('open'));
             }
         }
     });
 
-    // สำรอง Event Delegation เผื่อคลิกโดนข้อความหรือไอคอนด้านใน
-    document.addEventListener('click', (e) => {
-        const item = e.target.closest('[data-tool]');
-        if (item) {
-            const tool = item.getAttribute('data-tool');
-            if (tool && tool !== 'cursor') {
-                setTool(tool);
-                document.querySelectorAll('.tool-dropdown-menu, .sub-menu, .sub-dropdown, .dropdown-menu').forEach(m => {
-                    m.style.display = 'none';
-                });
+    // =========================================================================
+    // ระบบจัดการหน้าต่างตั้งค่า PRO SETTINGS MODAL (FIBONACCI & PATTERNS)
+    // =========================================================================
+
+    function setupTabSwitching(tabBarId, containerSelector) {
+        const tabBar = document.getElementById(tabBarId);
+        if (!tabBar) return;
+        const buttons = tabBar.querySelectorAll('.pro-tab-btn');
+        buttons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                buttons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const targetId = btn.getAttribute('data-tab');
+                const container = tabBar.closest(containerSelector);
+                if (container) {
+                    container.querySelectorAll('.pro-tab-page').forEach(page => {
+                        page.classList.remove('active');
+                    });
+                    const targetPage = container.querySelector('#' + targetId);
+                    if (targetPage) targetPage.classList.add('active');
+                }
+            });
+        });
+    }
+
+    setupTabSwitching('fib-tab-bar', '#fib-settings-modal');
+    setupTabSwitching('pat-tab-bar', '#pattern-settings-modal');
+
+    const fibOpSlider = document.getElementById('cfg-fib-opacity');
+    const fibOpVal = document.getElementById('cfg-fib-opacity-val');
+    if (fibOpSlider && fibOpVal) {
+        fibOpSlider.addEventListener('input', () => {
+            fibOpVal.innerText = fibOpSlider.value + '%';
+        });
+    }
+
+    const patOpSlider = document.getElementById('cfg-pat-opacity');
+    const patOpVal = document.getElementById('cfg-pat-opacity-val');
+    if (patOpSlider && patOpVal) {
+        patOpSlider.addEventListener('input', () => {
+            patOpVal.innerText = patOpSlider.value + '%';
+        });
+    }
+
+    // --- ควบคุม Modal Fibonacci ---
+    const proFibModal = document.getElementById('fib-settings-modal');
+    const btnOpenFibSet = document.getElementById('btn-open-fib-settings');
+    const btnCloseFibSet = document.getElementById('btn-close-fib-settings');
+    const btnCancelFibSet = document.getElementById('btn-cancel-fib-settings');
+    const btnSaveFibSet = document.getElementById('btn-save-fib-settings');
+
+    function closeFibModal() {
+        if (proFibModal) proFibModal.classList.remove('open');
+    }
+
+    if (btnOpenFibSet && proFibModal) {
+        btnOpenFibSet.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.tool-item-wrap').forEach(w => w.classList.remove('open'));
+            if (fibOpSlider && window.FibonacciTool) {
+                const curOp = window.FibonacciTool.fillOpacity !== undefined ? window.FibonacciTool.fillOpacity : 12;
+                fibOpSlider.value = curOp;
+                if (fibOpVal) fibOpVal.innerText = curOp + '%';
             }
-        }
-    });
+            proFibModal.classList.add('open');
+        });
+    }
+
+    if (btnCloseFibSet) btnCloseFibSet.addEventListener('click', closeFibModal);
+    if (btnCancelFibSet) btnCancelFibSet.addEventListener('click', closeFibModal);
+
+    if (btnSaveFibSet) {
+        btnSaveFibSet.addEventListener('click', () => {
+            const levelRows = document.querySelectorAll('#fib-levels-grid .pro-level-item');
+            const activeLevels = [];
+            levelRows.forEach(row => {
+                const chk = row.querySelector('.pro-check');
+                const valInput = row.querySelector('.pro-val-input');
+                const colInput = row.querySelector('.pro-color-btn');
+                if (chk && valInput && colInput) {
+                    activeLevels.push({
+                        active: chk.checked,
+                        value: parseFloat(valInput.value) || 0,
+                        color: colInput.value
+                    });
+                }
+            });
+
+            const newOpacity = fibOpSlider ? parseInt(fibOpSlider.value) || 12 : 12;
+            const showBg = document.getElementById('cfg-fib-bg') ? document.getElementById('cfg-fib-bg').checked : true;
+            const showPrices = document.getElementById('cfg-fib-prices') ? document.getElementById('cfg-fib-prices').checked : true;
+            const showLevels = document.getElementById('cfg-fib-levels') ? document.getElementById('cfg-fib-levels').checked : true;
+
+            if (window.FibonacciTool) {
+                window.FibonacciTool.customLevels = activeLevels;
+                window.FibonacciTool.fillOpacity = newOpacity;
+                window.FibonacciTool.showBackground = showBg;
+                window.FibonacciTool.showPrices = showPrices;
+                window.FibonacciTool.showLevels = showLevels;
+            }
+
+            try {
+                localStorage.setItem('tv_fib_user_settings', JSON.stringify({
+                    levels: activeLevels,
+                    opacity: newOpacity,
+                    showBg: showBg,
+                    showPrices: showPrices,
+                    showLevels: showLevels
+                }));
+            } catch(e) {}
+
+            closeFibModal();
+            redrawAll();
+        });
+    }
+
+    // --- ควบคุม Modal Patterns ---
+    const patModal = document.getElementById('pattern-settings-modal');
+    const btnOpenPatSet = document.getElementById('btn-open-pattern-settings');
+    const btnClosePatSet = document.getElementById('btn-close-pattern-settings');
+    const btnCancelPatSet = document.getElementById('btn-cancel-pattern-settings');
+    const btnSavePatSet = document.getElementById('btn-save-pattern-settings');
+
+    function closePatModal() {
+        if (patModal) patModal.classList.remove('open');
+    }
+
+    if (btnOpenPatSet && patModal) {
+        btnOpenPatSet.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.tool-item-wrap').forEach(w => w.classList.remove('open'));
+            const colInput = document.getElementById('cfg-pat-linecolor');
+            const ratCheck = document.getElementById('cfg-pat-ratios');
+            const labCheck = document.getElementById('cfg-pat-labels');
+            
+            if (window.PatternTool && window.PatternTool.settings) {
+                if (colInput) colInput.value = window.PatternTool.settings.lineColor || '#00FFA3';
+                if (patOpSlider) {
+                    patOpSlider.value = window.PatternTool.settings.fillOpacity || 12;
+                    if (patOpVal) patOpVal.innerText = patOpSlider.value + '%';
+                }
+                if (ratCheck) ratCheck.checked = window.PatternTool.settings.showRatios !== false;
+                if (labCheck) labCheck.checked = window.PatternTool.settings.showLabels !== false;
+            }
+            patModal.classList.add('open');
+        });
+    }
+
+    if (btnClosePatSet) btnClosePatSet.addEventListener('click', closePatModal);
+    if (btnCancelPatSet) btnCancelPatSet.addEventListener('click', closePatModal);
+
+    if (btnSavePatSet) {
+        btnSavePatSet.addEventListener('click', () => {
+            const colInput = document.getElementById('cfg-pat-linecolor');
+            const ratCheck = document.getElementById('cfg-pat-ratios');
+            const labCheck = document.getElementById('cfg-pat-labels');
+            
+            if (window.PatternTool) {
+                if (!window.PatternTool.settings) window.PatternTool.settings = {};
+                window.PatternTool.settings.lineColor = colInput ? colInput.value : '#00FFA3';
+                window.PatternTool.settings.fillOpacity = patOpSlider ? parseInt(patOpSlider.value) || 12 : 12;
+                window.PatternTool.settings.showRatios = ratCheck ? ratCheck.checked : true;
+                window.PatternTool.settings.showLabels = labCheck ? labCheck.checked : true;
+
+                try {
+                    localStorage.setItem('tv_pattern_user_settings', JSON.stringify(window.PatternTool.settings));
+                } catch(e) {}
+            }
+
+            closePatModal();
+            redrawAll();
+        });
+    }
 })();

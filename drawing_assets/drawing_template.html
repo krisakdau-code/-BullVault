@@ -8,77 +8,223 @@
     <style>
         /* INJECT_CSS_HERE */
         
-        /* สไตล์ Modal ตั้งค่า Fibonacci */
-        .fib-modal-backdrop {
+        /* สไตล์ Modal ระดับมืออาชีพ (Pro Settings Modal 3 Tabs) */
+        .pro-modal-backdrop {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.6);
+            background: rgba(0, 0, 0, 0.65);
             backdrop-filter: blur(4px);
-            z-index: 200;
+            z-index: 9999;
             align-items: center;
             justify-content: center;
         }
-        .fib-modal-backdrop.open {
+        .pro-modal-backdrop.open {
             display: flex;
         }
-        .fib-modal-box {
-            background: #181b22;
+        .pro-modal-box {
+            background: #1e222d;
             border: 1px solid #2a2e39;
             border-radius: 8px;
-            width: 320px;
-            padding: 16px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
+            width: 380px;
+            max-height: 85vh;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.85);
             color: #d1d4dc;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Trebuchet MS', Roboto, Ubuntu, sans-serif;
             font-size: 13px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
-        .fib-modal-title {
+        .pro-modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-size: 14px;
-            font-weight: 700;
-            color: #00FFA3;
+            padding: 14px 18px 10px 18px;
             border-bottom: 1px solid #2a2e39;
-            padding-bottom: 8px;
+        }
+        .pro-modal-title {
+            font-size: 15px;
+            font-weight: 700;
+            color: #f0f3fa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .pro-modal-close {
+            background: none;
+            border: none;
+            color: #787b86;
+            font-size: 18px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .pro-modal-close:hover {
+            color: #ffffff;
+        }
+        .pro-tab-bar {
+            display: flex;
+            border-bottom: 1px solid #2a2e39;
+            padding: 0 16px;
+            background: #181b22;
+        }
+        .pro-tab-btn {
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: #787b86;
+            padding: 10px 14px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .pro-tab-btn:hover {
+            color: #d1d4dc;
+        }
+        .pro-tab-btn.active {
+            color: #ffffff;
+            border-bottom-color: #2962ff;
+        }
+        .pro-tab-body {
+            padding: 14px 18px;
+            overflow-y: auto;
+            max-height: 55vh;
+            flex: 1;
+        }
+        .pro-tab-page {
+            display: none;
+        }
+        .pro-tab-page.active {
+            display: block;
+        }
+        .pro-grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            column-gap: 14px;
+            row-gap: 8px;
             margin-bottom: 14px;
         }
-        .fib-modal-close {
-            background: none; border: none; color: #787b86; cursor: pointer; font-size: 16px;
-        }
-        .fib-modal-close:hover { color: #ffffff; }
-        .fib-setting-row {
+        .pro-level-item {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 6px;
+        }
+        .pro-check {
+            accent-color: #2962ff;
+            cursor: pointer;
+            width: 15px;
+            height: 15px;
+        }
+        .pro-val-input {
+            background: #131722;
+            border: 1px solid #363a45;
+            border-radius: 4px;
+            color: #d1d4dc;
+            width: 54px;
+            padding: 3px 5px;
+            font-size: 12px;
+            font-family: monospace;
+            text-align: right;
+        }
+        .pro-val-input:focus {
+            border-color: #2962ff;
+            outline: none;
+        }
+        .pro-color-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 3px;
+            border: 1px solid #363a45;
+            cursor: pointer;
+            padding: 0;
+            -webkit-appearance: none;
+        }
+        .pro-color-btn::-webkit-color-swatch-wrapper {
+            padding: 0;
+        }
+        .pro-color-btn::-webkit-color-swatch {
+            border: none;
+            border-radius: 2px;
+        }
+        .pro-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             margin-bottom: 12px;
         }
-        .fib-setting-input {
-            width: 80px;
-            background: #2a2e39;
+        .pro-slider-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            margin-left: 12px;
+        }
+        .pro-slider {
+            flex: 1;
+            accent-color: #2962ff;
+            cursor: pointer;
+        }
+        .pro-coord-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .pro-coord-lbl {
+            width: 90px;
+            font-size: 12px;
+            color: #787b86;
+        }
+        .pro-coord-input {
+            flex: 1;
+            background: #131722;
             border: 1px solid #363a45;
             border-radius: 4px;
             color: #ffffff;
-            padding: 4px 8px;
+            padding: 5px 8px;
             font-size: 12px;
-            text-align: right;
             outline: none;
         }
-        .fib-setting-input:focus { border-color: #00FFA3; }
-        .fib-btn-save {
-            width: 100%;
-            background: rgba(0, 255, 163, 0.2);
-            border: 1px solid #00FFA3;
-            color: #00FFA3;
+        .pro-coord-input:focus {
+            border-color: #2962ff;
+        }
+        .pro-modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            align-items: center;
+            padding: 12px 18px;
+            border-top: 1px solid #2a2e39;
+            background: #181b22;
+        }
+        .pro-btn-cancel {
+            background: #2a2e39;
+            border: none;
+            color: #d1d4dc;
+            padding: 6px 14px;
             border-radius: 4px;
-            padding: 7px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.15s ease;
-            margin-top: 6px;
         }
-        .fib-btn-save:hover { background: #00FFA3; color: #000000; }
+        .pro-btn-cancel:hover {
+            background: #363a45;
+            color: #ffffff;
+        }
+        .pro-btn-apply {
+            background: #2962ff;
+            border: none;
+            color: #ffffff;
+            padding: 6px 18px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .pro-btn-apply:hover {
+            background: #1e53e5;
+        }
     </style>
 </head>
 <body>
@@ -129,7 +275,7 @@
                     </div>
                 </div>
 
-              <!-- กลุ่ม Patterns (รูปแบบชาร์ต 14 รูปแบบ) -->
+                <!-- กลุ่ม Patterns (รูปแบบชาร์ต 14 รูปแบบ) -->
                 <div class="tool-item-wrap">
                     <button class="tool-btn has-sub" id="btn-pattern-group" title="รูปแบบชาร์ต (Patterns)">🕸️</button>
                     <div class="sub-menu" style="max-height: 480px; overflow-y: auto;">
@@ -152,6 +298,9 @@
                         <div class="sub-item" data-tool="cycle_lines">⏸️ เส้นวัฏจักร</div>
                         <div class="sub-item" data-tool="time_cycles">➰ รอบเวลา</div>
                         <div class="sub-item" data-tool="sine_line">〰️ เส้น Sine</div>
+                        
+                        <div class="tool-sep" style="width:100%;margin:4px 0;"></div>
+                        <div class="sub-item" id="btn-open-pattern-settings" style="color:#00FFA3;">⚙️ ตั้งค่ารูปแบบชาร์ต</div>
                     </div>
                 </div>
 
@@ -189,21 +338,159 @@
         <div id="sub-panes"></div>
     </div>
 
-    <div class="fib-modal-backdrop" id="fib-settings-modal">
-        <div class="fib-modal-box">
-            <div class="fib-modal-title">
-                <span>⚙️ ตั้งค่า Fibonacci</span>
-                <button class="fib-modal-close" id="btn-close-fib-settings">✕</button>
+    <!-- ==========================================
+         PRO SETTINGS MODAL: FIBONACCI (3 TABS)
+         ========================================== -->
+    <div class="pro-modal-backdrop" id="fib-settings-modal">
+        <div class="pro-modal-box">
+            <div class="pro-modal-header">
+                <div class="pro-modal-title"><span>Fib Retracement</span> ✏️</div>
+                <button class="pro-modal-close" id="btn-close-fib-settings">✕</button>
             </div>
-            <div class="fib-setting-row">
-                <span>ความยาว Fib Extension (px):</span>
-                <input type="number" class="fib-setting-input" id="cfg-fib-ext-len" value="160" min="40" max="1000" step="10">
+            
+            <div class="pro-tab-bar" id="fib-tab-bar">
+                <button class="pro-tab-btn active" data-tab="fib-style">รูปแบบ</button>
+                <button class="pro-tab-btn" data-tab="fib-coord">พิกัดตำแหน่ง</button>
+                <button class="pro-tab-btn" data-tab="fib-vis">การแสดงผล</button>
             </div>
-            <div class="fib-setting-row">
-                <span>ความโปร่งแสงแถบสี (%):</span>
-                <input type="number" class="fib-setting-input" id="cfg-fib-opacity" value="12" min="0" max="100" step="1">
+
+            <div class="pro-tab-body">
+                <!-- แท็บ 1: รูปแบบ -->
+                <div class="pro-tab-page active" id="fib-style">
+                    <div class="pro-row">
+                        <label style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" id="cfg-fib-trendline" class="pro-check" checked> เส้นแนวโน้ม
+                        </label>
+                        <input type="color" id="cfg-fib-trendcolor" class="pro-color-btn" value="#787b86">
+                    </div>
+
+                    <div class="pro-grid-2col" id="fib-levels-grid">
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="0" checked><input type="text" class="pro-val-input" value="0"><input type="color" class="pro-color-btn" value="#787b86"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="1" checked><input type="text" class="pro-val-input" value="0.236"><input type="color" class="pro-color-btn" value="#f23645"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="2" checked><input type="text" class="pro-val-input" value="0.382"><input type="color" class="pro-color-btn" value="#ff9800"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="3" checked><input type="text" class="pro-val-input" value="0.5"><input type="color" class="pro-color-btn" value="#4caf50"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="4" checked><input type="text" class="pro-val-input" value="0.618"><input type="color" class="pro-color-btn" value="#089981"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="5" checked><input type="text" class="pro-val-input" value="0.786"><input type="color" class="pro-color-btn" value="#00bcd4"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="6" checked><input type="text" class="pro-val-input" value="1"><input type="color" class="pro-color-btn" value="#787b86"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="7" checked><input type="text" class="pro-val-input" value="1.618"><input type="color" class="pro-color-btn" value="#2962ff"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="8" checked><input type="text" class="pro-val-input" value="2.618"><input type="color" class="pro-color-btn" value="#f23645"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="9" checked><input type="text" class="pro-val-input" value="3.618"><input type="color" class="pro-color-btn" value="#9c27b0"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="10" checked><input type="text" class="pro-val-input" value="4.236"><input type="color" class="pro-color-btn" value="#e91e63"></div>
+                        <div class="pro-level-item"><input type="checkbox" class="pro-check" data-idx="11"><input type="text" class="pro-val-input" value="1.272"><input type="color" class="pro-color-btn" value="#4caf50"></div>
+                    </div>
+
+                    <div class="pro-row">
+                        <label style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" id="cfg-fib-bg" class="pro-check" checked> พื้นหลัง
+                        </label>
+                        <div class="pro-slider-wrap">
+                            <input type="range" id="cfg-fib-opacity" class="pro-slider" min="0" max="100" value="12">
+                            <span id="cfg-fib-opacity-val" style="font-size:11px;width:28px;">12%</span>
+                        </div>
+                    </div>
+
+                    <div class="pro-row">
+                        <label style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" id="cfg-fib-prices" class="pro-check" checked> ราคา
+                        </label>
+                        <label style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" id="cfg-fib-levels" class="pro-check" checked> ระดับ (Values)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- แท็บ 2: พิกัดตำแหน่ง -->
+                <div class="pro-tab-page" id="fib-coord">
+                    <div class="pro-coord-row">
+                        <span class="pro-coord-lbl">#1 (ราคา, แท่ง):</span>
+                        <input type="number" step="any" class="pro-coord-input" id="cfg-fib-p1" placeholder="ราคา">
+                        <input type="number" class="pro-coord-input" id="cfg-fib-b1" placeholder="แท่ง">
+                    </div>
+                    <div class="pro-coord-row">
+                        <span class="pro-coord-lbl">#2 (ราคา, แท่ง):</span>
+                        <input type="number" step="any" class="pro-coord-input" id="cfg-fib-p2" placeholder="ราคา">
+                        <input type="number" class="pro-coord-input" id="cfg-fib-b2" placeholder="แท่ง">
+                    </div>
+                </div>
+
+                <!-- แท็บ 3: การแสดงผล -->
+                <div class="pro-tab-page" id="fib-vis">
+                    <div class="pro-row"><label><input type="checkbox" class="pro-check" checked> วินาที</label></div>
+                    <div class="pro-row"><label><input type="checkbox" class="pro-check" checked> นาที</label></div>
+                    <div class="pro-row"><label><input type="checkbox" class="pro-check" checked> ชั่วโมง</label></div>
+                    <div class="pro-row"><label><input type="checkbox" class="pro-check" checked> วัน</label></div>
+                    <div class="pro-row"><label><input type="checkbox" class="pro-check" checked> สัปดาห์ / เดือน</label></div>
+                </div>
             </div>
-            <button class="fib-btn-save" id="btn-save-fib-settings">บันทึกการตั้งค่า</button>
+
+            <div class="pro-modal-footer">
+                <button class="pro-btn-cancel" id="btn-cancel-fib-settings">ยกเลิก</button>
+                <button class="pro-btn-apply" id="btn-save-fib-settings">ตกลง</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==========================================
+         PRO SETTINGS MODAL: PATTERNS (3 TABS)
+         ========================================== -->
+    <div class="pro-modal-backdrop" id="pattern-settings-modal">
+        <div class="pro-modal-box">
+            <div class="pro-modal-header">
+                <div class="pro-modal-title"><span>ตั้งค่ารูปแบบชาร์ต (Patterns)</span> 🕸️</div>
+                <button class="pro-modal-close" id="btn-close-pattern-settings">✕</button>
+            </div>
+            
+            <div class="pro-tab-bar" id="pat-tab-bar">
+                <button class="pro-tab-btn active" data-tab="pat-style">รูปแบบ</button>
+                <button class="pro-tab-btn" data-tab="pat-coord">พิกัดตำแหน่ง</button>
+                <button class="pro-tab-btn" data-tab="pat-vis">การแสดงผล</button>
+            </div>
+
+            <div class="pro-tab-body">
+                <!-- แท็บ 1: รูปแบบ -->
+                <div class="pro-tab-page active" id="pat-style">
+                    <div class="pro-row">
+                        <span>สีเส้นโครงสร้าง:</span>
+                        <input type="color" id="cfg-pat-linecolor" class="pro-color-btn" value="#00FFA3">
+                    </div>
+                    <div class="pro-row">
+                        <span>ความโปร่งแสงพื้นหลังปีก (%):</span>
+                        <div class="pro-slider-wrap">
+                            <input type="range" id="cfg-pat-opacity" class="pro-slider" min="0" max="100" value="12">
+                            <span id="cfg-pat-opacity-val" style="font-size:11px;width:28px;">12%</span>
+                        </div>
+                    </div>
+                    <div class="pro-row">
+                        <label style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" id="cfg-pat-ratios" class="pro-check" checked> แสดงสัดส่วน Fibonacci Ratios
+                        </label>
+                    </div>
+                    <div class="pro-row">
+                        <label style="display:flex;align-items:center;gap:6px;">
+                            <input type="checkbox" id="cfg-pat-labels" class="pro-check" checked> แสดงป้ายชื่อจุดยอด (Labels)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- แท็บ 2: พิกัดตำแหน่ง -->
+                <div class="pro-tab-page" id="pat-coord">
+                    <div class="pro-coord-row"><span class="pro-coord-lbl">จุด X/1/A:</span><input type="number" step="any" class="pro-coord-input" id="cfg-pat-p1" placeholder="ราคา"></div>
+                    <div class="pro-coord-row"><span class="pro-coord-lbl">จุด A/2/B:</span><input type="number" step="any" class="pro-coord-input" id="cfg-pat-p2" placeholder="ราคา"></div>
+                    <div class="pro-coord-row"><span class="pro-coord-lbl">จุด B/3/C:</span><input type="number" step="any" class="pro-coord-input" id="cfg-pat-p3" placeholder="ราคา"></div>
+                    <div class="pro-coord-row"><span class="pro-coord-lbl">จุด C/4/D:</span><input type="number" step="any" class="pro-coord-input" id="cfg-pat-p4" placeholder="ราคา"></div>
+                    <div class="pro-coord-row"><span class="pro-coord-lbl">จุด D/5:</span><input type="number" step="any" class="pro-coord-input" id="cfg-pat-p5" placeholder="ราคา"></div>
+                </div>
+
+                <!-- แท็บ 3: การแสดงผล -->
+                <div class="pro-tab-page" id="pat-vis">
+                    <div class="pro-row"><label><input type="checkbox" class="pro-check" checked> ทุกกรอบเวลา (All Timeframes)</label></div>
+                </div>
+            </div>
+
+            <div class="pro-modal-footer">
+                <button class="pro-btn-cancel" id="btn-cancel-pattern-settings">ยกเลิก</button>
+                <button class="pro-btn-apply" id="btn-save-pattern-settings">ตกลง</button>
+            </div>
         </div>
     </div>
 
@@ -213,3 +500,13 @@
     </script>
 </body>
 </html>
+```[cite: 21]
+
+---
+
+### ขั้นตอนถัดไป:
+นำโค้ดด้านบนนี้ไปบันทึกแทนที่ในไฟล์ **`drawing_assets/drawing_template.html`** จากนั้นแจ้งกลับมาได้เลยครับ เพื่อที่เราจะได้เชื่อมตรรกะ JavaScript ควบคุมการสลับแท็บและการบันทึกค่าของทั้ง 2 Modal ใน `drawing_engine.js` ต่อไปครับ
+
+<FollowUp>
+<Suggestion text="บันทึกไฟล์ drawing_template.html เรียบร้อยแล้ว พร้อมเชื่อมต่อ JavaScript ต่อได้เลยครับ"/>
+</FollowUp>
