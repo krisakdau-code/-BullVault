@@ -502,7 +502,7 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
             demand_article = "แรงซื้อและแรงขายมีสัดส่วนใกล้เคียงกัน ราคากำลังสร้างฐานรอความชัดเจนจากปัจจัยชี้นำภายนอก"
 
         # เรนเดอร์การ์ดวิเคราะห์ส่วนบน (ขยายตัวหนังสือและกรอบให้อ่านสบายตา)
-        st.markdown(f"""<div style="background:#0f172a; padding:15px; border-radius:10px; border:1px solid #3b82f6; margin-bottom:12px;">
+        st.markdown(f"""<div style="background:#0f172a; padding:15px; border-radius:10px; border:1px solid #3b82f6; margin-bottom:10px;">
 <div style="display:flex; justify-content:space-between; align-items:center;">
 <span style="font-weight:bold; color:#60a5fa; font-size:16px;">🎯 การวินิจฉัยกระแสเงินทุน: {sym_name}</span>
 {liq_badge}
@@ -558,10 +558,8 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
         if st.button("🔍 ขยายผลวิเคราะห์เชิงลึก (Expand Deep Analysis: ขยายผลการวิเคราะห์)", key="btn_open_upper_analysis_modal", use_container_width=True, type="secondary"):
             show_upper_analysis_modal(upper_payload)
 
-        # -------------------------------------------------------------
-        # โซนราคาสำคัญเดิม (Key Levels) & Spread Analysis (คงไว้ตามเดิม 100%)
-        # -------------------------------------------------------------
-        st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; margin:12px 0;">
+        # โซนราคาสำคัญ (Key Levels)
+        st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; margin:10px 0 12px 0;">
 <div style="font-size:14px; font-weight:bold; color:#f8fafc; margin-bottom:8px;">📌 โซนราคาสำคัญ (Key Levels: ระดับราคาสำคัญ)</div>
 <div style="display:flex; justify-content:space-between; font-size:13px; color:#ef4444; padding:3px 0;">
 <span>แนวต้านสำคัญ (Major Resistance)</span><b>{high_pivot:,.2f}</b>
@@ -574,6 +572,7 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 </div>
 </div>""", unsafe_allow_html=True)
 
+        # กรณีเป็นสินค้าเกษตร/ข้าว (Spread Analysis)
         sym_check = str(meta.get("symbol", ""))
         if "RICE" in sym_check or "FOB" in sym_check:
             st.markdown(f"""<div style="background:#1e1b4b; padding:12px; border-radius:8px; border-left:3px solid #818cf8; margin-bottom:12px;">
