@@ -5,6 +5,98 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 
+# -------------------------------------------------------------
+# หน้าต่างป๊อปอัปขยายใหญ่ส่วนบน: วินิจฉัยเชิงลึก (Deep Flow Diagnosis Modal)
+# -------------------------------------------------------------
+if hasattr(st, "dialog"):
+    modal_dialog = st.dialog
+elif hasattr(st, "experimental_dialog"):
+    modal_dialog = st.experimental_dialog
+else:
+    def modal_dialog(title, width="large"):
+        def decorator(func):
+            def wrapper(*args, **kwargs):
+                st.subheader(title)
+                return func(*args, **kwargs)
+            return wrapper
+        return decorator
+
+@modal_dialog("🔍 การวินิจฉัยกระแสเงินทุนเชิงลึก (Deep Flow Diagnosis: การวินิจฉัยเชิงลึก)", width="large")
+def show_upper_analysis_modal(data: dict):
+    sym_name = data['sym_name']
+    st.markdown(f"""<div style="background:#0f172a; padding:16px; border-radius:8px; border:1px solid #3b82f6; margin-bottom:14px;">
+<div style="display:flex; justify-content:space-between; align-items:center;">
+<span style="font-weight:bold; color:#60a5fa; font-size:16px;">🎯 การวินิจฉัยกระแสเงินทุน: {sym_name}</span>
+{data['liq_badge']}
+</div>
+<div style="font-size:12px; color:#94a3b8; margin-top:4px;">
+ตลาด: {data['exch_name']} • หมวด: {data['cat_name']} • ⏱️ กรอบเวลา (Analysis Timeframe: กรอบเวลาการวิเคราะห์): <b style="color:#38bdf8;">{data['tf_display']}</b>
+</div>
+<div style="margin-top:12px; background:#131722; padding:12px; border-radius:6px; border:1px solid #1e222d; font-size:12px;">
+<div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+<span style="color:#787b86;">1. ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย):</span>
+<b style="color:#f8fafc; font-size:13px;">{data['turnover_val']:,.0f} {data['turnover_currency']}</b>
+</div>
+<div style="color:#94a3b8; font-size:11px; line-height:1.5; margin-bottom:10px;">• {data['liq_desc']}</div>
+<div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+<span style="color:#787b86;">2. ดัชนีแรงซื้อสะสม (Accumulation Score: คะแนนแรงซื้อสะสม):</span>
+<b style="color:{data['score_color']}; font-family:monospace; font-size:14px;">{data['score_bar']} ({data['accum_score']}/10)</b>
+</div>
+<div style="color:#94a3b8; font-size:11px; line-height:1.5; margin-bottom:10px;">• {data['score_desc']}</div>
+<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #21262d;">
+<span style="color:#787b86;">3. การจำแนกพฤติกรรม:</span> {data['demand_status']}
+<div style="color:#e2e8f0; font-size:12px; line-height:1.5; margin-top:6px;">{data['demand_article']}</div>
+</div>
+</div>
+</div>""", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:6px; margin-bottom:12px;">
+<div style="font-size:13px; font-weight:bold; color:#f8fafc; margin-bottom:8px;">📌 โซนราคาสำคัญ (Key Levels: ระดับราคาสำคัญ)</div>
+<div style="display:flex; justify-content:space-between; font-size:12px; color:#ef4444; padding:3px 0;">
+<span>แนวต้านสำคัญ (Major Resistance)</span><b>{data['high_pivot']:,.2f}</b>
+</div>
+<div style="display:flex; justify-content:space-between; font-size:12px; color:#38bdf8; padding:3px 0;">
+<span>จุดกึ่งกลางดุลยภาพ (Equilibrium)</span><b>{data['fib_mid']:,.2f}</b>
+</div>
+<div style="display:flex; justify-content:space-between; font-size:12px; color:#22c55e; padding:3px 0;">
+<span>แนวรับสำคัญ (Major Support)</span><b>{data['low_pivot']:,.2f}</b>
+</div>
+</div>""", unsafe_allow_html=True)
+
+    with col2:
+        st.markdown("""<div style="background:#131722; padding:12px; border-radius:6px; margin-bottom:12px;">
+<div style="font-size:13px; font-weight:bold; color:#f8fafc; margin-bottom:8px;">💡 คำแนะนำเชิงกลยุทธ์ (Tactical Guidance: คำแนะนำการวางแผน)</div>
+<div style="font-size:11px; color:#94a3b8; line-height:1.5;">
+• หากคะแนนแรงซื้อสะสมมากกว่า 7/10 และสภาพคล่องสูง: สามารถวางแผนแบ่งไม้เข้าซื้อตามแนวรับเฉลี่ย<br>
+• หากพบสัญญาณเตือนกับดักสภาพคล่อง (Bull Trap): หลีกเลี่ยงการไล่ราคา และตั้งจุดตัดขาดทุน (Stop Loss: จุดหยุดขาดทุน) อย่างเคร่งครัด
+</div>
+</div>""", unsafe_allow_html=True)
+
+# -------------------------------------------------------------
+# หน้าต่างป๊อปอัปขยายใหญ่ส่วนล่าง: เรดาร์คัดกรองตลาดฉบับเต็ม (Full Screener Modal)
+# -------------------------------------------------------------
+@modal_dialog("📊 ศูนย์คัดกรองเรดาร์พหุสินทรัพย์ฉบับเต็ม (Full Multi-Market Screener)", width="large")
+def show_bottom_screener_modal(market_htmls: dict, default_market: str):
+    options = [
+        "🇹🇭 Bitkub (THB)", 
+        "🌐 Binance (USDT)", 
+        "📈 หุ้นไทย (SET)", 
+        "🌍 หุ้นต่างประเทศ (US)", 
+        "🪙 ตลาดทองคำ (Macro)", 
+        "🔄 คริปโตทางเลือกในแอป (Altcoins: เหรียญคริปโตอื่นๆ)"
+    ]
+    cur_idx = options.index(default_market) if default_market in options else 0
+    selected_mkt = st.selectbox(
+        "เลือกตลาดที่ต้องการสแกน (ฉบับเต็ม):",
+        options=options,
+        index=cur_idx,
+        key="screener_modal_mkt_selector"
+    )
+    st.markdown(market_htmls.get(selected_mkt, ""), unsafe_allow_html=True)
+
+
 def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, fx_rate: float = 35.0):
     """
     พาเนลฝั่งขวา: แท็บ 1 ภาพรวมตลาด 8 บล็อก + แท็บ 2 วิเคราะห์ข้อมูลเทคนิคเชิงลึก
@@ -267,6 +359,76 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
         exch_name = str(meta.get("exchange", "BINANCE")).upper()
         cat_name = str(meta.get("category", "Crypto")).upper()
 
+        # ตรวจจับกรอบเวลา (Timeframe) จาก session_state, meta หรือคำนวณจากระยะห่างแท่งเทียนใน df
+        detected_tf = None
+        for k in ["current_interval", "timeframe", "interval", "tf", "selected_interval", "chart_tf", "selected_timeframe", "active_tf"]:
+            if k in st.session_state and st.session_state[k]:
+                detected_tf = str(st.session_state[k]).strip()
+                break
+
+        if not detected_tf:
+            for k in ["timeframe", "interval", "tf"]:
+                if k in meta and meta[k]:
+                    detected_tf = str(meta[k]).strip()
+                    break
+
+        if not detected_tf and len(df) >= 2:
+            try:
+                diff_sec = 0
+                if isinstance(df.index, pd.DatetimeIndex):
+                    diff_sec = (df.index[-1] - df.index[-2]).total_seconds()
+                else:
+                    for col in ["time", "timestamp", "datetime", "date", "Date", "Time"]:
+                        if col in df.columns:
+                            s = df[col]
+                            if pd.api.types.is_numeric_dtype(s):
+                                val_diff = float(s.iloc[-1] - s.iloc[-2])
+                                diff_sec = val_diff / 1000.0 if s.iloc[-1] > 1e11 else val_diff
+                            else:
+                                dt_s = pd.to_datetime(s)
+                                diff_sec = (dt_s.iloc[-1] - dt_s.iloc[-2]).total_seconds()
+                            break
+
+                if diff_sec > 0:
+                    diff_min = round(diff_sec / 60)
+                    if diff_min == 1: detected_tf = "1m"
+                    elif diff_min == 5: detected_tf = "5m"
+                    elif diff_min == 15: detected_tf = "15m"
+                    elif diff_min == 30: detected_tf = "30m"
+                    elif diff_min == 60: detected_tf = "1h"
+                    elif diff_min == 120: detected_tf = "2h"
+                    elif diff_min == 180: detected_tf = "3h"
+                    elif diff_min == 240: detected_tf = "4h"
+                    elif diff_min == 1440: detected_tf = "1D"
+                    elif diff_min == 2880: detected_tf = "2D"
+                    elif diff_min == 4320: detected_tf = "3D"
+                    elif diff_min == 10080: detected_tf = "1W"
+                    elif diff_min >= 40000: detected_tf = "1M"
+            except Exception:
+                pass
+
+        if not detected_tf:
+            detected_tf = "1D"
+
+        tf_map = {
+            "1M": "1 นาที (1 Minute)",
+            "5M": "5 นาที (5 Minutes)",
+            "15M": "15 นาที (15 Minutes)",
+            "30M": "30 นาที (30 Minutes)",
+            "1H": "1 ชั่วโมง (1 Hour)",
+            "2H": "2 ชั่วโมง (2 Hours)",
+            "3H": "3 ชั่วโมง (3 Hours)",
+            "4H": "4 ชั่วโมง (4 Hours)",
+            "D": "1 วัน (1 Day: แท่งเทียนรายวัน)",
+            "1D": "1 วัน (1 Day: แท่งเทียนรายวัน)",
+            "2D": "2 วัน (2 Days: แท่งเทียน 2 วัน)",
+            "3D": "3 วัน (3 Days: แท่งเทียน 3 วัน)",
+            "W": "1 สัปดาห์ (1 Week: แท่งเทียนรายสัปดาห์)",
+            "1W": "1 สัปดาห์ (1 Week: แท่งเทียนรายสัปดาห์)",
+            "M": "1 เดือน (1 Month: แท่งเทียนรายเดือน)",
+        }
+        tf_display = tf_map.get(detected_tf.upper(), f"{detected_tf} (กรอบเวลาปัจจุบัน)")
+
         # คำนวณยอดเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย)
         vol_recent = float(df["volume"].tail(24).sum()) if len(df) >= 24 else float(df["volume"].sum())
         turnover_val = vol_recent * (curr_p / mult)
@@ -333,13 +495,13 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
             demand_article = "แรงซื้อและแรงขายมีสัดส่วนใกล้เคียงกัน ราคากำลังสร้างฐานรอความชัดเจนจากปัจจัยชี้นำภายนอก"
 
         # เรนเดอร์การ์ดวิเคราะห์ส่วนบน (ติดชิดซ้าย ไม่มีบรรทัดว่าง ป้องกัน Markdown มองเป็น Code Block)
-        st.markdown(f"""<div style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #3b82f6; margin-bottom:12px;">
+        st.markdown(f"""<div style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #3b82f6; margin-bottom:10px;">
 <div style="display:flex; justify-content:space-between; align-items:center;">
 <span style="font-weight:bold; color:#60a5fa; font-size:14px;">🎯 การวินิจฉัยกระแสเงินทุน: {sym_name}</span>
 {liq_badge}
 </div>
 <div style="font-size:11px; color:#94a3b8; margin-top:2px;">
-ตลาด: {exch_name} • หมวด: {cat_name}
+ตลาด: {exch_name} • หมวด: {cat_name} • กรอบเวลา: <b style="color:#38bdf8;">{tf_display}</b>
 </div>
 <div style="margin-top:10px; background:#131722; padding:10px; border-radius:6px; border:1px solid #1e222d; font-size:11px;">
 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
@@ -359,14 +521,40 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 </div>
 </div>""", unsafe_allow_html=True)
 
-        # -------------------------------------------------------------
-        # โซนราคาสำคัญเดิม (Key Levels) & Spread Analysis (คงไว้ตามเดิม 100%)
-        # -------------------------------------------------------------
+        # คำนวณแนวรับแนวต้านสำคัญ
         high_pivot = float(df["high"].tail(50).max()) * mult
         low_pivot = float(df["low"].tail(50).min()) * mult
         fib_mid = (high_pivot + low_pivot) / 2
 
-        st.markdown(f"""<div style="background:#131722; padding:10px; border-radius:6px; margin-bottom:12px;">
+        # ข้อมูลสำหรับส่งไปยังหน้าต่างขนาดใหญ่ส่วนบน
+        upper_payload = {
+            'sym_name': sym_name,
+            'exch_name': exch_name,
+            'cat_name': cat_name,
+            'tf_display': tf_display,
+            'turnover_val': turnover_val,
+            'turnover_currency': turnover_currency,
+            'liq_badge': liq_badge,
+            'liq_desc': liq_desc,
+            'score_color': score_color,
+            'score_bar': score_bar,
+            'accum_score': accum_score,
+            'score_desc': score_desc,
+            'demand_status': demand_status,
+            'demand_article': demand_article,
+            'high_pivot': high_pivot,
+            'low_pivot': low_pivot,
+            'fib_mid': fib_mid
+        }
+
+        # ปุ่มกดสไตล์โปร่ง (Secondary Button) สำหรับขยายผลวิเคราะห์เชิงลึกส่วนบน
+        if st.button("🔍 ขยายผลวิเคราะห์เชิงลึก (Expand Deep Analysis: ขยายผลการวิเคราะห์)", key="btn_open_upper_analysis_modal", use_container_width=True, type="secondary"):
+            show_upper_analysis_modal(upper_payload)
+
+        # -------------------------------------------------------------
+        # โซนราคาสำคัญเดิม (Key Levels) & Spread Analysis (คงไว้ตามเดิม 100%)
+        # -------------------------------------------------------------
+        st.markdown(f"""<div style="background:#131722; padding:10px; border-radius:6px; margin:10px 0 12px 0;">
 <div style="font-size:12px; font-weight:bold; color:#f8fafc; margin-bottom:6px;">📌 โซนราคาสำคัญ (Key Levels: ระดับราคาสำคัญ)</div>
 <div style="display:flex; justify-content:space-between; font-size:11px; color:#ef4444; padding:2px 0;">
 <span>แนวต้านสำคัญ (Major Resistance)</span><b>{high_pivot:,.2f}</b>
@@ -395,16 +583,9 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
         # =========================================================
         st.markdown("<div style='font-size:13px; font-weight:bold; color:#f8fafc; margin:10px 0 6px 0;'>📡 เรดาร์คัดกรองตลาดพหุสินทรัพย์ (Multi-Market Tactical Screener)</div>", unsafe_allow_html=True)
 
-        # เปลี่ยนเป็นแบบกล่องเลื่อนลง (selectbox) พอดีความกว้างพาเนล ไม่ตกขอบจอ
-        market_choice = st.selectbox(
-            "เลือกตลาดที่ต้องการสแกน:",
-            options=["🇹🇭 Bitkub (THB)", "🌐 Binance (USDT)", "📈 หุ้นไทย (SET)", "🌍 หุ้นต่างประเทศ (US)", "🪙 ตลาดทองคำ (Macro)", "🔄 กระดานอื่นๆ ในแอป"],
-            label_visibility="collapsed",
-            key="screener_market_selector"
-        )
-
-        if market_choice == "🇹🇭 Bitkub (THB)":
-            st.markdown("""<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
+        # เตรียมฐานข้อมูล HTML สำหรับทั้ง 6 ตลาด (หมวด 6 เป็นคริปโตทางเลือกในแอป)
+        market_htmls = {
+            "🇹🇭 Bitkub (THB)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
 <div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
 <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
@@ -445,10 +626,9 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 • <b>บทวิเคราะห์:</b> แม้ราคาบวกสูงแต่ยอดเงินซื้อขายทั้งวันมีเพียง 2.7 หมื่นบาท เกิดจากการเคาะซื้อในกระดานที่ไม่มีคนตั้งขาย เสี่ยงโดนเทขายทุบราคาฉับพลัน
 </div>
 </div>
-</div>""", unsafe_allow_html=True)
+</div>""",
 
-        elif market_choice == "🌐 Binance (USDT)":
-            st.markdown("""<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
+            "🌐 Binance (USDT)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
 <div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
 <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
@@ -489,10 +669,9 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 • <b>บทวิเคราะห์:</b> ราคาพุ่งแรงเกินจริงแต่เม็ดเงินหมุนเวียนต่ำมาก เกิดจากสภาพคล่องที่ว่างเปล่า เสี่ยงโดนเทขายทำกำไรฉับพลัน ไม่ควรไล่ราคา
 </div>
 </div>
-</div>""", unsafe_allow_html=True)
+</div>""",
 
-        elif market_choice == "📈 หุ้นไทย (SET)":
-            st.markdown("""<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
+            "📈 หุ้นไทย (SET)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
 <div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
 <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
@@ -524,10 +703,9 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 • <b>บทวิเคราะห์:</b> ยอดเงินหมุนเวียนไม่ถึงเกณฑ์ความปลอดภัยของตลาดหุ้นไทย (ต่ำกว่า 5 ล้านบาท) สภาพคล่องแคบมาก ไม่เอื้อต่อการรันเทรนด์ระยะกลาง
 </div>
 </div>
-</div>""", unsafe_allow_html=True)
+</div>""",
 
-        elif market_choice == "🌍 หุ้นต่างประเทศ (US)":
-            st.markdown("""<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
+            "🌍 หุ้นต่างประเทศ (US)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
 <div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
 <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
@@ -549,10 +727,9 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 • <b>บทวิเคราะห์:</b> เม็ดเงินหมุนเวียนระดับหมื่นล้านดอลลาร์สหรัฐ ขับเคลื่อนด้วยอุปสงค์จริงของกองทุนระดับโลก โมเมนตัมแข็งแกร่งต่อเนื่อง
 </div>
 </div>
-</div>""", unsafe_allow_html=True)
+</div>""",
 
-        elif market_choice == "🪙 ตลาดทองคำ (Macro)":
-            st.markdown("""<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
+            "🪙 ตลาดทองคำ (Macro)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
 <div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 ภาวะการบีบอัดความผันผวน (Volatility Squeeze Preparation: การสะสมพลังก่อนเลือกทาง)</div>
 <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
@@ -574,29 +751,70 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 • <b>บทวิเคราะห์:</b> การปรับตัวขึ้นเกิน +1.5% ของทองคำถือเป็นความผิดปกติเชิงโมเมนตัม สะท้อนการเคลื่อนย้ายเงินทุนเข้าสู่สินทรัพย์ปลอดภัย (Safe Haven Flow: เงินไหลเข้าหลบภัย) ชัดเจน
 </div>
 </div>
-</div>""", unsafe_allow_html=True)
+</div>""",
 
-        else:  # 🔄 กระดานอื่นๆ ในแอป
-            st.markdown("""<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
-<div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 สินทรัพย์ทางเลือกต้นน้ำ — จ่อทะลุกรอบ (Alternative Assets Setup: รูปแบบสินทรัพย์ทางเลือก)</div>
+            "🔄 คริปโตทางเลือกในแอป (Altcoins: เหรียญคริปโตอื่นๆ)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
 <div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>THAI-RICE-5% (ข้าวขาว 5%)</b> <span style="color:#00e676;">+1.20%</span>
+<b>SUI/USDT</b> <span style="color:#00e676;">+5.12%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคาอ้างอิง: $585/ตัน • เกษตรพาณิชย์ (Agri-Commodity: สินค้าเกษตรเพื่อการค้า)</div>
+<div style="color:#787b86; font-size:10px;">ราคา: $3.42 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $420M</div>
 <div style="color:#94a3b8; margin-top:2px;">
-• <b>บทวิเคราะห์:</b> สถิติส่วนต่างราคา (Spread Analysis: การวิเคราะห์ส่วนต่างราคา) ชะลอการขยายตัว โรงสีเริ่มทยอยเก็บสต็อกผลผลิต เกิดฐานราคารับแน่นหนา
+• <b>บทวิเคราะห์:</b> ราคาบีบอัดตัวในกรอบสะสมพลังเหนือเส้นค่าเฉลี่ย EMA 20 วัน ปริมาณซื้อขาย (Volume: ปริมาณการซื้อขาย) เริ่มยกตัวขึ้น 1.5 เท่า จ่อทะลุแนวต้านสำคัญ
 </div>
 </div>
-<div style="color:#f59e0b; font-weight:bold; margin:12px 0 6px 0;">🔥 สินทรัพย์ทางเลือกรันเทรนด์ (High Momentum Trends: แนวโน้มแรงส่งสูง)</div>
+<div style="margin-bottom:6px;">
+<div style="display:flex; justify-content:space-between;">
+<b>APT/USDT</b> <span style="color:#00e676;">+3.85%</span>
+</div>
+<div style="color:#787b86; font-size:10px;">ราคา: $9.15 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $185M</div>
+<div style="color:#94a3b8; margin-top:2px;">
+• <b>บทวิเคราะห์:</b> ดัชนีแรงซื้อสะสม 7/10 โครงสร้างยกฐานราคา (Higher Low) ต่อเนื่อง สภาพคล่องฝั่งซื้อตั้งรับหนาแน่น มีโอกาสเกิด Breakout (การทะลุกรอบ) ในระยะสั้น
+</div>
+</div>
+<div style="color:#f59e0b; font-weight:bold; margin:12px 0 6px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
+<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b>SOL/USDT</b> <span style="color:#00e676;">+11.45%</span>
+</div>
+<div style="color:#787b86; font-size:10px;">ราคา: $214.80 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $3,850M</div>
+<div style="color:#00e676; font-weight:bold; font-size:10px; margin-top:2px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
+<div style="color:#94a3b8; margin-top:2px;">
+• <b>บทวิเคราะห์:</b> ปริมาณเงินหมุนเวียนหลายพันล้านดอลลาร์สหรัฐ ทะลุกรอบสะสม 1 เดือนเต็ม ยืนยันกระแสเงินทุนสถาบันไหลเข้าต่อเนื่อง มีโอกาสรันเทรนด์ไปต่อชัดเจน
+</div>
+</div>
 <div style="margin-bottom:4px;">
 <div style="display:flex; justify-content:space-between;">
-<b>RUBBER-SICOM (ยางพารา)</b> <span style="color:#00e676;">+6.40%</span>
+<b>LOW-CAP MEME (เหรียญมีมขนาดเล็ก)</b> <span style="color:#00e676;">+28.40%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคาอ้างอิง: 212.5 เซนต์/กก. • สัญญาซื้อขายล่วงหน้าสิงคโปร์ (SICOM Futures: ตลาดซื้อขายล่วงหน้ายางพาราสิงคโปร์)</div>
-<div style="color:#00e676; font-weight:bold; font-size:10px; margin-top:2px;">✅ อุปสงค์อุตสาหกรรมรถยนต์หนุนจริง (Physical Demand Flow: ความต้องการใช้สินค้าจริงในอุตสาหกรรม)</div>
+<div style="color:#787b86; font-size:10px;">ราคา: $0.00045 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.15M</div>
+<div style="color:#ff3366; font-weight:bold; font-size:10px; margin-top:2px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
 <div style="color:#94a3b8; margin-top:2px;">
-• <b>บทวิเคราะห์:</b> อุปทานตึงตัวจากสภาพอากาศหนุนราคาทะลุแนวต้าน 200 เซนต์ กระแสเงินทุนเก็งกำไรไหลเข้าต่อเนื่อง
+• <b>บทวิเคราะห์:</b> ราคาพุ่งขึ้นแรงจากสภาพคล่องที่เบาบางมาก ยอดซื้อขายจริงไม่ถึงเกณฑ์ความปลอดภัย เสี่ยงต่อการโดนทุบราคาฉับพลัน (Dump Risk: ความเสี่ยงถูกเทขาย)
 </div>
 </div>
-</div>""", unsafe_allow_html=True)
+</div>"""
+        }
+
+        # กล่องเลือกตลาดที่ต้องการสแกนบนพาเนลขวา
+        market_choice = st.selectbox(
+            "เลือกตลาดที่ต้องการสแกน:",
+            options=[
+                "🇹🇭 Bitkub (THB)", 
+                "🌐 Binance (USDT)", 
+                "📈 หุ้นไทย (SET)", 
+                "🌍 หุ้นต่างประเทศ (US)", 
+                "🪙 ตลาดทองคำ (Macro)", 
+                "🔄 คริปโตทางเลือกในแอป (Altcoins: เหรียญคริปโตอื่นๆ)"
+            ],
+            label_visibility="collapsed",
+            key="screener_market_selector"
+        )
+
+        # เรนเดอร์การ์ดสแกนเนอร์ของตลาดที่เลือก
+        st.markdown(market_htmls[market_choice], unsafe_allow_html=True)
+
+        # ปุ่มกดสไตล์โปร่ง (Secondary Button) สำหรับขยายเรดาร์คัดกรองตลาดส่วนล่าง
+        if st.button("📊 ขยายเรดาร์คัดกรองตลาด (Expand Market Screener: ขยายเรดาร์คัดกรอง)", key="btn_open_bottom_screener_modal", use_container_width=True, type="secondary"):
+            show_bottom_screener_modal(market_htmls, market_choice)

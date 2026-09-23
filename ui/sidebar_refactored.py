@@ -75,8 +75,8 @@ def _get_active_candle(sym: str, tf_str: str = "1h"):
         url = f"https://api.binance.com/api/v3/klines?symbol={s}&interval={interval}&limit=2"
         res = requests.get(url, timeout=1.5).json()
         if isinstance(res, list) and len(res) >= 2:
-            prev_close = float(res[-2][4])  # ราคา Close ของแท่งก่อนหน้า
-            last_close = float(res[-1][4])  # ราคา Close ปัจจุบัน
+            prev_close = float(res[-2][4])  # ราคาปิดแท่งก่อนหน้า (ฐานเดียวกับ 3 วงสีเขียว)
+            last_close = float(res[-1][4])  # ราคาปิดแท่งปัจจุบัน
             vol = float(res[-1][5])
             diff = last_close - prev_close
             pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
