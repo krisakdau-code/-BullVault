@@ -100,6 +100,7 @@ def show_bottom_screener_modal(modal_market_htmls: dict, default_market: str):
 def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, fx_rate: float = 35.0):
     """
     พาเนลฝั่งขวา: แท็บ 1 ภาพรวมตลาด 8 บล็อก + แท็บ 2 วิเคราะห์ข้อมูลเทคนิคเชิงลึก
+    แบ่งพื้นที่ส่วนบนและส่วนล่างให้อ่านสบายตา และเลื่อนขึ้น-ลงในช่องใครช่องมันอย่างอิสระ
     """
     tab_overview, tab_pro = st.tabs(["📊 ภาพรวมตลาด", "🧠 วิเคราะห์ข้อมูล & เทคนิค"])
 
@@ -119,10 +120,13 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
         chg_pct = (chg_val / prev_p * 100) if prev_p else 0.0
         display_unit = "THB (บาท)" if (is_thb_mode or meta.get("is_thb_native", False)) else meta.get("unit", "USD")
 
-        # บล็อก 1 & 2: ส่วนหัว, ราคา และ Bid/Ask Depth
-        color_hex = "#00e676" if chg_val >= 0 else "#ff5252"
-        sign = "+" if chg_val >= 0 else ""
-        st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; border-left:3px solid {color_hex}; margin-bottom:10px;">
+        # =========================================================
+        # แท็บ 1 ส่วนบน (รูปที่ 1): กล่องเลื่อนอิสระส่วนบน
+        # =========================================================
+        with st.container(height=390):
+            color_hex = "#00e676" if chg_val >= 0 else "#ff5252"
+            sign = "+" if chg_val >= 0 else ""
+            st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; border-left:3px solid {color_hex}; margin-bottom:10px;">
 <div style="display:flex; justify-content:space-between; align-items:center;">
 <span style="font-weight:bold; font-size:16px; color:#fff;">{meta.get('display_name', meta.get('symbol', ''))}</span>
 <span style="color:#00e676; font-size:11px; font-weight:bold;">🟢 ตลาดเปิด</span>
@@ -144,16 +148,15 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 </div>
 </div>""", unsafe_allow_html=True)
 
-        # บล็อก 3: แถบหลอดสเกลวัดตำแหน่งราคา (Day Range & 52-Week Range)
-        d_low = float(df["low"].tail(24).min()) * mult
-        d_high = float(df["high"].tail(24).max()) * mult
-        w_low = float(df["low"].min()) * mult
-        w_high = float(df["high"].max()) * mult
+            d_low = float(df["low"].tail(24).min()) * mult
+            d_high = float(df["high"].tail(24).max()) * mult
+            w_low = float(df["low"].min()) * mult
+            w_high = float(df["high"].max()) * mult
 
-        d_pct = max(0, min(100, int(((curr_p - d_low) / (d_high - d_low) * 100) if d_high > d_low else 50)))
-        w_pct = max(0, min(100, int(((curr_p - w_low) / (w_high - w_low) * 100) if w_high > w_low else 50)))
+            d_pct = max(0, min(100, int(((curr_p - d_low) / (d_high - d_low) * 100) if d_high > d_low else 50)))
+            w_pct = max(0, min(100, int(((curr_p - w_low) / (w_high - w_low) * 100) if w_high > w_low else 50)))
 
-        st.markdown(f"""<div style="background:#131722; padding:10px; border-radius:8px; margin-bottom:10px; font-size:11px;">
+            st.markdown(f"""<div style="background:#131722; padding:10px; border-radius:8px; margin-bottom:10px; font-size:11px;">
 <div style="display:flex; justify-content:space-between; color:#787b86;">
 <span>{d_low:,.1f}</span><span style="color:#d1d4dc;">ช่วงระหว่างวัน (Day Range)</span><span>{d_high:,.1f}</span>
 </div>
@@ -168,10 +171,9 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 </div>
 </div>""", unsafe_allow_html=True)
 
-        # บล็อก 4 & 5: ข่าวสำคัญ + สถิติ Volume
-        vol_curr = float(df["volume"].iloc[-1])
-        vol_avg = float(df["volume"].tail(30).mean())
-        st.markdown(f"""<div style="background:#1a1a2e; padding:8px 10px; border-radius:6px; border-left:3px solid #7c4dff; margin-bottom:10px; font-size:11px;">
+            vol_curr = float(df["volume"].iloc[-1])
+            vol_avg = float(df["volume"].tail(30).mean())
+            st.markdown(f"""<div style="background:#1a1a2e; padding:8px 10px; border-radius:6px; border-left:3px solid #7c4dff; margin-bottom:10px; font-size:11px;">
 <div style="color:#a78bfa; font-weight:bold;">⚡ สรุปปัจจัยข่าวสารล่าสุด (Market News Summary)</div>
 <div style="color:#d1d4dc; margin-top:2px;">ติดตามรอบสต็อกผลผลิตและการปรับอัตราดอกเบี้ยส่งผลกระทบต่ออุปสงค์สินค้า</div>
 </div>
@@ -182,184 +184,174 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 <span>ปริมาณเฉลี่ย (Average Volume 30 แท่ง)</span><span style="color:#fff; font-weight:bold;">{vol_avg:,.0f}</span>
 </div>""", unsafe_allow_html=True)
 
-        # บล็อก 6: Performance Matrix
-        def calc_perf(bars):
-            if len(df) > bars:
-                p_old = float(df["close"].iloc[-bars])
-                return ((curr_p / mult - p_old) / p_old) * 100
-            return 0.0
+            def calc_perf(bars):
+                if len(df) > bars:
+                    p_old = float(df["close"].iloc[-bars])
+                    return ((curr_p / mult - p_old) / p_old) * 100
+                return 0.0
 
-        perfs = {
-            "1W (1 สัปดาห์)": calc_perf(7), "1M (1 เดือน)": calc_perf(30), "3M (3 เดือน)": calc_perf(90),
-            "6M (6 เดือน)": calc_perf(180), "YTD (ต้นปีถึงปัจจุบัน)": calc_perf(240), "1Y (1 ปี)": calc_perf(365)
-        }
+            perfs = {
+                "1W (1 สัปดาห์)": calc_perf(7), "1M (1 เดือน)": calc_perf(30), "3M (3 เดือน)": calc_perf(90),
+                "6M (6 เดือน)": calc_perf(180), "YTD (ต้นปีถึงปัจจุบัน)": calc_perf(240), "1Y (1 ปี)": calc_perf(365)
+            }
 
-        cols = st.columns(3)
-        for idx, (label, val) in enumerate(perfs.items()):
-            c_hex = "#00e676" if val >= 0 else "#ff5252"
-            s_sign = "+" if val >= 0 else ""
-            cols[idx % 3].markdown(f"""<div style="background:#131722; padding:6px; border-radius:4px; text-align:center; margin-bottom:6px; border:1px solid #1e222d;">
+            cols = st.columns(3)
+            for idx, (label, val) in enumerate(perfs.items()):
+                c_hex = "#00e676" if val >= 0 else "#ff5252"
+                s_sign = "+" if val >= 0 else ""
+                cols[idx % 3].markdown(f"""<div style="background:#131722; padding:6px; border-radius:4px; text-align:center; margin-bottom:6px; border:1px solid #1e222d;">
 <div style="font-size:12px; font-weight:bold; color:{c_hex};">{s_sign}{val:.2f}%</div>
 <div style="font-size:10px; color:#787b86;">{label}</div>
 </div>""", unsafe_allow_html=True)
 
-        # บล็อก 7: กราฟฤดูกาล (Seasonality Trend)
-        st.markdown("<div style='font-size:12px; font-weight:bold; color:#d1d4dc; margin:6px 0 2px 0;'>สถิติแนวโน้มฤดูกาล (Seasonality Trend)</div>", unsafe_allow_html=True)
-        fig_season = go.Figure()
-        x_months = ["ม.ค.", "มี.ค.", "พ.ค.", "ก.ค.", "ก.ย.", "พ.ย."]
-        fig_season.add_trace(go.Scatter(x=x_months, y=[0, 4, 8, 12, 10, 16], mode='lines', line=dict(color='#ff9800', width=1.5), name='2024'))
-        fig_season.add_trace(go.Scatter(x=x_months, y=[0, -2, -1, 3, 2, 4], mode='lines', line=dict(color='#00e676', width=1.5), name='2025'))
-        fig_season.add_trace(go.Scatter(x=x_months[:4], y=[0, -4, -6, 2], mode='lines+markers', line=dict(color='#2962ff', width=2), name='2026'))
-        fig_season.update_layout(
-            height=120, margin=dict(l=0, r=0, t=5, b=5), showlegend=True,
-            plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
-            legend=dict(orientation="h", y=1.2, x=0.2, font=dict(size=9, color="#787b86")),
-            xaxis=dict(showgrid=False, tickfont=dict(size=9, color="#787b86")),
-            yaxis=dict(showgrid=True, gridcolor="#1e222d", tickfont=dict(size=9, color="#787b86"))
-        )
-        st.plotly_chart(fig_season, use_container_width=True, config={"displayModeBar": False})
+        # =========================================================
+        # แท็บ 1 ส่วนล่าง (รูปที่ 2): กล่องเลื่อนอิสระส่วนล่าง
+        # =========================================================
+        with st.container(height=390):
+            st.markdown("<div style='font-size:12px; font-weight:bold; color:#d1d4dc; margin:4px 0 2px 0;'>สถิติแนวโน้มฤดูกาล (Seasonality Trend)</div>", unsafe_allow_html=True)
+            fig_season = go.Figure()
+            x_months = ["ม.ค.", "มี.ค.", "พ.ค.", "ก.ค.", "ก.ย.", "พ.ย."]
+            fig_season.add_trace(go.Scatter(x=x_months, y=[0, 4, 8, 12, 10, 16], mode='lines', line=dict(color='#ff9800', width=1.5), name='2024'))
+            fig_season.add_trace(go.Scatter(x=x_months, y=[0, -2, -1, 3, 2, 4], mode='lines', line=dict(color='#00e676', width=1.5), name='2025'))
+            fig_season.add_trace(go.Scatter(x=x_months[:4], y=[0, -4, -6, 2], mode='lines+markers', line=dict(color='#2962ff', width=2), name='2026'))
+            fig_season.update_layout(
+                height=120, margin=dict(l=0, r=0, t=5, b=5), showlegend=True,
+                plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)',
+                legend=dict(orientation="h", y=1.2, x=0.2, font=dict(size=9, color="#787b86")),
+                xaxis=dict(showgrid=False, tickfont=dict(size=9, color="#787b86")),
+                yaxis=dict(showgrid=True, gridcolor="#1e222d", tickfont=dict(size=9, color="#787b86"))
+            )
+            st.plotly_chart(fig_season, use_container_width=True, config={"displayModeBar": False})
 
-        # ปุ่มเปิดหน้าต่างฤดูกาลเพิ่มเติม
-        if st.button("ฤดูกาลเพิ่มเติม", key="btn_open_seasonality_modal", use_container_width=True, type="secondary"):
-            show_seasonality_modal(sym=st.session_state.get("current_symbol", "BTCUSDT"))
+            if st.button("ฤดูกาลเพิ่มเติม", key="btn_open_seasonality_modal", use_container_width=True, type="secondary"):
+                show_seasonality_modal(sym=st.session_state.get("current_symbol", "BTCUSDT"))
 
-        # บล็อก 8: Technical Gauge สไตล์ TradingView Pro ผ่าน Iframe
-        import math
-        import streamlit.components.v1 as components
+            import math
+            import streamlit.components.v1 as components
 
-        gauge_score = max(-2.0, min(2.0, chg_pct / 0.8))
+            gauge_score = max(-2.0, min(2.0, chg_pct / 0.8))
 
-        if gauge_score <= -1.2:
-            status_text = "มีแรงขายรุนแรง"
-            status_color = "#ff3366"
-            glow_color = "rgba(255, 51, 102, 0.3)"
-        elif gauge_score <= -0.4:
-            status_text = "มีแรงขาย"
-            status_color = "#ff7b72"
-            glow_color = "rgba(255, 123, 114, 0.25)"
-        elif gauge_score < 0.4:
-            status_text = "เป็นกลาง"
-            status_color = "#8b949e"
-            glow_color = "rgba(139, 148, 158, 0.2)"
-        elif gauge_score < 1.2:
-            status_text = "มีแรงซื้อ"
-            status_color = "#3fb950"
-            glow_color = "rgba(63, 185, 80, 0.25)"
-        else:
-            status_text = "มีแรงซื้อรุนแรง"
-            status_color = "#00f59b"
-            glow_color = "rgba(0, 245, 155, 0.35)"
+            if gauge_score <= -1.2:
+                status_text = "มีแรงขายรุนแรง"
+                status_color = "#ff3366"
+                glow_color = "rgba(255, 51, 102, 0.3)"
+            elif gauge_score <= -0.4:
+                status_text = "มีแรงขาย"
+                status_color = "#ff7b72"
+                glow_color = "rgba(255, 123, 114, 0.25)"
+            elif gauge_score < 0.4:
+                status_text = "เป็นกลาง"
+                status_color = "#8b949e"
+                glow_color = "rgba(139, 148, 158, 0.2)"
+            elif gauge_score < 1.2:
+                status_text = "มีแรงซื้อ"
+                status_color = "#3fb950"
+                glow_color = "rgba(63, 185, 80, 0.25)"
+            else:
+                status_text = "มีแรงซื้อรุนแรง"
+                status_color = "#00f59b"
+                glow_color = "rgba(0, 245, 155, 0.35)"
 
-        deg = 180.0 - ((gauge_score + 2.0) / 4.0) * 180.0
-        rad = math.radians(deg)
-        cx, cy, r_needle = 140, 100, 60
-        tx = cx + r_needle * math.cos(rad)
-        ty = cy - r_needle * math.sin(rad)
+            deg = 180.0 - ((gauge_score + 2.0) / 4.0) * 180.0
+            rad = math.radians(deg)
+            cx, cy, r_needle = 140, 100, 60
+            tx = cx + r_needle * math.cos(rad)
+            ty = cy - r_needle * math.sin(rad)
 
-        gauge_html = f"""
-        <!DOCTYPE html>
-        <html translate="no" class="notranslate">
-        <head>
-            <meta charset="utf-8">
-            <meta name="google" content="notranslate">
-            <style>
-                * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
-                body {{ background: transparent; overflow: hidden; }}
-                .gauge-card {{
-                    background: linear-gradient(180deg, #131722 0%, #0d1117 100%);
-                    border: 1px solid #21262d;
-                    border-radius: 8px;
-                    padding: 10px 12px;
-                    text-align: center;
-                }}
-                .header-row {{
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                    margin-bottom: 2px;
-                }}
-                .title-lbl {{
-                    font-size: 12px;
-                    font-weight: 700;
-                    color: #c9d1d9;
-                }}
-                .status-badge {{
-                    font-size: 11px;
-                    font-weight: 700;
-                    color: {status_color};
-                    background: {glow_color};
-                    padding: 2px 8px;
-                    border-radius: 12px;
-                    border: 1px solid {status_color}55;
-                }}
-                .summary-txt {{
-                    font-size: 14px;
-                    font-weight: 800;
-                    color: {status_color};
-                    margin-top: -6px;
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="gauge-card notranslate" translate="no">
-                <div class="header-row">
-                    <span class="title-lbl">ทางเทคนิค (Technical Summary)</span>
-                    <span class="status-badge">● {status_text}</span>
+            gauge_html = f"""
+            <!DOCTYPE html>
+            <html translate="no" class="notranslate">
+            <head>
+                <meta charset="utf-8">
+                <meta name="google" content="notranslate">
+                <style>
+                    * {{ box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }}
+                    body {{ background: transparent; overflow: hidden; }}
+                    .gauge-card {{
+                        background: linear-gradient(180deg, #131722 0%, #0d1117 100%);
+                        border: 1px solid #21262d;
+                        border-radius: 8px;
+                        padding: 10px 12px;
+                        text-align: center;
+                    }}
+                    .header-row {{
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 2px;
+                    }}
+                    .title-lbl {{
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #c9d1d9;
+                    }}
+                    .status-badge {{
+                        font-size: 11px;
+                        font-weight: 700;
+                        color: {status_color};
+                        background: {glow_color};
+                        padding: 2px 8px;
+                        border-radius: 12px;
+                        border: 1px solid {status_color}55;
+                    }}
+                    .summary-txt {{
+                        font-size: 14px;
+                        font-weight: 800;
+                        color: {status_color};
+                        margin-top: -6px;
+                    }}
+                </style>
+            </head>
+            <body>
+                <div class="gauge-card notranslate" translate="no">
+                    <div class="header-row">
+                        <span class="title-lbl">ทางเทคนิค (Technical Summary)</span>
+                        <span class="status-badge">● {status_text}</span>
+                    </div>
+
+                    <svg width="280" height="110" viewBox="0 0 280 110" style="display: block; margin: 0 auto; overflow: visible;">
+                        <defs>
+                            <linearGradient id="cyberArc" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#ff1744" />
+                                <stop offset="25%" stop-color="#ff5252" />
+                                <stop offset="50%" stop-color="#484f58" />
+                                <stop offset="75%" stop-color="#2ea043" />
+                                <stop offset="100%" stop-color="#00f59b" />
+                            </linearGradient>
+                        </defs>
+                        <path d="M 45,100 A 95,95 0 0,1 235,100" fill="none" stroke="#1f242c" stroke-width="8" stroke-linecap="round" />
+                        <path d="M 45,100 A 95,95 0 0,1 235,100" fill="none" stroke="url(#cyberArc)" stroke-width="5" stroke-linecap="round" />
+                        <text x="32" y="106" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงขายรุนแรง</text>
+                        <text x="65" y="44" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงขาย</text>
+                        <text x="140" y="18" font-size="9" font-weight="700" fill="#8b949e" text-anchor="middle">เป็นกลาง</text>
+                        <text x="215" y="44" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงซื้อ</text>
+                        <text x="248" y="106" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงซื้อรุนแรง</text>
+                        <line x1="{cx}" y1="{cy}" x2="{tx}" y2="{ty}" stroke="#f0f6fc" stroke-width="2.5" stroke-linecap="round" />
+                        <circle cx="{cx}" cy="{cy}" r="5" fill="#161b22" stroke="{status_color}" stroke-width="2" />
+                        <circle cx="{cx}" cy="{cy}" r="2" fill="#f0f6fc" />
+                    </svg>
+                    <div class="summary-txt">{status_text}</div>
                 </div>
+            </body>
+            </html>
+            """
 
-                <svg width="280" height="110" viewBox="0 0 280 110" style="display: block; margin: 0 auto; overflow: visible;">
-                    <defs>
-                        <linearGradient id="cyberArc" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stop-color="#ff1744" />
-                            <stop offset="25%" stop-color="#ff5252" />
-                            <stop offset="50%" stop-color="#484f58" />
-                            <stop offset="75%" stop-color="#2ea043" />
-                            <stop offset="100%" stop-color="#00f59b" />
-                        </linearGradient>
-                    </defs>
+            components.html(gauge_html, height=155)
 
-                    <!-- รางโค้งพื้นหลัง -->
-                    <path d="M 45,100 A 95,95 0 0,1 235,100" fill="none" stroke="#1f242c" stroke-width="8" stroke-linecap="round" />
-
-                    <!-- เส้นโค้งสีสัญญาณ -->
-                    <path d="M 45,100 A 95,95 0 0,1 235,100" fill="none" stroke="url(#cyberArc)" stroke-width="5" stroke-linecap="round" />
-
-                    <!-- ป้ายข้อความ 5 ช่วง -->
-                    <text x="32" y="106" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงขายรุนแรง</text>
-                    <text x="65" y="44" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงขาย</text>
-                    <text x="140" y="18" font-size="9" font-weight="700" fill="#8b949e" text-anchor="middle">เป็นกลาง</text>
-                    <text x="215" y="44" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงซื้อ</text>
-                    <text x="248" y="106" font-size="8" fill="#6e7681" text-anchor="middle">มีแรงซื้อรุนแรง</text>
-
-                    <!-- เข็มชี้วัดและหมุดกลาง -->
-                    <line x1="{cx}" y1="{cy}" x2="{tx}" y2="{ty}" stroke="#f0f6fc" stroke-width="2.5" stroke-linecap="round" />
-                    <circle cx="{cx}" cy="{cy}" r="5" fill="#161b22" stroke="{status_color}" stroke-width="2" />
-                    <circle cx="{cx}" cy="{cy}" r="2" fill="#f0f6fc" />
-                </svg>
-                <div class="summary-txt">{status_text}</div>
-            </div>
-        </body>
-        </html>
-        """
-
-        components.html(gauge_html, height=155)
-
-        # ปุ่มเปิดหน้าต่างทางเทคนิคเพิ่มเติม
-        if st.button("ทางเทคนิคเพิ่มเติม", use_container_width=True, type="secondary"):
-            show_technical_modal(sym=st.session_state.get("current_symbol", "BTCUSDT"))
+            if st.button("ทางเทคนิคเพิ่มเติม", use_container_width=True, type="secondary"):
+                show_technical_modal(sym=st.session_state.get("current_symbol", "BTCUSDT"))
 
     # -------------------------------------------------------------
     # แท็บ 2: ยุทธศาสตร์ & ข้อวิเคราะห์เทคนิค
     # -------------------------------------------------------------
     with tab_pro:
         # =========================================================
-        # 1. ส่วนบน: วินิจฉัยสินทรัพย์บนกราฟหลัก (Active Asset Diagnostic)
+        # ดึงข้อมูลและคำนวณส่วนบน (รูปที่ 3): วินิจฉัยสินทรัพย์บนกราฟหลัก
         # =========================================================
         sym_name = meta.get("display_name", meta.get("symbol", "สินทรัพย์ปัจจุบัน"))
         exch_name = str(meta.get("exchange", "BINANCE")).upper()
         cat_name = str(meta.get("category", "Crypto")).upper()
 
-        # ตรวจจับกรอบเวลา (Timeframe) แม่นยำ 100% จากระยะห่างแท่งเทียนจริงใน df
         detected_tf = None
         if len(df) >= 2:
             try:
@@ -430,25 +422,22 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
         }
         tf_display = tf_map.get(detected_tf.upper(), f"{detected_tf} (กรอบเวลาปัจจุบัน)")
 
-        # คำนวณยอดเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย)
         vol_recent = float(df["volume"].tail(24).sum()) if len(df) >= 24 else float(df["volume"].sum())
         turnover_val = vol_recent * (curr_p / mult)
 
-        # กำหนดเกณฑ์สภาพคล่องขั้นต่ำ (Minimum Liquidity Threshold) แยกตามประเภทตลาด
         if "SET" in exch_name or "STOCK" in cat_name:
-            min_turnover = 5_000_000.0  # ตลาดหุ้นไทย เกณฑ์ปลอดภัยขั้นต่ำ 5 ล้านบาท
+            min_turnover = 5_000_000.0
             turnover_currency = "THB (บาท)"
         elif "BITKUB" in exch_name:
-            min_turnover = 1_000_000.0  # Bitkub เกณฑ์ปลอดภัยขั้นต่ำ 1 ล้านบาท
+            min_turnover = 1_000_000.0
             turnover_currency = "THB (บาท)"
         elif "GOLD" in sym_name.upper() or "XAU" in sym_name.upper():
             min_turnover = 100_000.0
             turnover_currency = "USD (ดอลลาร์สหรัฐ)"
         else:
-            min_turnover = 1_000_000.0  # ตลาดโลก / Binance เกณฑ์ปลอดภัย 1 ล้านดอลลาร์สหรัฐ
+            min_turnover = 1_000_000.0
             turnover_currency = "USD (ดอลลาร์สหรัฐ)"
 
-        # มิติที่ 1: การประเมินสภาพคล่อง (Turnover Liquidity Profile)
         is_liquid = turnover_val >= min_turnover
         if is_liquid:
             liq_badge = '<span style="color:#00e676; background:rgba(0,230,118,0.15); padding:3px 10px; border-radius:6px; font-weight:bold; font-size:12.5px;">🟢 สภาพคล่องสูง (High Liquidity: มีสภาพคล่องหนาแน่น)</span>'
@@ -459,7 +448,6 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
             liq_badge_modal = '<span style="color:#ff9800; background:rgba(255,152,0,0.15); padding:5px 14px; border-radius:8px; font-weight:bold; font-size:14.5px;">⚠️ สภาพคล่องต่ำ (Low Liquidity Trap: กับดักสภาพคล่องแห้ง)</span>'
             liq_desc = "ยอดเงินหมุนเวียนเบาบางกว่าเกณฑ์มาตรฐานความปลอดภัย ระวังคำสั่งซื้อขายจับคู่ไม่สมบูรณ์หรือการเคาะราคาในช่องว่าง (Thin Order Book: กระดานซื้อขายเบาบาง)"
 
-        # มิติที่ 2: ดัชนีแรงซื้อสะสม (Accumulation Score: คะแนนแรงซื้อสะสม 1-10)
         recent_bars = df.tail(15)
         green_vol = recent_bars[recent_bars["close"] >= recent_bars["open"]]["volume"].sum()
         red_vol = recent_bars[recent_bars["close"] < recent_bars["open"]]["volume"].sum()
@@ -483,7 +471,6 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
             score_color = "#ff5252"
             score_desc = "ปริมาณคำสั่งขายกดดันต่อเนื่อง โครงสร้างราคาหลุดแนวรับเฉลี่ย อยู่ในระยะระบายของ (Distribution Phase: ช่วงกระจายสินค้า/เทขาย)"
 
-        # มิติที่ 3: การจำแนกพฤติกรรม (แรงซื้อจริง Organic Demand vs แรงปั่น Wash Trading)
         if chg_pct >= 4.0 and not is_liquid:
             demand_status = '<span style="color:#ff3366; font-weight:bold; font-size:13.5px;">⚠️ ระวังแรงปั่น / กับดักลากราคา (Wash Trading / Bull Trap: การสร้างวอลุ่มเทียม/กับดักล่อซื้อ)</span>'
             demand_status_modal = '<span style="color:#ff3366; font-weight:bold; font-size:16px;">⚠️ ระวังแรงปั่น / กับดักลากราคา (Wash Trading / Bull Trap: การสร้างวอลุ่มเทียม/กับดักล่อซื้อ)</span>'
@@ -501,8 +488,35 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
             demand_status_modal = '<span style="color:#94a3b8; font-weight:bold; font-size:16px;">⚖️ สภาวะสมดุลตามกลไกตลาด (Neutral Market Flow: สภาพตลาดเป็นกลาง)</span>'
             demand_article = "แรงซื้อและแรงขายมีสัดส่วนใกล้เคียงกัน ราคากำลังสร้างฐานรอความชัดเจนจากปัจจัยชี้นำภายนอก"
 
-        # เรนเดอร์การ์ดวิเคราะห์ส่วนบน (ขยายตัวหนังสือและกรอบให้อ่านสบายตา)
-        st.markdown(f"""<div style="background:#0f172a; padding:15px; border-radius:10px; border:1px solid #3b82f6; margin-bottom:10px;">
+        high_pivot = float(df["high"].tail(50).max()) * mult
+        low_pivot = float(df["low"].tail(50).min()) * mult
+        fib_mid = (high_pivot + low_pivot) / 2
+
+        upper_payload = {
+            'sym_name': sym_name,
+            'exch_name': exch_name,
+            'cat_name': cat_name,
+            'tf_display': tf_display,
+            'turnover_val': turnover_val,
+            'turnover_currency': turnover_currency,
+            'liq_badge_modal': liq_badge_modal,
+            'liq_desc': liq_desc,
+            'score_color': score_color,
+            'score_bar': score_bar,
+            'accum_score': accum_score,
+            'score_desc': score_desc,
+            'demand_status_modal': demand_status_modal,
+            'demand_article': demand_article,
+            'high_pivot': high_pivot,
+            'low_pivot': low_pivot,
+            'fib_mid': fib_mid
+        }
+
+        # =========================================================
+        # แท็บ 2 ส่วนบน (รูปที่ 3): กล่องเลื่อนอิสระส่วนบน
+        # =========================================================
+        with st.container(height=390):
+            st.markdown(f"""<div style="background:#0f172a; padding:15px; border-radius:10px; border:1px solid #3b82f6; margin-bottom:10px;">
 <div style="display:flex; justify-content:space-between; align-items:center;">
 <span style="font-weight:bold; color:#60a5fa; font-size:16px;">🎯 การวินิจฉัยกระแสเงินทุน: {sym_name}</span>
 {liq_badge}
@@ -528,38 +542,10 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 </div>
 </div>""", unsafe_allow_html=True)
 
-        # คำนวณแนวรับแนวต้านสำคัญ
-        high_pivot = float(df["high"].tail(50).max()) * mult
-        low_pivot = float(df["low"].tail(50).min()) * mult
-        fib_mid = (high_pivot + low_pivot) / 2
+            if st.button("🔍 ขยายผลวิเคราะห์เชิงลึก (Expand Deep Analysis: ขยายผลการวิเคราะห์)", key="btn_open_upper_analysis_modal", use_container_width=True, type="secondary"):
+                show_upper_analysis_modal(upper_payload)
 
-        # ข้อมูลสำหรับส่งไปยังหน้าต่างขนาดใหญ่ส่วนบน
-        upper_payload = {
-            'sym_name': sym_name,
-            'exch_name': exch_name,
-            'cat_name': cat_name,
-            'tf_display': tf_display,
-            'turnover_val': turnover_val,
-            'turnover_currency': turnover_currency,
-            'liq_badge_modal': liq_badge_modal,
-            'liq_desc': liq_desc,
-            'score_color': score_color,
-            'score_bar': score_bar,
-            'accum_score': accum_score,
-            'score_desc': score_desc,
-            'demand_status_modal': demand_status_modal,
-            'demand_article': demand_article,
-            'high_pivot': high_pivot,
-            'low_pivot': low_pivot,
-            'fib_mid': fib_mid
-        }
-
-        # ปุ่มกดสไตล์โปร่ง (Secondary Button) สำหรับขยายผลวิเคราะห์เชิงลึกส่วนบน
-        if st.button("🔍 ขยายผลวิเคราะห์เชิงลึก (Expand Deep Analysis: ขยายผลการวิเคราะห์)", key="btn_open_upper_analysis_modal", use_container_width=True, type="secondary"):
-            show_upper_analysis_modal(upper_payload)
-
-        # โซนราคาสำคัญ (Key Levels)
-        st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; margin:10px 0 12px 0;">
+            st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; margin:10px 0;">
 <div style="font-size:14px; font-weight:bold; color:#f8fafc; margin-bottom:8px;">📌 โซนราคาสำคัญ (Key Levels: ระดับราคาสำคัญ)</div>
 <div style="display:flex; justify-content:space-between; font-size:13px; color:#ef4444; padding:3px 0;">
 <span>แนวต้านสำคัญ (Major Resistance)</span><b>{high_pivot:,.2f}</b>
@@ -572,10 +558,9 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 </div>
 </div>""", unsafe_allow_html=True)
 
-        # กรณีเป็นสินค้าเกษตร/ข้าว (Spread Analysis)
-        sym_check = str(meta.get("symbol", ""))
-        if "RICE" in sym_check or "FOB" in sym_check:
-            st.markdown(f"""<div style="background:#1e1b4b; padding:12px; border-radius:8px; border-left:3px solid #818cf8; margin-bottom:12px;">
+            sym_check = str(meta.get("symbol", ""))
+            if "RICE" in sym_check or "FOB" in sym_check:
+                st.markdown(f"""<div style="background:#1e1b4b; padding:12px; border-radius:8px; border-left:3px solid #818cf8; margin-bottom:10px;">
 <div style="font-size:14px; font-weight:bold; color:#c7d2fe;">🌾 การวิเคราะห์ส่วนต่างข้าว (Spread Analysis: การวิเคราะห์ส่วนต่างราคา)</div>
 <div style="font-size:12.5px; color:#e0e7ff; line-height:1.5; margin-top:4px;">
 • ราคาแปลงเป็นบาท: <b>{curr_p:,.2f} {display_unit}</b><br>
@@ -585,11 +570,8 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 </div>""", unsafe_allow_html=True)
 
         # =========================================================
-        # 2. ส่วนล่าง: ศูนย์คัดกรองเรดาร์พหุสินทรัพย์ (Multi-Market Screener)
+        # เตรียมฐานข้อมูล HTML สำหรับสแกนเนอร์ทั้ง 6 ตลาด
         # =========================================================
-        st.markdown("<div style='font-size:14.5px; font-weight:bold; color:#f8fafc; margin:14px 0 8px 0;'>📡 เรดาร์คัดกรองตลาดพหุสินทรัพย์ (Multi-Market Tactical Screener)</div>", unsafe_allow_html=True)
-
-        # ฐานข้อมูลสำหรับแสดงผลบนพาเนลขวา (ปรับขนาดให้อ่านง่ายพอดีกรอบพาเนล)
         market_htmls = {
             "🇹🇭 Bitkub (THB)": """<div style="background:#131722; padding:14px; border-radius:8px; font-size:13px; border:1px solid #1e222d;">
 <div style="color:#38bdf8; font-weight:bold; font-size:13.5px; margin-bottom:8px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
@@ -803,7 +785,6 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 </div>"""
         }
 
-        # ฐานข้อมูลสำหรับหน้าต่างขยายใหญ่ฉบับเต็ม (ตัวหนังสือขนาด 15-18px อ่านสบายตา เต็มตาบนจอใหญ่)
         modal_market_htmls = {
             "🇹🇭 Bitkub (THB)": """<div style="background:#131722; padding:22px; border-radius:12px; font-size:15px; border:1px solid #1e222d;">
 <div style="color:#38bdf8; font-weight:bold; font-size:16.5px; margin-bottom:12px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
@@ -918,7 +899,7 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 <b style="font-size:18px;">SMALL-CAP (หุ้นขนาดเล็ก)</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+14.28%</span>
 </div>
 <div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: ฿1.12 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿1.85M</div>
-<div style="color:#ff3366; font-weight:bold; font-size:14.5px; margin-top:4px;">⚠️ ระวังการลากราคาแบบผิดปกติ (Speculative Pump / Low Turnover: การปั่นราคาเก็งกำไรในวอลุ่มต่ำ)</div>
+<div style="color:#ff3366; font-weight:bold; font-size:14.5px; margin-top:4px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
 <div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
 • <b>บทวิเคราะห์:</b> ยอดเงินหมุนเวียนไม่ถึงเกณฑ์ความปลอดภัยของตลาดหุ้นไทย (ต่ำกว่า 5 ล้านบาท) สภาพคล่องแคบมาก ไม่เอื้อต่อการรันเทรนด์ระยะกลาง
 </div>
@@ -1011,30 +992,33 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 <div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $0.00045 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.15M</div>
 <div style="color:#ff3366; font-weight:bold; font-size:14.5px; margin-top:4px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
 <div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
-• <b>บทวิเคราะห์:</b> ราคาพุ่งขึ้นแรงจากสภาพคล่องที่เบาบางมาก ยอดซื้อขายจริงไม่ถึงเกณฑ์ความปลอดภัย เสี่ยงต่อการโดนทุบราคาฉับพลัน (Dump Risk: ความเสี่ยงถูกเทขาย)
+• <b>บทวิเคราะห์:</b> ราคาพุ่งแรงเกินจริงแต่เม็ดเงินหมุนเวียนต่ำมาก เกิดจากสภาพคล่องที่ว่างเปล่า เสี่ยงโดนเทขายทำกำไรฉับพลัน ไม่ควรไล่ราคา
 </div>
 </div>
 </div>"""
         }
 
-        # กล่องเลือกตลาดที่ต้องการสแกนบนพาเนลขวา
-        market_choice = st.selectbox(
-            "เลือกตลาดที่ต้องการสแกน:",
-            options=[
-                "🇹🇭 Bitkub (THB)", 
-                "🌐 Binance (USDT)", 
-                "📈 หุ้นไทย (SET)", 
-                "🌍 หุ้นต่างประเทศ (US)", 
-                "🪙 ตลาดทองคำ (Macro)", 
-                "🔄 คริปโตทางเลือกในแอป (Altcoins: เหรียญคริปโตอื่นๆ)"
-            ],
-            label_visibility="collapsed",
-            key="screener_market_selector"
-        )
+        # =========================================================
+        # แท็บ 2 ส่วนล่าง (รูปที่ 4): กล่องเลื่อนอิสระส่วนล่าง (เรดาร์คัดกรองตลาดพหุสินทรัพย์)
+        # =========================================================
+        with st.container(height=400):
+            st.markdown("<div style='font-size:14.5px; font-weight:bold; color:#f8fafc; margin:4px 0 8px 0;'>📡 เรดาร์คัดกรองตลาดพหุสินทรัพย์ (Multi-Market Tactical Screener)</div>", unsafe_allow_html=True)
 
-        # เรนเดอร์การ์ดสแกนเนอร์ของตลาดที่เลือกบนพาเนลขวา
-        st.markdown(market_htmls[market_choice], unsafe_allow_html=True)
+            market_choice = st.selectbox(
+                "เลือกตลาดที่ต้องการสแกน:",
+                options=[
+                    "🇹🇭 Bitkub (THB)", 
+                    "🌐 Binance (USDT)", 
+                    "📈 หุ้นไทย (SET)", 
+                    "🌍 หุ้นต่างประเทศ (US)", 
+                    "🪙 ตลาดทองคำ (Macro)", 
+                    "🔄 คริปโตทางเลือกในแอป (Altcoins: เหรียญคริปโตอื่นๆ)"
+                ],
+                label_visibility="collapsed",
+                key="screener_market_selector"
+            )
 
-        # ปุ่มกดสไตล์โปร่ง (Secondary Button) สำหรับขยายเรดาร์คัดกรองตลาดส่วนล่าง
-        if st.button("📊 ขยายเรดาร์คัดกรองตลาด (Expand Market Screener: ขยายเรดาร์คัดกรอง)", key="btn_open_bottom_screener_modal", use_container_width=True, type="secondary"):
-            show_bottom_screener_modal(modal_market_htmls, market_choice)
+            st.markdown(market_htmls[market_choice], unsafe_allow_html=True)
+
+            if st.button("📊 ขยายเรดาร์คัดกรองตลาด (Expand Market Screener: ขยายเรดาร์คัดกรอง)", key="btn_open_bottom_screener_modal", use_container_width=True, type="secondary"):
+                show_bottom_screener_modal(modal_market_htmls, market_choice)
