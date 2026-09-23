@@ -24,51 +24,51 @@ else:
 @modal_dialog("🔍 การวินิจฉัยกระแสเงินทุนเชิงลึก (Deep Flow Diagnosis: การวินิจฉัยเชิงลึก)", width="large")
 def show_upper_analysis_modal(data: dict):
     sym_name = data['sym_name']
-    st.markdown(f"""<div style="background:#0f172a; padding:16px; border-radius:8px; border:1px solid #3b82f6; margin-bottom:14px;">
+    st.markdown(f"""<div style="background:#0f172a; padding:22px; border-radius:12px; border:1px solid #3b82f6; margin-bottom:16px;">
 <div style="display:flex; justify-content:space-between; align-items:center;">
-<span style="font-weight:bold; color:#60a5fa; font-size:16px;">🎯 การวินิจฉัยกระแสเงินทุน: {sym_name}</span>
-{data['liq_badge']}
+<span style="font-weight:bold; color:#60a5fa; font-size:21px;">🎯 การวินิจฉัยกระแสเงินทุน: {sym_name}</span>
+{data['liq_badge_modal']}
 </div>
-<div style="font-size:12px; color:#94a3b8; margin-top:4px;">
+<div style="font-size:14.5px; color:#94a3b8; margin-top:8px;">
 ตลาด: {data['exch_name']} • หมวด: {data['cat_name']} • ⏱️ กรอบเวลา (Analysis Timeframe: กรอบเวลาการวิเคราะห์): <b style="color:#38bdf8;">{data['tf_display']}</b>
 </div>
-<div style="margin-top:12px; background:#131722; padding:12px; border-radius:6px; border:1px solid #1e222d; font-size:12px;">
-<div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-<span style="color:#787b86;">1. ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย):</span>
-<b style="color:#f8fafc; font-size:13px;">{data['turnover_val']:,.0f} {data['turnover_currency']}</b>
+<div style="margin-top:16px; background:#131722; padding:20px; border-radius:10px; border:1px solid #1e222d; font-size:15px;">
+<div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+<span style="color:#a0aec0; font-size:15.5px;">1. ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย):</span>
+<b style="color:#f8fafc; font-size:18px;">{data['turnover_val']:,.0f} {data['turnover_currency']}</b>
 </div>
-<div style="color:#94a3b8; font-size:11px; line-height:1.5; margin-bottom:10px;">• {data['liq_desc']}</div>
-<div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-<span style="color:#787b86;">2. ดัชนีแรงซื้อสะสม (Accumulation Score: คะแนนแรงซื้อสะสม):</span>
-<b style="color:{data['score_color']}; font-family:monospace; font-size:14px;">{data['score_bar']} ({data['accum_score']}/10)</b>
+<div style="color:#cbd5e1; font-size:14px; line-height:1.6; margin-bottom:14px;">• {data['liq_desc']}</div>
+<div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+<span style="color:#a0aec0; font-size:15.5px;">2. ดัชนีแรงซื้อสะสม (Accumulation Score: คะแนนแรงซื้อสะสม):</span>
+<b style="color:{data['score_color']}; font-family:monospace; font-size:18px;">{data['score_bar']} ({data['accum_score']}/10)</b>
 </div>
-<div style="color:#94a3b8; font-size:11px; line-height:1.5; margin-bottom:10px;">• {data['score_desc']}</div>
-<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #21262d;">
-<span style="color:#787b86;">3. การจำแนกพฤติกรรม:</span> {data['demand_status']}
-<div style="color:#e2e8f0; font-size:12px; line-height:1.5; margin-top:6px;">{data['demand_article']}</div>
+<div style="color:#cbd5e1; font-size:14px; line-height:1.6; margin-bottom:14px;">• {data['score_desc']}</div>
+<div style="margin-top:12px; padding-top:12px; border-top:1px dashed #2d3748;">
+<span style="color:#a0aec0; font-size:15.5px;">3. การจำแนกพฤติกรรม:</span> <span style="font-size:15.5px;">{data['demand_status_modal']}</span>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.65; margin-top:8px;">{data['demand_article']}</div>
 </div>
 </div>
 </div>""", unsafe_allow_html=True)
 
     col1, col2 = st.columns(2)
     with col1:
-        st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:6px; margin-bottom:12px;">
-<div style="font-size:13px; font-weight:bold; color:#f8fafc; margin-bottom:8px;">📌 โซนราคาสำคัญ (Key Levels: ระดับราคาสำคัญ)</div>
-<div style="display:flex; justify-content:space-between; font-size:12px; color:#ef4444; padding:3px 0;">
+        st.markdown(f"""<div style="background:#131722; padding:18px; border-radius:10px; border:1px solid #1e222d; margin-bottom:12px;">
+<div style="font-size:16.5px; font-weight:bold; color:#f8fafc; margin-bottom:12px;">📌 โซนราคาสำคัญ (Key Levels: ระดับราคาสำคัญ)</div>
+<div style="display:flex; justify-content:space-between; font-size:15px; color:#ef4444; padding:6px 0;">
 <span>แนวต้านสำคัญ (Major Resistance)</span><b>{data['high_pivot']:,.2f}</b>
 </div>
-<div style="display:flex; justify-content:space-between; font-size:12px; color:#38bdf8; padding:3px 0;">
+<div style="display:flex; justify-content:space-between; font-size:15px; color:#38bdf8; padding:6px 0;">
 <span>จุดกึ่งกลางดุลยภาพ (Equilibrium)</span><b>{data['fib_mid']:,.2f}</b>
 </div>
-<div style="display:flex; justify-content:space-between; font-size:12px; color:#22c55e; padding:3px 0;">
+<div style="display:flex; justify-content:space-between; font-size:15px; color:#22c55e; padding:6px 0;">
 <span>แนวรับสำคัญ (Major Support)</span><b>{data['low_pivot']:,.2f}</b>
 </div>
 </div>""", unsafe_allow_html=True)
 
     with col2:
-        st.markdown("""<div style="background:#131722; padding:12px; border-radius:6px; margin-bottom:12px;">
-<div style="font-size:13px; font-weight:bold; color:#f8fafc; margin-bottom:8px;">💡 คำแนะนำเชิงกลยุทธ์ (Tactical Guidance: คำแนะนำการวางแผน)</div>
-<div style="font-size:11px; color:#94a3b8; line-height:1.5;">
+        st.markdown("""<div style="background:#131722; padding:18px; border-radius:10px; border:1px solid #1e222d; margin-bottom:12px;">
+<div style="font-size:16.5px; font-weight:bold; color:#f8fafc; margin-bottom:12px;">💡 คำแนะนำเชิงกลยุทธ์ (Tactical Guidance: คำแนะนำการวางแผน)</div>
+<div style="font-size:14.5px; color:#cbd5e1; line-height:1.65;">
 • หากคะแนนแรงซื้อสะสมมากกว่า 7/10 และสภาพคล่องสูง: สามารถวางแผนแบ่งไม้เข้าซื้อตามแนวรับเฉลี่ย<br>
 • หากพบสัญญาณเตือนกับดักสภาพคล่อง (Bull Trap): หลีกเลี่ยงการไล่ราคา และตั้งจุดตัดขาดทุน (Stop Loss: จุดหยุดขาดทุน) อย่างเคร่งครัด
 </div>
@@ -78,7 +78,7 @@ def show_upper_analysis_modal(data: dict):
 # หน้าต่างป๊อปอัปขยายใหญ่ส่วนล่าง: เรดาร์คัดกรองตลาดฉบับเต็ม (Full Screener Modal)
 # -------------------------------------------------------------
 @modal_dialog("📊 ศูนย์คัดกรองเรดาร์พหุสินทรัพย์ฉบับเต็ม (Full Multi-Market Screener)", width="large")
-def show_bottom_screener_modal(market_htmls: dict, default_market: str):
+def show_bottom_screener_modal(modal_market_htmls: dict, default_market: str):
     options = [
         "🇹🇭 Bitkub (THB)", 
         "🌐 Binance (USDT)", 
@@ -94,7 +94,7 @@ def show_bottom_screener_modal(market_htmls: dict, default_market: str):
         index=cur_idx,
         key="screener_modal_mkt_selector"
     )
-    st.markdown(market_htmls.get(selected_mkt, ""), unsafe_allow_html=True)
+    st.markdown(modal_market_htmls.get(selected_mkt, ""), unsafe_allow_html=True)
 
 
 def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, fx_rate: float = 35.0):
@@ -359,53 +359,54 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
         exch_name = str(meta.get("exchange", "BINANCE")).upper()
         cat_name = str(meta.get("category", "Crypto")).upper()
 
-        # ตรวจจับกรอบเวลา (Timeframe) จาก session_state, meta หรือคำนวณจากระยะห่างแท่งเทียนใน df
+        # ตรวจจับกรอบเวลา (Timeframe) แม่นยำ 100% จากระยะห่างแท่งเทียนจริงใน df
         detected_tf = None
-        for k in ["current_interval", "timeframe", "interval", "tf", "selected_interval", "chart_tf", "selected_timeframe", "active_tf"]:
-            if k in st.session_state and st.session_state[k]:
-                detected_tf = str(st.session_state[k]).strip()
-                break
+        if len(df) >= 2:
+            try:
+                diff_sec = 0
+                if isinstance(df.index, pd.DatetimeIndex):
+                    diff_sec = abs((df.index[-1] - df.index[-2]).total_seconds())
+                else:
+                    for col in ["time", "timestamp", "datetime", "date", "Date", "Time", "open_time"]:
+                        if col in df.columns:
+                            s = df[col]
+                            if pd.api.types.is_numeric_dtype(s):
+                                val_diff = abs(float(s.iloc[-1] - s.iloc[-2]))
+                                diff_sec = val_diff / 1000.0 if s.iloc[-1] > 1e11 else val_diff
+                            else:
+                                dt_s = pd.to_datetime(s)
+                                diff_sec = abs((dt_s.iloc[-1] - dt_s.iloc[-2]).total_seconds())
+                            break
+
+                if diff_sec > 0:
+                    diff_min = round(diff_sec / 60)
+                    if diff_min <= 2: detected_tf = "1m"
+                    elif 3 <= diff_min <= 7: detected_tf = "5m"
+                    elif 10 <= diff_min <= 20: detected_tf = "15m"
+                    elif 25 <= diff_min <= 45: detected_tf = "30m"
+                    elif 50 <= diff_min <= 75: detected_tf = "1h"
+                    elif 110 <= diff_min <= 135: detected_tf = "2h"
+                    elif 165 <= diff_min <= 200: detected_tf = "3h"
+                    elif 220 <= diff_min <= 260: detected_tf = "4h"
+                    elif 1300 <= diff_min <= 1600: detected_tf = "1D"
+                    elif 2700 <= diff_min <= 3100: detected_tf = "2D"
+                    elif 4100 <= diff_min <= 4600: detected_tf = "3D"
+                    elif 9500 <= diff_min <= 11000: detected_tf = "1W"
+                    elif diff_min >= 35000: detected_tf = "1M"
+            except Exception:
+                pass
+
+        if not detected_tf:
+            for k in ["current_interval", "timeframe", "interval", "tf", "selected_interval", "chart_tf", "selected_timeframe", "active_tf"]:
+                if k in st.session_state and st.session_state[k]:
+                    detected_tf = str(st.session_state[k]).strip()
+                    break
 
         if not detected_tf:
             for k in ["timeframe", "interval", "tf"]:
                 if k in meta and meta[k]:
                     detected_tf = str(meta[k]).strip()
                     break
-
-        if not detected_tf and len(df) >= 2:
-            try:
-                diff_sec = 0
-                if isinstance(df.index, pd.DatetimeIndex):
-                    diff_sec = (df.index[-1] - df.index[-2]).total_seconds()
-                else:
-                    for col in ["time", "timestamp", "datetime", "date", "Date", "Time"]:
-                        if col in df.columns:
-                            s = df[col]
-                            if pd.api.types.is_numeric_dtype(s):
-                                val_diff = float(s.iloc[-1] - s.iloc[-2])
-                                diff_sec = val_diff / 1000.0 if s.iloc[-1] > 1e11 else val_diff
-                            else:
-                                dt_s = pd.to_datetime(s)
-                                diff_sec = (dt_s.iloc[-1] - dt_s.iloc[-2]).total_seconds()
-                            break
-
-                if diff_sec > 0:
-                    diff_min = round(diff_sec / 60)
-                    if diff_min == 1: detected_tf = "1m"
-                    elif diff_min == 5: detected_tf = "5m"
-                    elif diff_min == 15: detected_tf = "15m"
-                    elif diff_min == 30: detected_tf = "30m"
-                    elif diff_min == 60: detected_tf = "1h"
-                    elif diff_min == 120: detected_tf = "2h"
-                    elif diff_min == 180: detected_tf = "3h"
-                    elif diff_min == 240: detected_tf = "4h"
-                    elif diff_min == 1440: detected_tf = "1D"
-                    elif diff_min == 2880: detected_tf = "2D"
-                    elif diff_min == 4320: detected_tf = "3D"
-                    elif diff_min == 10080: detected_tf = "1W"
-                    elif diff_min >= 40000: detected_tf = "1M"
-            except Exception:
-                pass
 
         if not detected_tf:
             detected_tf = "1D"
@@ -450,10 +451,12 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
         # มิติที่ 1: การประเมินสภาพคล่อง (Turnover Liquidity Profile)
         is_liquid = turnover_val >= min_turnover
         if is_liquid:
-            liq_badge = '<span style="color:#00e676; background:rgba(0,230,118,0.15); padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11px;">🟢 สภาพคล่องสูง (High Liquidity: มีสภาพคล่องหนาแน่น)</span>'
+            liq_badge = '<span style="color:#00e676; background:rgba(0,230,118,0.15); padding:3px 10px; border-radius:6px; font-weight:bold; font-size:12.5px;">🟢 สภาพคล่องสูง (High Liquidity: มีสภาพคล่องหนาแน่น)</span>'
+            liq_badge_modal = '<span style="color:#00e676; background:rgba(0,230,118,0.15); padding:5px 14px; border-radius:8px; font-weight:bold; font-size:14.5px;">🟢 สภาพคล่องสูง (High Liquidity: มีสภาพคล่องหนาแน่น)</span>'
             liq_desc = "ปริมาณเงินหมุนเวียนหนาแน่นเพียงพอ ปราศจากความเสี่ยงเรื่องการขาดสภาพคล่องหรือราคาคลาดเคลื่อนสูง (Slippage: ส่วนต่างราคาคำสั่งซื้อขาย)"
         else:
-            liq_badge = '<span style="color:#ff9800; background:rgba(255,152,0,0.15); padding:2px 8px; border-radius:4px; font-weight:bold; font-size:11px;">⚠️ สภาพคล่องต่ำ (Low Liquidity Trap: กับดักสภาพคล่องแห้ง)</span>'
+            liq_badge = '<span style="color:#ff9800; background:rgba(255,152,0,0.15); padding:3px 10px; border-radius:6px; font-weight:bold; font-size:12.5px;">⚠️ สภาพคล่องต่ำ (Low Liquidity Trap: กับดักสภาพคล่องแห้ง)</span>'
+            liq_badge_modal = '<span style="color:#ff9800; background:rgba(255,152,0,0.15); padding:5px 14px; border-radius:8px; font-weight:bold; font-size:14.5px;">⚠️ สภาพคล่องต่ำ (Low Liquidity Trap: กับดักสภาพคล่องแห้ง)</span>'
             liq_desc = "ยอดเงินหมุนเวียนเบาบางกว่าเกณฑ์มาตรฐานความปลอดภัย ระวังคำสั่งซื้อขายจับคู่ไม่สมบูรณ์หรือการเคาะราคาในช่องว่าง (Thin Order Book: กระดานซื้อขายเบาบาง)"
 
         # มิติที่ 2: ดัชนีแรงซื้อสะสม (Accumulation Score: คะแนนแรงซื้อสะสม 1-10)
@@ -482,41 +485,45 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
 
         # มิติที่ 3: การจำแนกพฤติกรรม (แรงซื้อจริง Organic Demand vs แรงปั่น Wash Trading)
         if chg_pct >= 4.0 and not is_liquid:
-            demand_status = '<span style="color:#ff3366; font-weight:bold;">⚠️ ระวังแรงปั่น / กับดักลากราคา (Wash Trading / Bull Trap: การสร้างวอลุ่มเทียม/กับดักล่อซื้อ)</span>'
+            demand_status = '<span style="color:#ff3366; font-weight:bold; font-size:13.5px;">⚠️ ระวังแรงปั่น / กับดักลากราคา (Wash Trading / Bull Trap: การสร้างวอลุ่มเทียม/กับดักล่อซื้อ)</span>'
+            demand_status_modal = '<span style="color:#ff3366; font-weight:bold; font-size:16px;">⚠️ ระวังแรงปั่น / กับดักลากราคา (Wash Trading / Bull Trap: การสร้างวอลุ่มเทียม/กับดักล่อซื้อ)</span>'
             demand_article = "ราคาปรับตัวขึ้นสูงแต่ยอดเงินหมุนเวียนต่ำกว่าเกณฑ์ความปลอดภัยอย่างมาก สะท้อนพฤติกรรมการเคาะซื้อลอยตัวในภาวะกระดานบาง เสี่ยงต่อการโดนเทขายทุบราคาฉับพลัน (Dump Risk: ความเสี่ยงถูกเทขาย)"
         elif chg_pct >= 2.0 and accum_score >= 7 and is_liquid:
-            demand_status = '<span style="color:#00e676; font-weight:bold;">✅ แรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</span>'
+            demand_status = '<span style="color:#00e676; font-weight:bold; font-size:13.5px;">✅ แรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</span>'
+            demand_status_modal = '<span style="color:#00e676; font-weight:bold; font-size:16px;">✅ แรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</span>'
             demand_article = "การปรับขึ้นมีมูลค่าเงินหมุนเวียนและปริมาณซื้อขายสนับสนุนอย่างมีนัยสำคัญ ไม่พบสัญญาณขัดแย้งเชิงลบ (Bearish Divergence: ราคาขึ้นแต่วอลุ่มลดลง) มีโอกาสรันเทรนด์ไปต่อสูง"
         elif accum_score >= 6 and abs(chg_pct) <= 3.0:
-            demand_status = '<span style="color:#38bdf8; font-weight:bold;">🌱 ทรงตัวสะสมพลังต้นน้ำ (Accumulation Setup: รูปแบบสะสมพลังก่อนวิ่ง)</span>'
+            demand_status = '<span style="color:#38bdf8; font-weight:bold; font-size:13.5px;">🌱 ทรงตัวสะสมพลังต้นน้ำ (Accumulation Setup: รูปแบบสะสมพลังก่อนวิ่ง)</span>'
+            demand_status_modal = '<span style="color:#38bdf8; font-weight:bold; font-size:16px;">🌱 ทรงตัวสะสมพลังต้นน้ำ (Accumulation Setup: รูปแบบสะสมพลังก่อนวิ่ง)</span>'
             demand_article = "ราคาทรงตัวในกรอบสะสมพลัง แรงซื้อเริ่มตั้งฐานอย่างเหนียวแน่น มีความเสี่ยงขาลงต่ำ เหมาะแก่การเฝ้าระวังจังหวะทะลุกรอบ"
         else:
-            demand_status = '<span style="color:#94a3b8; font-weight:bold;">⚖️ สภาวะสมดุลตามกลไกตลาด (Neutral Market Flow: สภาพตลาดเป็นกลาง)</span>'
+            demand_status = '<span style="color:#94a3b8; font-weight:bold; font-size:13.5px;">⚖️ สภาวะสมดุลตามกลไกตลาด (Neutral Market Flow: สภาพตลาดเป็นกลาง)</span>'
+            demand_status_modal = '<span style="color:#94a3b8; font-weight:bold; font-size:16px;">⚖️ สภาวะสมดุลตามกลไกตลาด (Neutral Market Flow: สภาพตลาดเป็นกลาง)</span>'
             demand_article = "แรงซื้อและแรงขายมีสัดส่วนใกล้เคียงกัน ราคากำลังสร้างฐานรอความชัดเจนจากปัจจัยชี้นำภายนอก"
 
-        # เรนเดอร์การ์ดวิเคราะห์ส่วนบน (ติดชิดซ้าย ไม่มีบรรทัดว่าง ป้องกัน Markdown มองเป็น Code Block)
-        st.markdown(f"""<div style="background:#0f172a; padding:12px; border-radius:8px; border:1px solid #3b82f6; margin-bottom:10px;">
+        # เรนเดอร์การ์ดวิเคราะห์ส่วนบน (ขยายตัวหนังสือและกรอบให้อ่านสบายตา)
+        st.markdown(f"""<div style="background:#0f172a; padding:15px; border-radius:10px; border:1px solid #3b82f6; margin-bottom:12px;">
 <div style="display:flex; justify-content:space-between; align-items:center;">
-<span style="font-weight:bold; color:#60a5fa; font-size:14px;">🎯 การวินิจฉัยกระแสเงินทุน: {sym_name}</span>
+<span style="font-weight:bold; color:#60a5fa; font-size:16px;">🎯 การวินิจฉัยกระแสเงินทุน: {sym_name}</span>
 {liq_badge}
 </div>
-<div style="font-size:11px; color:#94a3b8; margin-top:2px;">
+<div style="font-size:12.5px; color:#94a3b8; margin-top:4px;">
 ตลาด: {exch_name} • หมวด: {cat_name} • กรอบเวลา: <b style="color:#38bdf8;">{tf_display}</b>
 </div>
-<div style="margin-top:10px; background:#131722; padding:10px; border-radius:6px; border:1px solid #1e222d; font-size:11px;">
+<div style="margin-top:12px; background:#131722; padding:14px; border-radius:8px; border:1px solid #1e222d; font-size:13px;">
 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-<span style="color:#787b86;">1. ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย):</span>
-<b style="color:#f8fafc;">{turnover_val:,.0f} {turnover_currency}</b>
+<span style="color:#94a3b8; font-size:13px;">1. ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย):</span>
+<b style="color:#f8fafc; font-size:14.5px;">{turnover_val:,.0f} {turnover_currency}</b>
 </div>
-<div style="color:#94a3b8; font-size:10px; line-height:1.4; margin-bottom:8px;">• {liq_desc}</div>
+<div style="color:#cbd5e1; font-size:12px; line-height:1.5; margin-bottom:10px;">• {liq_desc}</div>
 <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
-<span style="color:#787b86;">2. ดัชนีแรงซื้อสะสม (Accumulation Score: คะแนนแรงซื้อสะสม):</span>
-<b style="color:{score_color}; font-family:monospace; font-size:12px;">{score_bar} ({accum_score}/10)</b>
+<span style="color:#94a3b8; font-size:13px;">2. ดัชนีแรงซื้อสะสม (Accumulation Score: คะแนนแรงซื้อสะสม):</span>
+<b style="color:{score_color}; font-family:monospace; font-size:15px;">{score_bar} ({accum_score}/10)</b>
 </div>
-<div style="color:#94a3b8; font-size:10px; line-height:1.4; margin-bottom:8px;">• {score_desc}</div>
-<div style="margin-top:6px; padding-top:6px; border-top:1px dashed #21262d;">
-<span style="color:#787b86;">3. การจำแนกพฤติกรรม:</span> {demand_status}
-<div style="color:#e2e8f0; font-size:11px; line-height:1.4; margin-top:4px;">{demand_article}</div>
+<div style="color:#cbd5e1; font-size:12px; line-height:1.5; margin-bottom:10px;">• {score_desc}</div>
+<div style="margin-top:8px; padding-top:8px; border-top:1px dashed #21262d;">
+<span style="color:#94a3b8; font-size:13px;">3. การจำแนกพฤติกรรม:</span> {demand_status}
+<div style="color:#f1f5f9; font-size:12.5px; line-height:1.55; margin-top:5px;">{demand_article}</div>
 </div>
 </div>
 </div>""", unsafe_allow_html=True)
@@ -534,13 +541,13 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
             'tf_display': tf_display,
             'turnover_val': turnover_val,
             'turnover_currency': turnover_currency,
-            'liq_badge': liq_badge,
+            'liq_badge_modal': liq_badge_modal,
             'liq_desc': liq_desc,
             'score_color': score_color,
             'score_bar': score_bar,
             'accum_score': accum_score,
             'score_desc': score_desc,
-            'demand_status': demand_status,
+            'demand_status_modal': demand_status_modal,
             'demand_article': demand_article,
             'high_pivot': high_pivot,
             'low_pivot': low_pivot,
@@ -554,24 +561,24 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
         # -------------------------------------------------------------
         # โซนราคาสำคัญเดิม (Key Levels) & Spread Analysis (คงไว้ตามเดิม 100%)
         # -------------------------------------------------------------
-        st.markdown(f"""<div style="background:#131722; padding:10px; border-radius:6px; margin:10px 0 12px 0;">
-<div style="font-size:12px; font-weight:bold; color:#f8fafc; margin-bottom:6px;">📌 โซนราคาสำคัญ (Key Levels: ระดับราคาสำคัญ)</div>
-<div style="display:flex; justify-content:space-between; font-size:11px; color:#ef4444; padding:2px 0;">
+        st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; margin:12px 0;">
+<div style="font-size:14px; font-weight:bold; color:#f8fafc; margin-bottom:8px;">📌 โซนราคาสำคัญ (Key Levels: ระดับราคาสำคัญ)</div>
+<div style="display:flex; justify-content:space-between; font-size:13px; color:#ef4444; padding:3px 0;">
 <span>แนวต้านสำคัญ (Major Resistance)</span><b>{high_pivot:,.2f}</b>
 </div>
-<div style="display:flex; justify-content:space-between; font-size:11px; color:#38bdf8; padding:2px 0;">
+<div style="display:flex; justify-content:space-between; font-size:13px; color:#38bdf8; padding:3px 0;">
 <span>จุดกึ่งกลางดุลยภาพ (Equilibrium)</span><b>{fib_mid:,.2f}</b>
 </div>
-<div style="display:flex; justify-content:space-between; font-size:11px; color:#22c55e; padding:2px 0;">
+<div style="display:flex; justify-content:space-between; font-size:13px; color:#22c55e; padding:3px 0;">
 <span>แนวรับสำคัญ (Major Support)</span><b>{low_pivot:,.2f}</b>
 </div>
 </div>""", unsafe_allow_html=True)
 
         sym_check = str(meta.get("symbol", ""))
         if "RICE" in sym_check or "FOB" in sym_check:
-            st.markdown(f"""<div style="background:#1e1b4b; padding:10px; border-radius:6px; border-left:3px solid #818cf8; margin-bottom:12px;">
-<div style="font-size:12px; font-weight:bold; color:#c7d2fe;">🌾 การวิเคราะห์ส่วนต่างข้าว (Spread Analysis: การวิเคราะห์ส่วนต่างราคา)</div>
-<div style="font-size:11px; color:#e0e7ff; margin-top:4px;">
+            st.markdown(f"""<div style="background:#1e1b4b; padding:12px; border-radius:8px; border-left:3px solid #818cf8; margin-bottom:12px;">
+<div style="font-size:14px; font-weight:bold; color:#c7d2fe;">🌾 การวิเคราะห์ส่วนต่างข้าว (Spread Analysis: การวิเคราะห์ส่วนต่างราคา)</div>
+<div style="font-size:12.5px; color:#e0e7ff; line-height:1.5; margin-top:4px;">
 • ราคาแปลงเป็นบาท: <b>{curr_p:,.2f} {display_unit}</b><br>
 • อัตราแลกเปลี่ยนคำนวณ: <b>{fx_rate:.2f} บาท/USD</b><br>
 • สถานะส่วนต่าง: ราคาเวียดนามต่ำกว่าไทย ~<b>30 USD/ตัน</b> ส่งผลให้ผู้ส่งออกชะลอการซื้อข้าวเปลือกหน้าโรงสี
@@ -581,216 +588,430 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
         # =========================================================
         # 2. ส่วนล่าง: ศูนย์คัดกรองเรดาร์พหุสินทรัพย์ (Multi-Market Screener)
         # =========================================================
-        st.markdown("<div style='font-size:13px; font-weight:bold; color:#f8fafc; margin:10px 0 6px 0;'>📡 เรดาร์คัดกรองตลาดพหุสินทรัพย์ (Multi-Market Tactical Screener)</div>", unsafe_allow_html=True)
+        st.markdown("<div style='font-size:14.5px; font-weight:bold; color:#f8fafc; margin:14px 0 8px 0;'>📡 เรดาร์คัดกรองตลาดพหุสินทรัพย์ (Multi-Market Tactical Screener)</div>", unsafe_allow_html=True)
 
-        # เตรียมฐานข้อมูล HTML สำหรับทั้ง 6 ตลาด (หมวด 6 เป็นคริปโตทางเลือกในแอป)
+        # ฐานข้อมูลสำหรับแสดงผลบนพาเนลขวา (ปรับขนาดให้อ่านง่ายพอดีกรอบพาเนล)
         market_htmls = {
-            "🇹🇭 Bitkub (THB)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
-<div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+            "🇹🇭 Bitkub (THB)": """<div style="background:#131722; padding:14px; border-radius:8px; font-size:13px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:13.5px; margin-bottom:8px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>THBVIC</b> <span style="color:#00e676;">+4.35%</span>
+<b style="font-size:14.5px;">THBVIC</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+4.35%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: ฿0.96 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿275,855</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: ฿0.96 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿275,855</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ราคาบีบอัดตัวในกรอบแคบ 48 ชม. ปริมาณซื้อขาย (Volume) เริ่มยกตัว 1.4 เท่า โครงสร้างอยู่ในระยะสะสมพลัง (Accumulation Phase: ช่วงสะสมพลัง) จ่อทดสอบแนวต้าน ฿1.02
 </div>
 </div>
-<div style="margin-bottom:6px;">
+<div style="margin-bottom:8px;">
 <div style="display:flex; justify-content:space-between;">
-<b>THBSOON</b> <span style="color:#00e676;">+4.23%</span>
+<b style="font-size:14.5px;">THBSOON</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+4.23%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: ฿7.40 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿191,216</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: ฿7.40 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿191,216</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ดัชนีแรงซื้อสะสม 6/10 เกิดภาวะกรอบราคาบีบอัดตัวแคบ (Volatility Squeeze: การบีบตัวของความผันผวน) สภาพคล่องตั้งฐานรับเหนียวแน่น เหมาะแก่การวางกรอบดักซื้อต้นทุนต่ำ
 </div>
 </div>
-<div style="color:#f59e0b; font-weight:bold; margin:12px 0 6px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+<div style="color:#f59e0b; font-weight:bold; font-size:13.5px; margin:14px 0 8px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>THBSQD</b> <span style="color:#00e676;">+22.87%</span>
+<b style="font-size:14.5px;">THBSQD</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+22.87%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: ฿1.54 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿6,002,284</div>
-<div style="color:#00e676; font-weight:bold; font-size:10px; margin-top:2px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: ฿1.54 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿6,002,284</div>
+<div style="color:#00e676; font-weight:bold; font-size:12px; margin-top:3px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ยอดเงินหมุนเวียนทะลุ 6 ล้านบาท ปริมาณซื้อขายพุ่งสูงกว่าค่าเฉลี่ย 3.5 เท่า ยืนยันกระแสเงินทุนไหลเข้าจริง ไม่ใช่การลากราคาลอยตัว
 </div>
 </div>
 <div style="margin-bottom:4px;">
 <div style="display:flex; justify-content:space-between;">
-<b>THBWIN</b> <span style="color:#00e676;">+17.41%</span>
+<b style="font-size:14.5px;">THBWIN</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+17.41%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: ฿0.00106 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿27,968</div>
-<div style="color:#ff3366; font-weight:bold; font-size:10px; margin-top:2px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: ฿0.00106 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿27,968</div>
+<div style="color:#ff3366; font-weight:bold; font-size:12px; margin-top:3px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> แม้ราคาบวกสูงแต่ยอดเงินซื้อขายทั้งวันมีเพียง 2.7 หมื่นบาท เกิดจากการเคาะซื้อในกระดานที่ไม่มีคนตั้งขาย เสี่ยงโดนเทขายทุบราคาฉับพลัน
 </div>
 </div>
 </div>""",
 
-            "🌐 Binance (USDT)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
-<div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+            "🌐 Binance (USDT)": """<div style="background:#131722; padding:14px; border-radius:8px; font-size:13px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:13.5px; margin-bottom:8px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>MEUSDT</b> <span style="color:#00e676;">+4.80%</span>
+<b style="font-size:14.5px;">MEUSDT</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+4.80%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $0.0657 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $3.54M</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $0.0657 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $3.54M</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> เกิดการสะสมพลังพร้อมปริมาณเงินหมุนเวียนสูงโดดเด่น โครงสร้างราขายกฐานขึ้นอย่างมั่นคง มีโอกาสดันราคาผ่านแนวต้านสูง
 </div>
 </div>
-<div style="margin-bottom:6px;">
+<div style="margin-bottom:8px;">
 <div style="display:flex; justify-content:space-between;">
-<b>XMRUSDT</b> <span style="color:#00e676;">+4.77%</span>
+<b style="font-size:14.5px;">XMRUSDT</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+4.77%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $118.70 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.57M</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $118.70 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.57M</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ราคาทรงตัวในกรอบบีบอัดแคบ แต่ปริมาณการซื้อขายยังไม่ระเบิด แนะนำรอสัญญาณวอลุ่มซัพพอร์ตเพื่อยืนยันการเบรกแนวต้าน
 </div>
 </div>
-<div style="color:#f59e0b; font-weight:bold; margin:12px 0 6px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+<div style="color:#f59e0b; font-weight:bold; font-size:13.5px; margin:14px 0 8px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>PROMUSDT</b> <span style="color:#00e676;">+37.73%</span>
+<b style="font-size:14.5px;">PROMUSDT</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+37.73%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $2.811 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $5.16M</div>
-<div style="color:#00e676; font-weight:bold; font-size:10px; margin-top:2px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $2.811 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $5.16M</div>
+<div style="color:#00e676; font-weight:bold; font-size:12px; margin-top:3px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> โมเมนตัมแข็งแกร่งมาก เงินหมุนเวียนหนาแน่นทะลุ 5 ล้านดอลลาร์สหรัฐ ยืนยันเทรนด์ขาขึ้นขนาดใหญ่ มีโอกาสรันเทรนด์ไปต่อชัดเจน
 </div>
 </div>
 <div style="margin-bottom:4px;">
 <div style="display:flex; justify-content:space-between;">
-<b>CREAMUSDT</b> <span style="color:#00e676;">+65.35%</span>
+<b style="font-size:14.5px;">CREAMUSDT</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+65.35%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $2.100 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.28M</div>
-<div style="color:#ff3366; font-weight:bold; font-size:10px; margin-top:2px;">⚠️ เกิดสัญญาณขัดแย้งเชิงลบกับวอลุ่ม (Bearish Divergence / Bull Trap: ราคาขึ้นแต่วอลุ่มลด/กับดักล่อซื้อ)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $2.100 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.28M</div>
+<div style="color:#ff3366; font-weight:bold; font-size:12px; margin-top:3px;">⚠️ เกิดสัญญาณขัดแย้งเชิงลบกับวอลุ่ม (Bearish Divergence / Bull Trap: ราคาขึ้นแต่วอลุ่มลด/กับดักล่อซื้อ)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ราคาพุ่งแรงเกินจริงแต่เม็ดเงินหมุนเวียนต่ำมาก เกิดจากสภาพคล่องที่ว่างเปล่า เสี่ยงโดนเทขายทำกำไรฉับพลัน ไม่ควรไล่ราคา
 </div>
 </div>
 </div>""",
 
-            "📈 หุ้นไทย (SET)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
-<div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+            "📈 หุ้นไทย (SET)": """<div style="background:#131722; padding:14px; border-radius:8px; font-size:13px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:13.5px; margin-bottom:8px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>WHA</b> <span style="color:#00e676;">+2.63%</span>
+<b style="font-size:14.5px;">WHA</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+2.63%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: ฿5.85 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿215.40M</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: ฿5.85 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿215.40M</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ราคาสร้างฐานสะสมอย่างเหนียวแน่นเหนือแนวรับเส้นค่าเฉลี่ยเคลื่อนที่ (EMA 15 วัน: Exponential Moving Average) ปริมาณซื้อขายแท่งเขียวเริ่มหนาขึ้นผิดปกติในรอบ 10 วันทำการ จ่อทดสอบจุดสูงสุดเดิม
 </div>
 </div>
-<div style="color:#f59e0b; font-weight:bold; margin:12px 0 6px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — ผู้นำกลุ่มอุตสาหกรรม (Sector Leaders: ผู้นำกลุ่มอุตสาหกรรม)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+<div style="color:#f59e0b; font-weight:bold; font-size:13.5px; margin:14px 0 8px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — ผู้นำกลุ่มอุตสาหกรรม (Sector Leaders: ผู้นำกลุ่มอุตสาหกรรม)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>HANA</b> <span style="color:#00e676;">+8.97%</span>
+<b style="font-size:14.5px;">HANA</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+8.97%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: ฿42.50 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿1,420M</div>
-<div style="color:#00e676; font-weight:bold; font-size:10px; margin-top:2px;">✅ แรงซื้อสถาบันและกองทุนตรวจพบจริง (Institutional Inflow: เม็ดเงินสถาบันไหลเข้า)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: ฿42.50 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿1,420M</div>
+<div style="color:#00e676; font-weight:bold; font-size:12px; margin-top:3px;">✅ แรงซื้อสถาบันและกองทุนตรวจพบจริง (Institutional Inflow: เม็ดเงินสถาบันไหลเข้า)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ยอดเงินหมุนเวียนระดับพันล้านบาท ปริมาณซื้อขายเข้ามากกว่าค่าเฉลี่ย 20 วันถึง 4 เท่า ยืนยันการหมุนเวียนกลุ่มลงทุน (Sector Rotation: การโยกย้ายเงินลงทุนข้ามกลุ่ม) เข้าสู่ชิ้นส่วนอิเล็กทรอนิกส์
 </div>
 </div>
 <div style="margin-bottom:4px;">
 <div style="display:flex; justify-content:space-between;">
-<b>SMALL-CAP (หุ้นขนาดเล็ก)</b> <span style="color:#00e676;">+14.28%</span>
+<b style="font-size:14.5px;">SMALL-CAP (หุ้นขนาดเล็ก)</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+14.28%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: ฿1.12 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿1.85M</div>
-<div style="color:#ff3366; font-weight:bold; font-size:10px; margin-top:2px;">⚠️ ระวังการลากราคาแบบผิดปกติ (Speculative Pump / Low Turnover: การปั่นราคาเก็งกำไรในวอลุ่มต่ำ)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: ฿1.12 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿1.85M</div>
+<div style="color:#ff3366; font-weight:bold; font-size:12px; margin-top:3px;">⚠️ ระวังการลากราคาแบบผิดปกติ (Speculative Pump / Low Turnover: การปั่นราคาเก็งกำไรในวอลุ่มต่ำ)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ยอดเงินหมุนเวียนไม่ถึงเกณฑ์ความปลอดภัยของตลาดหุ้นไทย (ต่ำกว่า 5 ล้านบาท) สภาพคล่องแคบมาก ไม่เอื้อต่อการรันเทรนด์ระยะกลาง
 </div>
 </div>
 </div>""",
 
-            "🌍 หุ้นต่างประเทศ (US)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
-<div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+            "🌍 หุ้นต่างประเทศ (US)": """<div style="background:#131722; padding:14px; border-radius:8px; font-size:13px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:13.5px; margin-bottom:8px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>PLTR (Palantir)</b> <span style="color:#00e676;">+3.15%</span>
+<b style="font-size:14.5px;">PLTR (Palantir)</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+3.15%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $62.40 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $840M</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $62.40 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $840M</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ราคาสร้างฐานรูปถ้วยและหู (Cup and Handle Base: โครงสร้างถ้วยหูพร้อมเบรก) บนแนวรับเส้นค่าเฉลี่ยถ่วงน้ำหนักตามปริมาณซื้อขาย (VWAP: Volume Weighted Average Price) ปริมาณซื้อขายเริ่มฟื้นตัวหนุนโอกาสทำจุดสูงสุดใหม่รอบปี
 </div>
 </div>
-<div style="color:#f59e0b; font-weight:bold; margin:12px 0 6px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — ผู้นำเทคโนโลยีขนาดใหญ่ (Mega-Cap Momentum: หุ้นยักษ์ใหญ่แรงส่งสูง)</div>
+<div style="color:#f59e0b; font-weight:bold; font-size:13.5px; margin:14px 0 8px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — ผู้นำเทคโนโลยีขนาดใหญ่ (Mega-Cap Momentum: หุ้นยักษ์ใหญ่แรงส่งสูง)</div>
 <div style="margin-bottom:4px;">
 <div style="display:flex; justify-content:space-between;">
-<b>NVDA (NVIDIA)</b> <span style="color:#00e676;">+5.82%</span>
+<b style="font-size:14.5px;">NVDA (NVIDIA)</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+5.82%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $148.90 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $14,200M</div>
-<div style="color:#00e676; font-weight:bold; font-size:10px; margin-top:2px;">✅ อภิมหาสภาพคล่องระดับโลก (Mega Liquidity Flow: กระแสเงินทุนมหาศาล)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $148.90 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $14,200M</div>
+<div style="color:#00e676; font-weight:bold; font-size:12px; margin-top:3px;">✅ อภิมหาสภาพคล่องระดับโลก (Mega Liquidity Flow: กระแสเงินทุนมหาศาล)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> เม็ดเงินหมุนเวียนระดับหมื่นล้านดอลลาร์สหรัฐ ขับเคลื่อนด้วยอุปสงค์จริงของกองทุนระดับโลก โมเมนตัมแข็งแกร่งต่อเนื่อง
 </div>
 </div>
 </div>""",
 
-            "🪙 ตลาดทองคำ (Macro)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
-<div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 ภาวะการบีบอัดความผันผวน (Volatility Squeeze Preparation: การสะสมพลังก่อนเลือกทาง)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+            "🪙 ตลาดทองคำ (Macro)": """<div style="background:#131722; padding:14px; border-radius:8px; font-size:13px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:13.5px; margin-bottom:8px;">🌱 ภาวะการบีบอัดความผันผวน (Volatility Squeeze Preparation: การสะสมพลังก่อนเลือกทาง)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>XAU/USD (Gold Spot: ทองคำสปอต)</b> <span style="color:#00e676;">+0.42%</span>
+<b style="font-size:14.5px;">XAU/USD (Gold Spot: ทองคำสปอต)</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+0.42%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $2,645.20 • ตลาดล่วงหน้าสากล (Global Futures: สัญญาซื้อขายล่วงหน้าระดับโลก)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $2,645.20 • ตลาดล่วงหน้าสากล (Global Futures: สัญญาซื้อขายล่วงหน้าระดับโลก)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> การเคลื่อนไหวของราคารายวันบีบแคบลงในกรอบไม่เกิน $12 เป็นเวลา 5 วันทำการ ปริมาณการซื้อขายชะลอตัวเพื่อรอตัวเลขเศรษฐกิจมหภาค เป็นพฤติกรรมกักเก็บพลังงานก่อนระเบิดแนวโน้มระลอกใหญ่
 </div>
 </div>
-<div style="color:#f59e0b; font-weight:bold; margin:12px 0 6px 0;">🔥 สัญญาณทะลุจุดสูงสุดรอบสัปดาห์ (Momentum Surge Breakout: ทะลุแนวต้านด้วยแรงส่ง)</div>
+<div style="color:#f59e0b; font-weight:bold; font-size:13.5px; margin:14px 0 8px 0;">🔥 สัญญาณทะลุจุดสูงสุดรอบสัปดาห์ (Momentum Surge Breakout: ทะลุแนวต้านด้วยแรงส่ง)</div>
 <div style="margin-bottom:4px;">
 <div style="display:flex; justify-content:space-between;">
-<b>PAXG/USDT (Tokenized Gold: เหรียญทองคำดิจิทัล)</b> <span style="color:#00e676;">+1.65%</span>
+<b style="font-size:14.5px;">PAXG/USDT (Tokenized Gold: เหรียญทองคำดิจิทัล)</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+1.65%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $2,652.10 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $48.20M</div>
-<div style="color:#00e676; font-weight:bold; font-size:10px; margin-top:2px;">✅ เกิด Breakout เหนือกรอบสะสม 20 วัน (20-Day High Breakout: ทะลุจุดสูงสุด 20 วัน)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $2,652.10 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $48.20M</div>
+<div style="color:#00e676; font-weight:bold; font-size:12px; margin-top:3px;">✅ เกิด Breakout เหนือกรอบสะสม 20 วัน (20-Day High Breakout: ทะลุจุดสูงสุด 20 วัน)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> การปรับตัวขึ้นเกิน +1.5% ของทองคำถือเป็นความผิดปกติเชิงโมเมนตัม สะท้อนการเคลื่อนย้ายเงินทุนเข้าสู่สินทรัพย์ปลอดภัย (Safe Haven Flow: เงินไหลเข้าหลบภัย) ชัดเจน
 </div>
 </div>
 </div>""",
 
-            "🔄 คริปโตทางเลือกในแอป (Altcoins: เหรียญคริปโตอื่นๆ)": """<div style="background:#131722; padding:10px; border-radius:6px; font-size:11px; border:1px solid #1e222d;">
-<div style="color:#38bdf8; font-weight:bold; margin-bottom:6px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+            "🔄 คริปโตทางเลือกในแอป (Altcoins: เหรียญคริปโตอื่นๆ)": """<div style="background:#131722; padding:14px; border-radius:8px; font-size:13px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:13.5px; margin-bottom:8px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>SUI/USDT</b> <span style="color:#00e676;">+5.12%</span>
+<b style="font-size:14.5px;">SUI/USDT</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+5.12%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $3.42 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $420M</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $3.42 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $420M</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ราคาบีบอัดตัวในกรอบสะสมพลังเหนือเส้นค่าเฉลี่ย EMA 20 วัน ปริมาณซื้อขาย (Volume: ปริมาณการซื้อขาย) เริ่มยกตัวขึ้น 1.5 เท่า จ่อทะลุแนวต้านสำคัญ
 </div>
 </div>
-<div style="margin-bottom:6px;">
+<div style="margin-bottom:8px;">
 <div style="display:flex; justify-content:space-between;">
-<b>APT/USDT</b> <span style="color:#00e676;">+3.85%</span>
+<b style="font-size:14.5px;">APT/USDT</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+3.85%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $9.15 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $185M</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $9.15 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $185M</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ดัชนีแรงซื้อสะสม 7/10 โครงสร้างยกฐานราคา (Higher Low) ต่อเนื่อง สภาพคล่องฝั่งซื้อตั้งรับหนาแน่น มีโอกาสเกิด Breakout (การทะลุกรอบ) ในระยะสั้น
 </div>
 </div>
-<div style="color:#f59e0b; font-weight:bold; margin:12px 0 6px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
-<div style="margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid #1e242c;">
+<div style="color:#f59e0b; font-weight:bold; font-size:13.5px; margin:14px 0 8px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
+<div style="margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid #1e242c;">
 <div style="display:flex; justify-content:space-between;">
-<b>SOL/USDT</b> <span style="color:#00e676;">+11.45%</span>
+<b style="font-size:14.5px;">SOL/USDT</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+11.45%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $214.80 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $3,850M</div>
-<div style="color:#00e676; font-weight:bold; font-size:10px; margin-top:2px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $214.80 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $3,850M</div>
+<div style="color:#00e676; font-weight:bold; font-size:12px; margin-top:3px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
 • <b>บทวิเคราะห์:</b> ปริมาณเงินหมุนเวียนหลายพันล้านดอลลาร์สหรัฐ ทะลุกรอบสะสม 1 เดือนเต็ม ยืนยันกระแสเงินทุนสถาบันไหลเข้าต่อเนื่อง มีโอกาสรันเทรนด์ไปต่อชัดเจน
 </div>
 </div>
 <div style="margin-bottom:4px;">
 <div style="display:flex; justify-content:space-between;">
-<b>LOW-CAP MEME (เหรียญมีมขนาดเล็ก)</b> <span style="color:#00e676;">+28.40%</span>
+<b style="font-size:14.5px;">LOW-CAP MEME (เหรียญมีมขนาดเล็ก)</b> <span style="color:#00e676; font-size:14px; font-weight:bold;">+28.40%</span>
 </div>
-<div style="color:#787b86; font-size:10px;">ราคา: $0.00045 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.15M</div>
-<div style="color:#ff3366; font-weight:bold; font-size:10px; margin-top:2px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
-<div style="color:#94a3b8; margin-top:2px;">
+<div style="color:#94a3b8; font-size:12px; margin-top:2px;">ราคา: $0.00045 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.15M</div>
+<div style="color:#ff3366; font-weight:bold; font-size:12px; margin-top:3px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
+<div style="color:#cbd5e1; font-size:12.5px; line-height:1.5; margin-top:4px;">
+• <b>บทวิเคราะห์:</b> ราคาพุ่งขึ้นแรงจากสภาพคล่องที่เบาบางมาก ยอดซื้อขายจริงไม่ถึงเกณฑ์ความปลอดภัย เสี่ยงต่อการโดนทุบราคาฉับพลัน (Dump Risk: ความเสี่ยงถูกเทขาย)
+</div>
+</div>
+</div>"""
+        }
+
+        # ฐานข้อมูลสำหรับหน้าต่างขยายใหญ่ฉบับเต็ม (ตัวหนังสือขนาด 15-18px อ่านสบายตา เต็มตาบนจอใหญ่)
+        modal_market_htmls = {
+            "🇹🇭 Bitkub (THB)": """<div style="background:#131722; padding:22px; border-radius:12px; font-size:15px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:16.5px; margin-bottom:12px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">THBVIC</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+4.35%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: ฿0.96 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿275,855</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ราคาบีบอัดตัวในกรอบแคบ 48 ชม. ปริมาณซื้อขาย (Volume) เริ่มยกตัว 1.4 เท่า โครงสร้างอยู่ในระยะสะสมพลัง (Accumulation Phase: ช่วงสะสมพลัง) จ่อทดสอบแนวต้าน ฿1.02
+</div>
+</div>
+<div style="margin-bottom:10px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">THBSOON</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+4.23%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: ฿7.40 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿191,216</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ดัชนีแรงซื้อสะสม 6/10 เกิดภาวะกรอบราคาบีบอัดตัวแคบ (Volatility Squeeze: การบีบตัวของความผันผวน) สภาพคล่องตั้งฐานรับเหนียวแน่น เหมาะแก่การวางกรอบดักซื้อต้นทุนต่ำ
+</div>
+</div>
+<div style="color:#f59e0b; font-weight:bold; font-size:16.5px; margin:20px 0 12px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">THBSQD</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+22.87%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: ฿1.54 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿6,002,284</div>
+<div style="color:#00e676; font-weight:bold; font-size:14.5px; margin-top:4px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ยอดเงินหมุนเวียนทะลุ 6 ล้านบาท ปริมาณซื้อขายพุ่งสูงกว่าค่าเฉลี่ย 3.5 เท่า ยืนยันกระแสเงินทุนไหลเข้าจริง ไม่ใช่การลากราคาลอยตัว
+</div>
+</div>
+<div style="margin-bottom:6px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">THBWIN</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+17.41%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: ฿0.00106 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿27,968</div>
+<div style="color:#ff3366; font-weight:bold; font-size:14.5px; margin-top:4px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> แม้ราคาบวกสูงแต่ยอดเงินซื้อขายทั้งวันมีเพียง 2.7 หมื่นบาท เกิดจากการเคาะซื้อในกระดานที่ไม่มีคนตั้งขาย เสี่ยงโดนเทขายทุบราคาฉับพลัน
+</div>
+</div>
+</div>""",
+
+            "🌐 Binance (USDT)": """<div style="background:#131722; padding:22px; border-radius:12px; font-size:15px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:16.5px; margin-bottom:12px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">MEUSDT</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+4.80%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $0.0657 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $3.54M</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> เกิดการสะสมพลังพร้อมปริมาณเงินหมุนเวียนสูงโดดเด่น โครงสร้างราขายกฐานขึ้นอย่างมั่นคง มีโอกาสดันราคาผ่านแนวต้านสูง
+</div>
+</div>
+<div style="margin-bottom:10px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">XMRUSDT</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+4.77%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $118.70 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.57M</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ราคาทรงตัวในกรอบบีบอัดแคบ แต่ปริมาณการซื้อขายยังไม่ระเบิด แนะนำรอสัญญาณวอลุ่มซัพพอร์ตเพื่อยืนยันการเบรกแนวต้าน
+</div>
+</div>
+<div style="color:#f59e0b; font-weight:bold; font-size:16.5px; margin:20px 0 12px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">PROMUSDT</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+37.73%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $2.811 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $5.16M</div>
+<div style="color:#00e676; font-weight:bold; font-size:14.5px; margin-top:4px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> โมเมนตัมแข็งแกร่งมาก เงินหมุนเวียนหนาแน่นทะลุ 5 ล้านดอลลาร์สหรัฐ ยืนยันเทรนด์ขาขึ้นขนาดใหญ่ มีโอกาสรันเทรนด์ไปต่อชัดเจน
+</div>
+</div>
+<div style="margin-bottom:6px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">CREAMUSDT</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+65.35%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $2.100 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.28M</div>
+<div style="color:#ff3366; font-weight:bold; font-size:14.5px; margin-top:4px;">⚠️ เกิดสัญญาณขัดแย้งเชิงลบกับวอลุ่ม (Bearish Divergence / Bull Trap: ราคาขึ้นแต่วอลุ่มลด/กับดักล่อซื้อ)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ราคาพุ่งแรงเกินจริงแต่เม็ดเงินหมุนเวียนต่ำมาก เกิดจากสภาพคล่องที่ว่างเปล่า เสี่ยงโดนเทขายทำกำไรฉับพลัน ไม่ควรไล่ราคา
+</div>
+</div>
+</div>""",
+
+            "📈 หุ้นไทย (SET)": """<div style="background:#131722; padding:22px; border-radius:12px; font-size:15px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:16.5px; margin-bottom:12px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">WHA</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+2.63%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: ฿5.85 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿215.40M</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ราคาสร้างฐานสะสมอย่างเหนียวแน่นเหนือแนวรับเส้นค่าเฉลี่ยเคลื่อนที่ (EMA 15 วัน: Exponential Moving Average) ปริมาณซื้อขายแท่งเขียวเริ่มหนาขึ้นผิดปกติในรอบ 10 วันทำการ จ่อทดสอบจุดสูงสุดเดิม
+</div>
+</div>
+<div style="color:#f59e0b; font-weight:bold; font-size:16.5px; margin:20px 0 12px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — ผู้นำกลุ่มอุตสาหกรรม (Sector Leaders: ผู้นำกลุ่มอุตสาหกรรม)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">HANA</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+8.97%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: ฿42.50 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿1,420M</div>
+<div style="color:#00e676; font-weight:bold; font-size:14.5px; margin-top:4px;">✅ แรงซื้อสถาบันและกองทุนตรวจพบจริง (Institutional Inflow: เม็ดเงินสถาบันไหลเข้า)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ยอดเงินหมุนเวียนระดับพันล้านบาท ปริมาณซื้อขายเข้ามากกว่าค่าเฉลี่ย 20 วันถึง 4 เท่า ยืนยันการหมุนเวียนกลุ่มลงทุน (Sector Rotation: การโยกย้ายเงินลงทุนข้ามกลุ่ม) เข้าสู่ชิ้นส่วนอิเล็กทรอนิกส์
+</div>
+</div>
+<div style="margin-bottom:6px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">SMALL-CAP (หุ้นขนาดเล็ก)</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+14.28%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: ฿1.12 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): ฿1.85M</div>
+<div style="color:#ff3366; font-weight:bold; font-size:14.5px; margin-top:4px;">⚠️ ระวังการลากราคาแบบผิดปกติ (Speculative Pump / Low Turnover: การปั่นราคาเก็งกำไรในวอลุ่มต่ำ)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ยอดเงินหมุนเวียนไม่ถึงเกณฑ์ความปลอดภัยของตลาดหุ้นไทย (ต่ำกว่า 5 ล้านบาท) สภาพคล่องแคบมาก ไม่เอื้อต่อการรันเทรนด์ระยะกลาง
+</div>
+</div>
+</div>""",
+
+            "🌍 หุ้นต่างประเทศ (US)": """<div style="background:#131722; padding:22px; border-radius:12px; font-size:15px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:16.5px; margin-bottom:12px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">PLTR (Palantir)</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+3.15%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $62.40 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $840M</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ราคาสร้างฐานรูปถ้วยและหู (Cup and Handle Base: โครงสร้างถ้วยหูพร้อมเบรก) บนแนวรับเส้นค่าเฉลี่ยถ่วงน้ำหนักตามปริมาณซื้อขาย (VWAP: Volume Weighted Average Price) ปริมาณซื้อขายเริ่มฟื้นตัวหนุนโอกาสทำจุดสูงสุดใหม่รอบปี
+</div>
+</div>
+<div style="color:#f59e0b; font-weight:bold; font-size:16.5px; margin:20px 0 12px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — ผู้นำเทคโนโลยีขนาดใหญ่ (Mega-Cap Momentum: หุ้นยักษ์ใหญ่แรงส่งสูง)</div>
+<div style="margin-bottom:6px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">NVDA (NVIDIA)</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+5.82%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $148.90 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $14,200M</div>
+<div style="color:#00e676; font-weight:bold; font-size:14.5px; margin-top:4px;">✅ อภิมหาสภาพคล่องระดับโลก (Mega Liquidity Flow: กระแสเงินทุนมหาศาล)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> เม็ดเงินหมุนเวียนระดับหมื่นล้านดอลลาร์สหรัฐ ขับเคลื่อนด้วยอุปสงค์จริงของกองทุนระดับโลก โมเมนตัมแข็งแกร่งต่อเนื่อง
+</div>
+</div>
+</div>""",
+
+            "🪙 ตลาดทองคำ (Macro)": """<div style="background:#131722; padding:22px; border-radius:12px; font-size:15px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:16.5px; margin-bottom:12px;">🌱 ภาวะการบีบอัดความผันผวน (Volatility Squeeze Preparation: การสะสมพลังก่อนเลือกทาง)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">XAU/USD (Gold Spot: ทองคำสปอต)</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+0.42%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $2,645.20 • ตลาดล่วงหน้าสากล (Global Futures: สัญญาซื้อขายล่วงหน้าระดับโลก)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> การเคลื่อนไหวของราคารายวันบีบแคบลงในกรอบไม่เกิน $12 เป็นเวลา 5 วันทำการ ปริมาณการซื้อขายชะลอตัวเพื่อรอตัวเลขเศรษฐกิจมหภาค เป็นพฤติกรรมกักเก็บพลังงานก่อนระเบิดแนวโน้มระลอกใหญ่
+</div>
+</div>
+<div style="color:#f59e0b; font-weight:bold; font-size:16.5px; margin:20px 0 12px 0;">🔥 สัญญาณทะลุจุดสูงสุดรอบสัปดาห์ (Momentum Surge Breakout: ทะลุแนวต้านด้วยแรงส่ง)</div>
+<div style="margin-bottom:6px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">PAXG/USDT (Tokenized Gold: เหรียญทองคำดิจิทัล)</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+1.65%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $2,652.10 • ปริมาณเงินหมุนเวียน (Turnover: มูลค่าซื้อขาย): $48.20M</div>
+<div style="color:#00e676; font-weight:bold; font-size:14.5px; margin-top:4px;">✅ เกิด Breakout เหนือกรอบสะสม 20 วัน (20-Day High Breakout: ทะลุจุดสูงสุด 20 วัน)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> การปรับตัวขึ้นเกิน +1.5% ของทองคำถือเป็นความผิดปกติเชิงโมเมนตัม สะท้อนการเคลื่อนย้ายเงินทุนเข้าสู่สินทรัพย์ปลอดภัย (Safe Haven Flow: เงินไหลเข้าหลบภัย) ชัดเจน
+</div>
+</div>
+</div>""",
+
+            "🔄 คริปโตทางเลือกในแอป (Altcoins: เหรียญคริปโตอื่นๆ)": """<div style="background:#131722; padding:22px; border-radius:12px; font-size:15px; border:1px solid #1e222d;">
+<div style="color:#38bdf8; font-weight:bold; font-size:16.5px; margin-bottom:12px;">🌱 หมวดตั้งฐานต้นน้ำ — จ่อทะลุกรอบ (Breakout Setup: ทะลุกรอบแนวต้าน)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">SUI/USDT</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+5.12%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $3.42 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $420M</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ราคาบีบอัดตัวในกรอบสะสมพลังเหนือเส้นค่าเฉลี่ย EMA 20 วัน ปริมาณซื้อขาย (Volume: ปริมาณการซื้อขาย) เริ่มยกตัวขึ้น 1.5 เท่า จ่อทะลุแนวต้านสำคัญ
+</div>
+</div>
+<div style="margin-bottom:10px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">APT/USDT</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+3.85%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $9.15 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $185M</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ดัชนีแรงซื้อสะสม 7/10 โครงสร้างยกฐานราคา (Higher Low) ต่อเนื่อง สภาพคล่องฝั่งซื้อตั้งรับหนาแน่น มีโอกาสเกิด Breakout (การทะลุกรอบ) ในระยะสั้น
+</div>
+</div>
+<div style="color:#f59e0b; font-weight:bold; font-size:16.5px; margin:20px 0 12px 0;">🔥 หมวดรันเทรนด์โมเมนตัมสูง — เป้าหมาย +15% ใน 2–3 วัน (High Momentum Run Trend: เกาะแนวโน้มตามแรงส่ง)</div>
+<div style="margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid #1e242c;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">SOL/USDT</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+11.45%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $214.80 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $3,850M</div>
+<div style="color:#00e676; font-weight:bold; font-size:14.5px; margin-top:4px;">✅ ตรวจพบแรงซื้อจริงหนาแน่น (Confirmed Organic Flow: กระแสเงินทุนจริงเข้าหนุน)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
+• <b>บทวิเคราะห์:</b> ปริมาณเงินหมุนเวียนหลายพันล้านดอลลาร์สหรัฐ ทะลุกรอบสะสม 1 เดือนเต็ม ยืนยันกระแสเงินทุนสถาบันไหลเข้าต่อเนื่อง มีโอกาสรันเทรนด์ไปต่อชัดเจน
+</div>
+</div>
+<div style="margin-bottom:6px;">
+<div style="display:flex; justify-content:space-between;">
+<b style="font-size:18px;">LOW-CAP MEME (เหรียญมีมขนาดเล็ก)</b> <span style="color:#00e676; font-size:17px; font-weight:bold;">+28.40%</span>
+</div>
+<div style="color:#94a3b8; font-size:14px; margin-top:3px;">ราคา: $0.00045 • ปริมาณเงินหมุนเวียน 24 ชม. (Turnover: มูลค่าซื้อขาย): $0.15M</div>
+<div style="color:#ff3366; font-weight:bold; font-size:14.5px; margin-top:4px;">⚠️ ระวังกับดักสภาพคล่องต่ำ (Low-Turnover Trap / Bull Trap: กับดักวอลุ่มเงินน้อย/กับดักล่อซื้อ)</div>
+<div style="color:#f1f5f9; font-size:15px; line-height:1.6; margin-top:6px;">
 • <b>บทวิเคราะห์:</b> ราคาพุ่งขึ้นแรงจากสภาพคล่องที่เบาบางมาก ยอดซื้อขายจริงไม่ถึงเกณฑ์ความปลอดภัย เสี่ยงต่อการโดนทุบราคาฉับพลัน (Dump Risk: ความเสี่ยงถูกเทขาย)
 </div>
 </div>
@@ -812,9 +1033,9 @@ Ask (เสนอขาย) {curr_p * 1.001:,.2f}
             key="screener_market_selector"
         )
 
-        # เรนเดอร์การ์ดสแกนเนอร์ของตลาดที่เลือก
+        # เรนเดอร์การ์ดสแกนเนอร์ของตลาดที่เลือกบนพาเนลขวา
         st.markdown(market_htmls[market_choice], unsafe_allow_html=True)
 
         # ปุ่มกดสไตล์โปร่ง (Secondary Button) สำหรับขยายเรดาร์คัดกรองตลาดส่วนล่าง
         if st.button("📊 ขยายเรดาร์คัดกรองตลาด (Expand Market Screener: ขยายเรดาร์คัดกรอง)", key="btn_open_bottom_screener_modal", use_container_width=True, type="secondary"):
-            show_bottom_screener_modal(market_htmls, market_choice)
+            show_bottom_screener_modal(modal_market_htmls, market_choice)
