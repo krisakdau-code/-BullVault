@@ -104,10 +104,10 @@ st.markdown("""
         height: 0px !important;
     }
 
-    /* 2. สั่งย้ายตัว ☰ (#toggle-btn-anchor) ลงมาอยู่หน้าเลข 5m โดยตรง */
+    /* 2. สั่งย้ายตัว ☰ (#toggle-btn-anchor) ลงมาอยู่หน้าแถวไทม์เฟรม */
     #toggle-btn-anchor {
         position: fixed !important;
-        top: 52px !important;
+        top: 66px !important;
         left: 14px !important;
         z-index: 9999999 !important;
         background: #0e1118 !important;
@@ -123,16 +123,16 @@ st.markdown("""
         transition: all 0.15s ease-in-out !important;
     }
     #toggle-btn-anchor:hover {
-        color: #2BFF005B !important;
-        border-color: #04FF004C !important;
-        box-shadow: 0 0 8px rgba(255, 140, 0, 0.4) !important;
+        color: #00e676 !important;
+        border-color: #00e676 !important;
+        box-shadow: 0 0 8px rgba(0, 230, 118, 0.4) !important;
     }
 
     [data-testid="stSidebar"] { top: 0 !important; background-color: #090b10 !important; }
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* 3. ดึงเนื้อหาทั้งหมดชิดขอบบนสุด */
+    /* 3. ดึงเนื้อหาขึ้นในระยะที่พอดีสายตา ไม่ชนขอบจอด้านบน */
     .stApp [data-testid="stMain"],
     .stApp [data-testid="stMainBlockContainer"],
     section[data-testid="stMain"] .block-container,
@@ -145,18 +145,18 @@ st.markdown("""
         max-width: 100% !important;
     }
 
-    /* 4. สไตล์ปุ่มแท็บด้านบนสุด: ส้มสะท้อนแสง Neon Glow */
+    /* 4. สไตล์ปุ่มแท็บด้านบนสุด: เขียวสะท้อนแสง Neon Glow */
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="primary"],
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-primary"] {
-        background: linear-gradient(135deg, #40FF0010, #37FF0057) !important;
-        color: #C0E8AE !important;
+        background: linear-gradient(135deg, #00E67752, #00FF8857) !important;
+        color: #F0E9E9 !important;
         font-weight: 700 !important;
         font-size: 12.5px !important;
-        border: 1px solid #44FF3300 !important;
+        border: 1px solid #00ff88 !important;
         border-radius: 4px !important;
         height: 28px !important;
         min-height: 28px !important;
-        box-shadow: 0 0 12px rgba(119 255 0 / 0.73) !important;
+        box-shadow: 0 0 12px rgba(0, 230, 118, 0.6) !important;
         backdrop-filter: blur(8px) !important;
     }
 
@@ -164,7 +164,7 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-secondary"] {
         background: #0e1118 !important;
         color: #9E8B8B !important;
-        border: 1px solid #331E1E !important;
+        border: 1px solid #1e2433 !important;
         border-radius: 4px !important;
         height: 28px !important;
         min-height: 28px !important;
@@ -174,9 +174,9 @@ st.markdown("""
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="secondary"]:hover,
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-secondary"]:hover {
         background: #17130e !important;
-        color: #ff8c00 !important;
-        border-color: #ff8c00 !important;
-        box-shadow: 0 0 8px rgba(255, 140, 0, 0.3) !important;
+        color: #00E6775B !important;
+        border-color: #00E67755 !important;
+        box-shadow: 0 0 8px rgba(0, 230, 118, 0.3) !important;
     }
 
     /* 5. สไตล์ปุ่ม Timeframe Pills */
@@ -205,16 +205,16 @@ st.markdown("""
     }
 
     div[data-testid="stRadio"] > div[role="radiogroup"] label:hover {
-        color: #ff8c00 !important;
-        background-color: #17130e !important;
-        border-color: rgba(255, 140, 0, 0.3) !important;
+        color: #00E67784 !important;
+        background-color: #111e16 !important;
+        border-color: rgba(0, 230, 118, 0.3) !important;
     }
 
     div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
         color: #000000 !important;
-        background: linear-gradient(135deg, #15FF0000, #00FF2F00) !important;
+        background: linear-gradient(135deg, #00E67753, #00FF8852) !important;
         font-weight: 700 !important;
-        box-shadow: 0 0 10px rgba(255 157 0 / 0.7) !important;
+        box-shadow: 0 0 10px rgba(0 230 119 / 0.27) !important;
     }
 
     /* 6. ปุ่ม Indicators */
@@ -277,7 +277,33 @@ st.markdown("""
         border-left: 1px solid #161a23 !important;
     }
 
-    /* 8. สไตล์ตัวเลข % และราคา: เขียวสะท้อนแสง / แดงสด */
+    /* ปุ่มตลาด และปุ่มดาวฝั่งซ้าย */
+    div[data-testid="column"]:has(#custom-left-menu-anchor) button:has(span:contains("ตลาด")),
+    div[data-testid="column"]:has(#custom-left-menu-anchor) button:has(div:contains("ตลาด")) {
+        background: linear-gradient(135deg, #00e676, #00ff88) !important;
+        color: #000000 !important;
+        font-weight: 700 !important;
+        border: 1px solid #00ff88 !important;
+        box-shadow: 0 0 12px rgba(0, 230, 118, 0.5) !important;
+    }
+    div[data-testid="column"]:has(#custom-left-menu-anchor) button:has(span:contains("⭐")),
+    div[data-testid="column"]:has(#custom-left-menu-anchor) .stButton:has(button:contains("⭐")) button {
+        background: rgba(0, 230, 118, 0.15) !important;
+        border: 1.5px solid #00e676 !important;
+        box-shadow: 0 0 8px rgba(0, 230, 118, 0.5) !important;
+    }
+
+    /* Watchlist Active Highlight (กรอบไฟสีส้มเรืองแสงแบบ TradingView แท้) */
+    div[data-testid="column"]:has(#custom-left-menu-anchor) div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) button[kind="primary"],
+    div[data-testid="column"]:has(#custom-left-menu-anchor) div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) button[data-testid="baseButton-primary"] {
+        background: rgba(255, 125, 30, 0.22) !important;
+        border: 1.5px solid #ff7d1e !important;
+        box-shadow: 0 0 12px rgba(255, 125, 30, 0.6) !important;
+        color: #ff9d42 !important;
+        font-weight: 700 !important;
+    }
+
+    /* 8. สไตล์ตัวเลข % และราคา */
     .text-green, span:contains("+"), [data-change^="+"] {
         color: #00e676 !important;
         font-family: 'JetBrains Mono', monospace !important;
@@ -523,6 +549,7 @@ def inject_workspace_resizers():
     })();
     </script>
     """, height=0, width=0)
+
 if "chart_tabs" not in st.session_state:
     st.session_state["chart_tabs"] = [
         {"id": "tab_1", "symbol": "BTCUSDT", "tf": "1h"}
@@ -552,7 +579,6 @@ def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
             df["time"] = (df["time"].astype("int64") // 10**9)
         df = df.dropna().drop_duplicates(subset=["time"]).sort_values("time").tail(bars).reset_index(drop=True)
 
-    # บันทึกข้อมูลแท่งเทียนลง session_state ให้ Watchlist ดึงไปใช้ชุดเดียวกันเป๊ะ
     if df is not None and not df.empty:
         st.session_state["df_data"] = df
 
@@ -575,7 +601,7 @@ def dashboard():
     active_id = st.session_state["active_tab_id"]
     active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
 
-   # ซิงค์ค่าเหรียญแบบปลอดบั๊ก: เคลียร์ selected_symbol ทันทีเพื่อไม่ให้ค่าค้างข้ามเหรียญ
+    # ซิงค์ค่าเหรียญ: ตรวจสอบและอัปเดตแท็บกราฟหลักทันที
     incoming_sym = st.session_state.pop("selected_symbol", None)
     if incoming_sym:
         active_tab["symbol"] = incoming_sym
@@ -608,9 +634,10 @@ def dashboard():
     pct_str = f"{pct_sign}{live_pct:.2f}%"
 
     # =========================================================================
-    # แถวที่ 1 (บนสุด): แถบแท็บสินทรัพย์ (Dynamic Column Iterator - ปลอดภัย 100%)
+    # แถวที่ 1: แถบแท็บสินทรัพย์ด้านบน
+    # =========================================================================
     has_close = len(tabs) > 1
-    col_widths = [0.01]  # ลดความกว้างช่องแรกเพื่อให้แท็บ BTC ชิดซ้ายสวยงาม
+    col_widths = [0.01]
     for _ in tabs:
         col_widths.append(1.0)
         if has_close:
@@ -621,10 +648,9 @@ def dashboard():
     t_cols = st.columns(col_widths, gap="small")
     col_iter = iter(t_cols)
 
-    # 1. ตัวระบุ Marker สำหรับ CSS แท็บด้านบน
     with next(col_iter):
         st.markdown('<div id="top-tabs-marker"></div>', unsafe_allow_html=True)
-    # 2. วาดแท็บและปุ่มปิด
+
     for t in tabs:
         is_active = (t["id"] == active_id)
         t_meta = resolve_market_info(t["symbol"])
@@ -636,7 +662,7 @@ def dashboard():
                 st.session_state["active_tab_id"] = t["id"]
                 st.session_state["current_symbol"] = t["symbol"]
                 st.session_state["selected_tf"] = t["tf"]
-                st.session_state.pop("selected_symbol", None)  # <--- เพิ่มบรรทัดนี้ เพื่อป้องกันชื่อเหรียญสลับค้าง
+                st.session_state.pop("selected_symbol", None)
                 st.rerun()
 
         if has_close:
@@ -648,7 +674,6 @@ def dashboard():
                         st.session_state["current_symbol"] = st.session_state["chart_tabs"][0]["symbol"]
                     st.rerun()
 
-    # 3. ปุ่มเพิ่มแท็บใหม่ (＋)
     with next(col_iter):
         if st.button("＋", key="btn_add_tab_global", help="เพิ่มแท็บกราฟใหม่", use_container_width=True):
             new_tab_id = f"tab_{int(time.time() * 1000)}"
@@ -658,7 +683,7 @@ def dashboard():
             st.session_state["current_symbol"] = new_sym
             st.rerun()
 
-   # แถวที่ 2: Timeframe และ Indicators (ใส่ปุ่ม ☰ ไว้หน้าแถว 5m)
+    # แถวที่ 2: Timeframe และ Indicators
     c_space, c_tf, c_ind, c_right_blank = st.columns([0.35, 5.2, 2.5, 2.0], gap="small")
 
     with c_space:
@@ -676,7 +701,6 @@ def dashboard():
             st.rerun()
         st.markdown('</div>', unsafe_allow_html=True)
 
-   # จุดวงเขียว 2: ปุ่ม Indicators
     with c_ind:
         if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
             st.session_state["modal_indicators_open"] = True
@@ -685,7 +709,7 @@ def dashboard():
             show_indicators_modal()
 
     # =========================================================================
-    # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก (มี Draggable Splitters คั่นกลาง)
+    # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก
     # =========================================================================
     tech_data = compute_full_technicals(df)
     raw_charts = build_charts(df, symbol, tf, 520, 120, 120)

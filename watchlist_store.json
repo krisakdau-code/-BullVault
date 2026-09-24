@@ -1,4 +1,11 @@
 {
-  "watchlist": [],
+  "watchlist": [
+    [
+      "BNBUSDT",
+      "-",
+      "-",
+      true
+    ]
+  ],
   "colors": {}
 }
