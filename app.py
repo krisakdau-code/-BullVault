@@ -73,7 +73,12 @@ st.set_page_config(page_title="Diamond Armor Universal", page_icon="💎", layou
 
 st.markdown("""
 <style>
-    /* 1. ยุบ Header ดั้งเดิมของ Streamlit ทั้งหมด */
+    /* ==========================================================================
+       DESIGN SYSTEM: DEEP DARK + NEON ACCENTS + UNIFIED TYPOGRAPHY
+       ========================================================================== */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+    /* 1. ยุบ Header ดั้งเดิมของ Streamlit ทั้งหมด และเซ็ตพื้นหลัง Deep Dark */
     header, .stAppHeader,
     [data-testid="stHeader"], [data-testid="stAppHeader"],
     [data-testid="stDecoration"], [data-testid="stToolbar"],
@@ -84,7 +89,14 @@ st.markdown("""
         padding: 0px !important;
         margin: 0px !important;
     }
-   /* 1. ซ่อนกล่องพื้นที่ว่างของ Iframe ด้านบน */
+
+    .stApp, body, [data-testid="stAppViewContainer"] {
+        background-color: #07080a !important;
+        color: #d1d5db !important;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+
+    /* ซ่อนกล่องพื้นที่ว่างของ Iframe ด้านบน */
     div[data-testid="stElementContainer"]:has(iframe[height="0"]) {
         display: none !important;
         margin: 0 !important;
@@ -95,11 +107,11 @@ st.markdown("""
     /* 2. สั่งย้ายตัว ☰ (#toggle-btn-anchor) ลงมาอยู่หน้าเลข 5m โดยตรง */
     #toggle-btn-anchor {
         position: fixed !important;
-        top: 52px !important;          /* <--- ปรับระดับ ขึ้น-ลง ให้ตรงแถวเลข 5m (ปรับได้ระหว่าง 48px - 56px) */
-        left: 14px !important;         /* <--- ปรับ ซ้าย-ขวา ให้อยู่หน้า 5m */
+        top: 52px !important;
+        left: 14px !important;
         z-index: 9999999 !important;
-        background: rgba(255, 255, 255, 0.05) !important;
-        border: 1px solid #2a2e39 !important;
+        background: #0e1118 !important;
+        border: 1px solid #1e2433 !important;
         border-radius: 4px !important;
         width: 32px !important;
         height: 26px !important;
@@ -107,57 +119,67 @@ st.markdown("""
         align-items: center !important;
         justify-content: center !important;
         cursor: pointer !important;
+        color: #8b949e !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+    #toggle-btn-anchor:hover {
+        color: #ff8c00 !important;
+        border-color: #ff8c00 !important;
+        box-shadow: 0 0 8px rgba(255, 140, 0, 0.4) !important;
     }
 
-    [data-testid="stSidebar"] { top: 0 !important; }
+    [data-testid="stSidebar"] { top: 0 !important; background-color: #090b10 !important; }
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* 3. ดึงเนื้อหาทั้งหมดชิดขอบบนสุด (แก้จุดขีดส้ม) */
+    /* 3. ดึงเนื้อหาทั้งหมดชิดขอบบนสุด */
     .stApp [data-testid="stMain"],
     .stApp [data-testid="stMainBlockContainer"],
     section[data-testid="stMain"] .block-container,
     .block-container {
         padding-top: 0px !important;
-        margin-top: -38px !important;  /* <--- ปรับช่องว่างขอบบน (ยิ่งติดลบมาก ยิ่งชิดขอบบน เช่น -40px) */
+        margin-top: -38px !important;
         padding-bottom: 0rem !important;
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
         max-width: 100% !important;
     }
-    /* 3. สไตล์ปุ่มแท็บด้านบนสุด: ส้มเรืองแสงโปร่งแสง 50% */
+
+    /* 4. สไตล์ปุ่มแท็บด้านบนสุด: ส้มสะท้อนแสง Neon Glow */
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="primary"],
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-primary"] {
-        background: rgba(255, 102, 0, 0.25) !important;
-        color: #ffffff !important;
+        background: linear-gradient(135deg, #ff6b00, #ff8c00) !important;
+        color: #000000 !important;
         font-weight: 700 !important;
-        font-size: 13px !important;
-        border: 1px solid rgba(255, 125, 30, 0.95) !important;
+        font-size: 12.5px !important;
+        border: 1px solid #ffa033 !important;
         border-radius: 4px !important;
         height: 28px !important;
         min-height: 28px !important;
-        box-shadow: 0 0 14px rgba(255, 110, 20, 0.50), inset 0 0 6px rgba(255, 110, 20, 0.25) !important;
+        box-shadow: 0 0 12px rgba(255, 107, 0, 0.5) !important;
         backdrop-filter: blur(8px) !important;
     }
 
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="secondary"],
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-secondary"] {
-        background: rgba(24, 27, 34, 0.6) !important;
-        color: #8f96a3 !important;
-        border: 1px solid #2a2e39 !important;
+        background: #0e1118 !important;
+        color: #8b949e !important;
+        border: 1px solid #1e2433 !important;
         border-radius: 4px !important;
         height: 28px !important;
         min-height: 28px !important;
-        font-size: 13px !important;
+        font-size: 12.5px !important;
+        transition: all 0.15s ease-in-out !important;
     }
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="secondary"]:hover,
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-secondary"]:hover {
-        background: rgba(38, 43, 54, 0.9) !important;
-        color: #ffffff !important;
-        border-color: #ff7d1e !important;
+        background: #17130e !important;
+        color: #ff8c00 !important;
+        border-color: #ff8c00 !important;
+        box-shadow: 0 0 8px rgba(255, 140, 0, 0.3) !important;
     }
 
-    /* 4. สไตล์ปุ่ม Timeframe Pills */
+    /* 5. สไตล์ปุ่ม Timeframe Pills */
     div[data-testid="stRadio"] > div[role="radiogroup"] {
         display: flex !important;
         flex-direction: row !important;
@@ -170,11 +192,12 @@ st.markdown("""
         margin: 0 !important;
         border-radius: 4px !important;
         cursor: pointer !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        color: #9aa0a6 !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
+        color: #8b949e !important;
         background: transparent !important;
-        border: none !important;
+        border: 1px solid transparent !important;
+        transition: all 0.15s ease !important;
     }
 
     div[data-testid="stRadio"] > div[role="radiogroup"] label > div:first-child {
@@ -182,41 +205,39 @@ st.markdown("""
     }
 
     div[data-testid="stRadio"] > div[role="radiogroup"] label:hover {
-        color: #ffffff !important;
-        background-color: rgba(255, 255, 255, 0.08) !important;
+        color: #ff8c00 !important;
+        background-color: #17130e !important;
+        border-color: rgba(255, 140, 0, 0.3) !important;
     }
 
     div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
-        color: #ffffff !important;
-        background-color: #ff5722 !important;
+        color: #000000 !important;
+        background: linear-gradient(135deg, #ff6b00, #ff8c00) !important;
+        font-weight: 700 !important;
+        box-shadow: 0 0 10px rgba(255, 107, 0, 0.5) !important;
     }
 
-    /* 5. ปุ่ม Indicators Popover */
-    div[data-testid="stPopover"] {
-        position: relative !important;
-        z-index: 10010 !important;
-    }
+    /* 6. ปุ่ม Indicators */
+    button#btn_open_ind_modal, button[key="btn_open_ind_modal"],
     div[data-testid="stPopover"] > button {
-        background-color: #1e222d !important;
-        border: 1px solid #363c4e !important;
-        color: #d1d4dc !important;
-        height: 30px !important;
+        background-color: #0e1118 !important;
+        border: 1px solid #1e2433 !important;
+        color: #d1d5db !important;
+        height: 28px !important;
+        font-size: 12px !important;
+        font-weight: 600 !important;
         border-radius: 4px !important;
+        transition: all 0.15s ease-in-out !important;
     }
+    button#btn_open_ind_modal:hover,
     div[data-testid="stPopover"] > button:hover {
-        background-color: #2a2e39 !important;
-        border-color: #2962ff !important;
-        color: #ffffff !important;
+        background-color: #17130e !important;
+        border-color: #ff8c00 !important;
+        color: #ff8c00 !important;
+        box-shadow: 0 0 8px rgba(255, 140, 0, 0.3) !important;
     }
-    /* ปลดล็อกคอนเทนเนอร์และ Iframe ของกราฟให้ยืดหดตามความกว้างคอลัมน์อัตโนมัติ */
-    div[data-testid="column"]:has(#custom-center-chart-anchor),
-    div[data-testid="column"]:has(#custom-center-chart-anchor) iframe,
-    div[data-testid="column"]:has(#custom-center-chart-anchor) div[data-testid="stCustomComponentV1"] {
-        width: 100% !important;
-        max-width: 100% !important;
-        flex: 1 1 auto !important;
-    }
-    /* 6. ปลดล็อกระบบปรับขนาดพาเนลซ้าย-ขวาด้วย CSS Variables */
+
+    /* 7. ปลดล็อกกราฟและการปรับขนาดพาเนลด้วย CSS Variables */
     :root {
         --left-panel-width: 240px;
         --right-panel-width: 320px;
@@ -232,18 +253,47 @@ st.markdown("""
         width: var(--left-panel-width) !important;
         min-width: 160px !important;
         max-width: 480px !important;
+        background-color: #090b10 !important;
+        border-right: 1px solid #161a23 !important;
     }
     div[data-testid="column"]:has(#custom-center-chart-anchor) {
         flex: 1 1 0% !important;
         min-width: 300px !important;
         width: 100% !important;
     }
+    div[data-testid="column"]:has(#custom-center-chart-anchor),
+    div[data-testid="column"]:has(#custom-center-chart-anchor) iframe,
+    div[data-testid="column"]:has(#custom-center-chart-anchor) div[data-testid="stCustomComponentV1"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 auto !important;
+    }
     div[data-testid="column"]:has(#custom-right-menu-anchor) {
         flex: 0 0 var(--right-panel-width) !important;
         width: var(--right-panel-width) !important;
         min-width: 200px !important;
         max-width: 520px !important;
+        background-color: #090b10 !important;
+        border-left: 1px solid #161a23 !important;
     }
+
+    /* 8. สไตล์ตัวเลข % และราคา: เขียวสะท้อนแสง / แดงสด */
+    .text-green, span:contains("+"), [data-change^="+"] {
+        color: #00e676 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-weight: 700 !important;
+    }
+    .text-red, span:contains("-"), [data-change^="-"] {
+        color: #ff3366 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        font-weight: 700 !important;
+    }
+
+    /* 9. Scrollbar Minimal Dark */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #07080a; }
+    ::-webkit-scrollbar-thumb { background: #1a202e; border-radius: 2px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ff8c00; }
 </style>
 """, unsafe_allow_html=True)
 

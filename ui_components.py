@@ -42,9 +42,9 @@ def render_tv_clickable_tabs(open_tabs, active_sym, quotes_dict, key="tv_tabs_ba
       .tv-tabs {{ display:inline-flex; align-items:center; gap:2px; background:#131722; border-radius:6px; padding:2px; user-select:none; }}
       .tv-tab {{ display:inline-flex; align-items:center; gap:6px; padding:5px 8px; background:#1e222d; border-radius:4px; cursor:pointer; font-size:12px; transition:0.12s; white-space:nowrap; border:1px solid transparent; }}
       .tv-tab:hover {{ background:#2a2e39; }}
-      .tv-tab.active {{ background:#2a2e39; border-color:#2962ff; }}
+      .tv-tab.active {{ background:#2a2e39; border-color:#FF4929; }}
       .tv-logo {{ width:14px; height:14px; border-radius:50%; }}
-      .tv-sym {{ color:#d1d4dc; font-weight:600; font-size:12px; }}
+      .tv-sym {{ color:#DCD4D1; font-weight:600; font-size:12px; }}
       .tv-price {{ font-weight:500; font-size:12px; }}
       .tv-chg {{ font-weight:500; font-size:11px; }}
       .up {{ color:#26a69a; }} .down {{ color:#ef5350; }}
@@ -134,7 +134,7 @@ def render_gauge_svg(title: str, label: str, color: str, angle: float, buy: int,
             </g>
         </svg>
         <div style="font-size:11px; font-weight:700; color:{color}; margin-top:-2px;">{label}</div>
-        <div style="display:flex; justify-content:center; gap:6px; font-size:9px; color:#787b86; margin-top:2px; font-family:monospace;">
+        <div style="display:flex; justify-content:center; gap:6px; font-size:9px; color:#453B36; margin-top:2px; font-family:monospace;">
             <span>ขาย <b>{sell}</b></span><span>กลาง <b>{neutral}</b></span><span>ซื้อ <b>{buy}</b></span>
         </div>
     </div>"""
@@ -232,7 +232,7 @@ def fetch_seasonality_svg(df: pd.DataFrame) -> str:
         return ""
 
 def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, seasonality_html: str = "", gauges_html: str = "") -> str:
-    if not tk: return "<div style='color:#787b86; padding:10px;'>กำลังเชื่อมต่อข้อมูลราคา...</div>"
+    if not tk: return "<div style='color:#453B36; padding:10px;'>กำลังเชื่อมต่อข้อมูลราคา...</div>"
     
     p_val = float(tk.get("price", 0))
     day_low = tk.get("low", 0)
@@ -263,7 +263,7 @@ def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, 
         s = "+" if val >= 0 else ""
         return f"""<div style="background:{bg}; border:1px solid {col}40; border-radius:4px; padding:6px 2px; text-align:center;">
 <div style="font-size:11px; font-weight:700; color:{col}; font-family:monospace;">{s}{val:.2f}%</div>
-<div style="font-size:9px; color:#787b86; margin-top:2px;">{lbl}</div></div>"""
+<div style="font-size:9px; color:#453B36; margin-top:2px;">{lbl}</div></div>"""
 
     grid_perf = ""
     if an:
@@ -271,7 +271,7 @@ def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, 
 {p_box('1W', an.get('1W',0))}{p_box('1M', an.get('1M',0))}{p_box('3M', an.get('3M',0))}
 {p_box('6M', an.get('6M',0))}{p_box('YTD', an.get('YTD',0))}{p_box('1Y', an.get('1Y',0))}</div>"""
     else:
-        grid_perf = """<div style="font-size:10px; color:#787b86; padding:6px 0;">ไม่มีข้อมูลย้อนหลังเพียงพอ</div>"""
+        grid_perf = """<div style="font-size:10px; color:#453B36; padding:6px 0;">ไม่มีข้อมูลย้อนหลังเพียงพอ</div>"""
 
     return f"""<div class="scrollable-market-card">
 <div style="background-color:#0A0A0A; border-radius:6px; padding:10px; color:#D1D4DC; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; border:1px solid #1E1E1E;">
@@ -280,7 +280,7 @@ def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, 
 <div style="margin-bottom:12px;">
     <div style="display:flex; justify-content:space-between; font-size:11px; font-family:monospace; color:#D1D4DC; margin-bottom:4px;">
         <span>{fmt_price(day_low)}</span>
-        <span style="color:#787b86; font-size:10px; font-family:sans-serif;">ช่วงราคา 24 ชม.</span>
+        <span style="color:#453b36; font-size:10px; font-family:sans-serif;">ช่วงราคา 24 ชม.</span>
         <span>{fmt_price(day_high)}</span>
     </div>
     <div style="position:relative; width:100%; height:4px; background:#1E1E1E; border-radius:2px;">
@@ -292,7 +292,7 @@ def render_tv_quote_card_html(tk: dict, an: dict, symbol: str, label_name: str, 
 <div style="margin-bottom:16px;">
     <div style="display:flex; justify-content:space-between; font-size:11px; font-family:monospace; color:#D1D4DC; margin-bottom:4px;">
         <span>{fmt_price(low_52w)}</span>
-        <span style="color:#787b86; font-size:10px; font-family:sans-serif;">ช่วงราคา 52 สัปดาห์</span>
+        <span style="color:#453B36; font-size:10px; font-family:sans-serif;">ช่วงราคา 52 สัปดาห์</span>
         <span>{fmt_price(high_52w)}</span>
     </div>
     <div style="position:relative; width:100%; height:4px; background:#1E1E1E; border-radius:2px;">
@@ -488,8 +488,8 @@ def render_panel_controls():
                 transform: translateY(-50%);
                 width: 22px;
                 height: 48px;
-                background-color: #1e222d;
-                border: 1px solid #363a45;
+                background-color: #453B36;
+                border: 1px solid #453B36;
                 border-right: none;
                 border-radius: 8px 0 0 8px;
                 display: flex;
@@ -500,7 +500,7 @@ def render_panel_controls():
                 transition: background-color 0.15s ease;
             }
             .edge-dock-handle:hover {
-                background-color: #2a2e39;
+                background-color: #453B36;
             }
             .edge-dock-handle span {
                 color: #d1d4dc;
@@ -562,7 +562,7 @@ def render_panel_controls():
                 transition: background-color 0.15s ease;
             }
             .fullscreen-btn:hover {
-                background-color: #2a2e39;
+                background-color: #453B36;
                 color: #d1d4dc;
             }
         </style>
