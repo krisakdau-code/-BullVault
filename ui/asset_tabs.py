@@ -46,7 +46,7 @@ def fetch_mini_ticker_data(symbol_input) -> dict:
     # 2. Binance
     elif "USDT" in sym:
         try:
-            r = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={sym}", headers=headers, timeout=3).json()
+            r = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={sym}", headers=headers, timeout=3).json()
             last = float(r.get("lastPrice", 0))
             change = float(r.get("priceChangePercent", 0))
             bid = float(r.get("bidPrice", 0))

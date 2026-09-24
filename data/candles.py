@@ -97,7 +97,7 @@ def fetch_bars(symbol: str, timeframe: str = "1D", limit: int = 385, use_cache: 
     # กรณีเป็นคู่ Binance (USDT, BUSD, USDC)
     if any(sym_upper.endswith(x) for x in ["USDT", "BUSD", "USDC"]):
         try:
-            r = requests.get(f"https://api.binance.com/api/v3/klines?symbol={sym_upper}&interval=1d&limit={limit}", timeout=8)
+            r = requests.get(f"https://data-api.binance.vision/api/v3/klines?symbol={sym_upper}&interval=1d&limit={limit}", timeout=8)
             if r.status_code == 200:
                 bars = []
                 for b in r.json():

@@ -236,7 +236,7 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
     # 4. Binance REST API
     clean_crypto = clean_sym.replace("/", "").replace(" ", "")
     interval = BINANCE_TF_MAP.get(tf, "1h")
-    url = "https://api.binance.com/api/v3/klines"
+    url = "https://data-api.binance.vision/api/v3/klines"
     params = {"symbol": clean_crypto, "interval": interval, "limit": 1000}
     if last_timestamp > 0:
         params["startTime"] = (last_timestamp + 1) * 1000
@@ -380,7 +380,7 @@ def fetch_ticker_24h(symbol: str) -> dict:
     b_sym = sym.replace("_", "").upper()
     if any(b_sym.endswith(x) for x in ["USDT", "BUSD", "USDC", "BTC", "ETH"]):
         try:
-            r = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={b_sym}", timeout=4)
+            r = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={b_sym}", timeout=4)
             if r.status_code == 200:
                 item = r.json()
                 last_p = float(item.get("lastPrice", 0.0))

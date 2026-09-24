@@ -79,7 +79,7 @@ def _sync_worker(symbol: str, tf: str, target_bars: int):
 def _sync_binance_deep(symbol: str, tf: str, target_bars: int, df: pd.DataFrame, cache_path: str):
     clean_crypto = symbol.replace("/", "").replace(" ", "")
     interval = BINANCE_TF_MAP.get(tf, "1h")
-    url = "https://api.binance.com/api/v3/klines"
+    url = "https://data-api.binance.vision/api/v3/klines"
     
     records = df.to_dict("records") if not df.empty else []
     

@@ -15,7 +15,7 @@ HEADERS = {
 def backfill_binance(symbol: str, tf: str, target_bars: int = 15000):
     interval_map = {"1h": "1h", "4h": "4h", "D": "1d", "W": "1w"}
     interval = interval_map.get(tf, "1h")
-    url = "https://api.binance.com/api/v3/klines"
+    url = "https://data-api.binance.vision/api/v3/klines"
     
     clean_sym = symbol.replace("/", "").replace(" ", "").upper()
     file_path = os.path.join(CACHE_DIR, f"{clean_sym}_{tf}.parquet")
