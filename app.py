@@ -625,10 +625,17 @@ def dashboard():
         last_close = float(df["close"].iloc[-1]) * mult
         prev_close = float(df["close"].iloc[-2]) * mult if len(df) >= 2 else last_close
         chg_val = last_close - prev_close
-        live_pct = (chg_val / prev_close * 100.0) if prev_close != 0 else 0.0
+        candle_pct = (chg_val / prev_close * 100.0) if prev_close != 0 else 0.0
     else:
         last_close = 0.0
-        live_pct = 0.0
+        candle_pct = 0.0
+
+    # ใช้อัตราเปลี่ยนแปลงรอบ 24h Ticker ตามมาตรฐาน TradingView สำหรับหัวแท็บ
+    ticker_24h = fetch_ticker_24h(symbol)
+    if ticker_24h and "price_change_pct" in ticker_24h:
+        live_pct = float(ticker_24h["price_change_pct"])
+    else:
+        live_pct = candle_pct
 
     pct_sign = "+" if live_pct >= 0 else ""
     pct_str = f"{pct_sign}{live_pct:.2f}%"

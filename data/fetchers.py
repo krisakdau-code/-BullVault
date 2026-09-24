@@ -135,7 +135,7 @@ def get_usd_thb_rate() -> float:
         pass
     return 35.0
 
-@st.cache_data(ttl=15, show_spinner=False)
+@st.cache_data(ttl=5, show_spinner=False)
 def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> pd.DataFrame:
     clean_sym = standardize_symbol(symbol)
     cache_path = _get_cache_path(clean_sym, tf)
@@ -270,83 +270,167 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
 
     return _generate_fallback_data(clean_sym, limit=1000)
 
-@st.cache_data(ttl=10, show_spinner=False)
-def fetch_ticker_24h(symbol: str = "BTCUSDT") -> dict:
-    clean_sym = standardize_symbol(symbol).strip().upper()
-    default_stats = {"last_price": 0.0, "price_change_pct": 0.0, "high_24h": 0.0, "low_24h": 0.0, "volume_24h": 0.0}
+@st.cache_data(ttl=3, show_spinner=False)
+def fetch_ticker_24h(symbol: str) -> dict:
+    """ดึงข้อมูลราคาล่าสุด, Bid/Ask, % เปลี่ยนแปลงรอบ 24h และ Volume รวม 24h ตรงตามกระดานจริง"""
+    if not symbol:
+        return None
+    sym = standardize_symbol(symbol)
 
-    # 1. สินค้าเกษตรข้าว (RICE / FOB)
-    if clean_sym.startswith("RICE:") or clean_sym.startswith("FOB:") or "ZR=F" in clean_sym:
+    # 1. กระดาน Bitkub (เหรียญที่จับคู่กับ THB)
+    is_bitkub = sym.startswith("THB_") or sym.endswith("THB") or "_THB" in sym
+    if is_bitkub:
+        coin_part = sym.replace("THB_", "").replace("_THB", "").replace("THB", "")
+        bk_key = f"THB_{coin_part}".upper()
         try:
-            from data.rice_ohlcv import generate_rice_ohlcv
-            df = generate_rice_ohlcv(clean_sym, bars=2)
-            if df is not None and len(df) >= 2:
-                prev_p = float(df["close"].iloc[-2])
-                last_p = float(df["close"].iloc[-1])
-                pct = round(((last_p - prev_p) / prev_p) * 100, 2) if prev_p else 0.0
-                vol = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0.0
-                return {
-                    "last_price": last_p, "price_change_pct": pct,
-                    "high_24h": float(df["high"].iloc[-1]), "low_24h": float(df["low"].iloc[-1]),
-                    "volume_24h": vol
-                }
-        except Exception:
-            pass
+            r = requests.get("https://api.bitkub.com/api/market/ticker", timeout=4)
+            if r.status_code == 200:
+                data = r.json()
+                item = data.get(bk_key)
+                if not item:
+                    item = next((v for k, v in data.items() if coin_part in k), None)
+                if item:
+                    last_p = float(item.get("last", 0.0))
+                    prev_c = float(item.get("prevClose", 0.0))
+                    pct = item.get("percentChange")
+                    pct_val = float(pct) if pct is not None else (((last_p - prev_c) / prev_c * 100.0) if prev_c else 0.0)
+                    chg_abs = float(item.get("change", last_p - prev_c))
+                    base_v = float(item.get("baseVolume", 0.0))
+                    quote_v = float(item.get("quoteVolume", 0.0))
+                    high_24 = float(item.get("high24hr", 0.0))
+                    low_24 = float(item.get("low24hr", 0.0))
+                    bid_p = float(item.get("highestBid", 0.0))
+                    ask_p = float(item.get("lowestAsk", 0.0))
 
-    # 2. หุ้นไทย SET, ทองคำ, Forex (Yahoo Finance)
-    if is_yahoo_symbol(clean_sym):
-        try:
-            import yfinance as yf
-            info = yf.Ticker(clean_sym).fast_info
-            last_p = float(info.last_price or 0)
-            prev_p = float(info.previous_close or last_p)
-            pct = round(((last_p - prev_p) / prev_p) * 100, 2) if prev_p else 0.0
-            return {
-                "last_price": last_p, "price_change_pct": pct,
-                "high_24h": float(info.day_high or last_p), "low_24h": float(info.day_low or last_p),
-                "volume_24h": float(info.last_volume or 0)
-            }
-        except Exception:
-            return default_stats
-
-    # 3. Bitkub (_THB / THB_)
-    if "_THB" in clean_sym or clean_sym.startswith("THB_"):
-        coin = clean_sym.replace("_THB", "").replace("THB_", "")
-        bk_symbol = f"THB_{coin}"
-        url = f"https://api.bitkub.com/api/market/ticker?sym={bk_symbol}"
-        try:
-            res = requests.get(url, headers=HEADERS, timeout=4)
-            if res.status_code == 200:
-                d = res.json().get(bk_symbol, {})
-                if d:
                     return {
-                        "last_price": float(d.get("last", 0)),
-                        "price_change_pct": float(d.get("percentChange", 0)),
-                        "high_24h": float(d.get("high24hr", 0)),
-                        "low_24h": float(d.get("low24hr", 0)),
-                        "volume_24h": float(d.get("baseVolume", 0))
+                        "symbol": bk_key,
+                        "display": f"{coin_part}THB",
+                        "last": last_p,
+                        "last_price": last_p,
+                        "prev_close": prev_c,
+                        "bid": bid_p,
+                        "ask": ask_p,
+                        "high_24h": high_24,
+                        "low_24h": low_24,
+                        "change_abs": chg_abs,
+                        "change_pct": pct_val,
+                        "price_change_pct": pct_val,
+                        "base_volume": base_v,
+                        "volume_24h": base_v,
+                        "quote_volume": quote_v,
+                        "ts": time.time(),
                     }
         except Exception:
             pass
 
-    # 4. Binance Crypto
-    clean_crypto = clean_sym.replace("/", "").replace(" ", "")
-    url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={clean_crypto}"
+    # 2. กระดาน Binance (เหรียญที่จับคู่กับ USDT, BUSD, USDC)
+    b_sym = sym.replace("_", "").upper()
+    if any(b_sym.endswith(x) for x in ["USDT", "BUSD", "USDC", "BTC", "ETH"]):
+        try:
+            r = requests.get(f"https://api.binance.com/api/v3/ticker/24hr?symbol={b_sym}", timeout=4)
+            if r.status_code == 200:
+                item = r.json()
+                last_p = float(item.get("lastPrice", 0.0))
+                prev_c = float(item.get("prevClosePrice", last_p))
+                pct_val = float(item.get("priceChangePercent", 0.0))
+                chg_abs = float(item.get("priceChange", last_p - prev_c))
+                base_v = float(item.get("volume", 0.0))
+                quote_v = float(item.get("quoteVolume", 0.0))
+                high_24 = float(item.get("highPrice", 0.0))
+                low_24 = float(item.get("lowPrice", 0.0))
+                bid_p = float(item.get("bidPrice", 0.0))
+                ask_p = float(item.get("askPrice", 0.0))
+
+                return {
+                    "symbol": b_sym,
+                    "display": b_sym,
+                    "last": last_p,
+                    "last_price": last_p,
+                    "prev_close": prev_c,
+                    "bid": bid_p,
+                    "ask": ask_p,
+                    "high_24h": high_24,
+                    "low_24h": low_24,
+                    "change_abs": chg_abs,
+                    "change_pct": pct_val,
+                    "price_change_pct": pct_val,
+                    "base_volume": base_v,
+                    "volume_24h": base_v,
+                    "quote_volume": quote_v,
+                    "ts": time.time(),
+                }
+        except Exception:
+            pass
+
+    # 3. สินทรัพย์อื่น ๆ (Forex / Stocks) ดึงผ่าน yfinance
     try:
-        res = requests.get(url, headers=HEADERS, timeout=4)
-        if res.status_code == 200:
-            d = res.json()
+        import yfinance as yf
+        t = yf.Ticker(sym)
+        hist = t.history(period="2d")
+        if len(hist) >= 2:
+            p_prev = float(hist["Close"].iloc[-2])
+            p_now = float(hist["Close"].iloc[-1])
+            pct_val = ((p_now - p_prev) / p_prev) * 100.0 if p_prev > 0 else 0.0
+            vol_val = float(hist["Volume"].iloc[-1])
+            hi_val = float(hist["High"].iloc[-1])
+            lo_val = float(hist["Low"].iloc[-1])
             return {
-                "last_price": float(d.get("lastPrice", 0)),
-                "price_change_pct": float(d.get("priceChangePercent", 0)),
-                "high_24h": float(d.get("highPrice", 0)),
-                "low_24h": float(d.get("lowPrice", 0)),
-                "volume_24h": float(d.get("volume", 0))
+                "symbol": sym,
+                "display": sym,
+                "last": p_now,
+                "last_price": p_now,
+                "prev_close": p_prev,
+                "bid": p_now * 0.9995,
+                "ask": p_now * 1.0005,
+                "high_24h": hi_val,
+                "low_24h": lo_val,
+                "change_abs": p_now - p_prev,
+                "change_pct": pct_val,
+                "price_change_pct": pct_val,
+                "base_volume": vol_val,
+                "volume_24h": vol_val,
+                "quote_volume": vol_val * p_now,
+                "ts": time.time(),
             }
     except Exception:
         pass
 
-    return default_stats
+    return None
+
+# สร้าง alias ให้รองรับการเรียกทั้งสองชื่อ
+get_ticker_24h = fetch_ticker_24h
+
+
+def get_52w_range(symbol: str, fetch_daily_bars=None) -> dict:
+    """คำนวณช่วง 52 สัปดาห์ (1 ปี) พร้อม Sanity Check กำจัดแท่ง Outlier ป้องกัน 52W High ระเบิดเป็น 75.4"""
+    bars = []
+    if fetch_daily_bars:
+        bars = fetch_daily_bars(symbol, 365) or []
+    else:
+        try:
+            from data.candles import fetch_daily_bars as _f
+            bars = _f(symbol, 365) or []
+        except Exception:
+            df_d = fetch_ohlcv(symbol, tf="D", limit=365)
+            if df_d is not None and not df_d.empty:
+                bars = df_d.to_dict("records")
+
+    if not bars:
+        return {"low": 0.0, "high": 0.0, "bars": 0}
+
+    highs = [float(b["high"]) for b in bars if b.get("high") and float(b["high"]) > 0]
+    lows = [float(b["low"]) for b in bars if b.get("low") and float(b["low"]) > 0]
+    if not highs or not lows:
+        return {"low": 0.0, "high": 0.0, "bars": 0}
+
+    hi, lo = max(highs), min(lows)
+    t = fetch_ticker_24h(symbol)
+    if t and t.get("last", 0) > 0 and hi > t["last"] * 50:
+        med = sorted(highs)[len(highs) // 2]
+        highs = [h for h in highs if h <= med * 20]
+        hi = max(highs) if highs else t["last"]
+
+    return {"low": lo, "high": hi, "bars": len(bars)}
 
 def _generate_fallback_data(symbol: str, limit: int) -> pd.DataFrame:
     now = int(time.time())

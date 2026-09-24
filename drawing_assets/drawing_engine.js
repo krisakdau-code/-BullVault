@@ -78,6 +78,71 @@
         });
     }
 
+    // =========================================================================
+    // เชื่อมต่อ Live WebSocket Ticking สำหรับ Binance (เพิ่มแท่งเทียนต่อท้ายแบบเรียลไทม์)
+    // =========================================================================
+    try {
+        if (window.__activeWs) {
+            try { window.__activeWs.close(); } catch(e) {}
+            window.__activeWs = null;
+        }
+        const wmText = (mainConfig.chart?.watermark?.text || '').toUpperCase();
+        let sym = "";
+        let tf = "1h";
+        if (wmText.includes('•')) {
+            const parts = wmText.split('•');
+            sym = parts[0].trim();
+            tf = parts[1].trim().toLowerCase();
+        } else if (wmText) {
+            sym = wmText.split(' ')[0].trim();
+        }
+
+        if (sym && (sym.endsWith('USDT') || sym.endsWith('BUSD') || sym.endsWith('USDC')) && mainSeries) {
+            const wsInterval = (tf.endsWith('m') || tf.endsWith('h') || tf.endsWith('d') || tf.endsWith('w')) ? tf : '1h';
+            const wsUrl = `wss://stream.binance.com:9443/ws/${sym.toLowerCase()}@kline_${wsInterval}`;
+            const ws = new WebSocket(wsUrl);
+            window.__activeWs = ws;
+
+            ws.onmessage = function(event) {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if (msg && msg.k) {
+                        const k = msg.k;
+                        const liveBar = {
+                            time: Math.floor(k.t / 1000),
+                            open: parseFloat(k.o),
+                            high: parseFloat(k.h),
+                            low: parseFloat(k.l),
+                            close: parseFloat(k.c)
+                        };
+                        // อัปเดตแท่งเทียนปัจจุบัน หรือดันแท่งใหม่ต่อท้ายแบบ TradingView ทันที
+                        mainSeries.update(liveBar);
+
+                        const diff = liveBar.close - liveBar.open;
+                        const pct = liveBar.open !== 0 ? (diff / liveBar.open) * 100 : 0;
+                        const isUp = liveBar.close >= liveBar.open;
+                        const color = isUp ? '#089981' : '#F23645';
+
+                        const pEl = document.getElementById('leg-price');
+                        const cEl = document.getElementById('leg-change');
+                        if (pEl) {
+                            pEl.textContent = liveBar.close.toLocaleString('en-US', {minimumFractionDigits: 2});
+                            pEl.style.color = color;
+                        }
+                        if (cEl) {
+                            cEl.textContent = (diff >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+                            cEl.style.color = color;
+                        }
+                        const sVal = document.getElementById('qt-sell-val');
+                        const bVal = document.getElementById('qt-buy-val');
+                        if (sVal) sVal.textContent = liveBar.close.toLocaleString('en-US', {minimumFractionDigits: 2});
+                        if (bVal) bVal.textContent = (liveBar.close * 1.0001).toLocaleString('en-US', {minimumFractionDigits: 2});
+                    }
+                } catch(err) {}
+            };
+        }
+    } catch(e) {}
+
     const subPanesDiv = document.getElementById('sub-panes');
     subConfigs.forEach((subConf) => {
         const paneH = subConf.chart?.height || 120;
@@ -166,10 +231,15 @@
         });
     }
 
+    const rangeStorageKey = 'tv_chart_range_' + (mainConfig.chart?.watermark?.text || 'default');
     let isSyncing = false;
     allCharts.forEach((c, idx) => {
         c.timeScale().subscribeVisibleLogicalRangeChange(range => {
-            if (isSyncing || !range) return;
+            if (!range) return;
+            if (idx === 0) {
+                try { sessionStorage.setItem(rangeStorageKey, JSON.stringify(range)); } catch(e) {}
+            }
+            if (isSyncing) return;
             isSyncing = true;
             allCharts.forEach((other, oIdx) => {
                 if (idx !== oIdx) {
@@ -179,6 +249,17 @@
             isSyncing = false;
         });
     });
+
+    // กู้คืนระดับการซูมและตำแหน่งเลื่อน เพื่อป้องกันไม่ให้กราฟกระโดดกลับ
+    try {
+        const savedRange = sessionStorage.getItem(rangeStorageKey);
+        if (savedRange) {
+            const parsedRange = JSON.parse(savedRange);
+            if (parsedRange && parsedRange.from !== undefined && parsedRange.to !== undefined) {
+                mainChart.timeScale().setVisibleLogicalRange(parsedRange);
+            }
+        }
+    } catch(e) {}
 
     const storageKey = 'tv_vector_drawings_' + (mainConfig.chart?.watermark?.text || 'default');
     let drawings = [];
@@ -1529,8 +1610,8 @@
             redrawAll();
         });
     }
+
     // =========================================================================
-   // =========================================================================
     // ระบบ Dropdown สลับหน่วยราคา (ปุ่ม เดิม ⌵)
     // =========================================================================
     const btnScaleToggle = document.getElementById('btn-scale-toggle');

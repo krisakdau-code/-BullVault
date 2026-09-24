@@ -43,7 +43,7 @@ def _format_price(p: float) -> str:
     return "-"
 
 
-@st.cache_data(ttl=15, show_spinner=False)
+@st.cache_data(ttl=5, show_spinner=False)
 def _get_live_ticker(sym: str):
     """ดึงราคา, % 24h, และ Volume รวม 24h จาก fetch_ticker_24h รองรับทุกกระดาน"""
     try:
@@ -568,30 +568,6 @@ def render_sidebar():
             ticker_data = _get_live_ticker(sym)
             if ticker_data:
                 p_val, c_val, v_val, is_up, c_num, v_num = ticker_data
-
-            if row_active:
-                df_act = None
-                for k in ("df_data", "df", "chart_df", "data"):
-                    v_df = st.session_state.get(k)
-                    if v_df is not None and hasattr(v_df, "columns") and len(v_df) >= 2:
-                        df_act = v_df
-                        break
-
-                if df_act is not None:
-                    c_col = next((c for c in df_act.columns if "close" in str(c).lower()), None)
-                    if c_col and len(df_act) >= 2:
-                        last_close = float(df_act[c_col].iloc[-1])
-                        prev_close = float(df_act[c_col].iloc[-2])
-                        diff = last_close - prev_close
-                        pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
-                        p_val = _format_price(last_close)
-                        c_val = f"{pct:+.2f}%" if abs(pct) >= 0.01 else (f"{pct:+.4f}%" if pct != 0 else "+0.00%")
-                        is_up = (diff >= 0)
-                        c_num = pct
-                else:
-                    candle_data = _get_active_candle(sym, active_tf)
-                    if candle_data:
-                        p_val, c_val, _, is_up, c_num, _ = candle_data
 
             display_rows.append({
                 "sym": sym,
