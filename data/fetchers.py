@@ -291,10 +291,6 @@ def fetch_ticker_24h(symbol: str) -> dict:
                     item = next((v for k, v in data.items() if coin_part in k), None)
                 if item:
                     last_p = float(item.get("last", 0.0))
-                    prev_c = float(item.get("prevClose", 0.0))
-                    pct = item.get("percentChange")
-                    pct_val = float(pct) if pct is not None else (((last_p - prev_c) / prev_c * 100.0) if prev_c else 0.0)
-                    chg_abs = float(item.get("change", last_p - prev_c))
                     base_v = float(item.get("baseVolume", 0.0))
                     quote_v = float(item.get("quoteVolume", 0.0))
                     high_24 = float(item.get("high24hr", 0.0))
@@ -302,7 +298,64 @@ def fetch_ticker_24h(symbol: str) -> dict:
                     bid_p = float(item.get("highestBid", 0.0))
                     ask_p = float(item.get("lowestAsk", 0.0))
 
+                    # ดึงราคาปิดแท่งวันเมื่อวานเพื่อให้ได้ % เปลี่ยนแปลงตรงกับ TradingView (-2.68%)
+                    prev_c = 0.0
+                    try:
+                        from data.candles import fetch_daily_bars
+
+                        d_bars = fetch_daily_bars(sym, 2)
+                        if d_bars and len(d_bars) >= 2:
+                            prev_c = float(d_bars[-2]["close"])
+                        elif d_bars and len(d_bars) == 1:
+                            prev_c = float(d_bars[0]["open"])
+                    except Exception:
+                        pass
+
+                    if prev_c > 0:
+                        chg_abs = last_p - prev_c
+                        pct_val = (chg_abs / prev_c) * 100.0
+                    else:
+                        pct_val = float(item.get("percentChange", 0.0))
+                        prev_c = (
+                            (last_p / (1.0 + pct_val / 100.0))
+                            if pct_val != -100
+                            else last_p
+                        )
+                        chg_abs = last_p - prev_c
+
                     return {
+                        "symbol": bk_key,
+                        "display": f"{coin_part}THB",
+                        "last": last_p,
+                        "last_price": last_p,
+                        "prev_close": prev_c,
+                        "bid": bid_p,
+                        "ask": ask_p,
+                        "high_24h": high_24,
+                        "low_24h": low_24,
+                        "change_abs": chg_abs,
+                        "change_pct": pct_val,
+                        "price_change_pct": pct_val,
+                        "base_volume": base_v,
+                        "volume_24h": base_v,
+                        "quote_volume": quote_v,
+                        "ts": time.time(),
+                    }
+        except Exception:
+            pass
+
+            if prev_c > 0:
+                    chg_abs = last_p - prev_c
+                    pct_val = (chg_abs / prev_c) * 100.0
+            else:
+                        pct_val = float(item.get("percentChange", 0.0))
+                        prev_c = (
+                            (last_p / (1.0 + pct_val / 100.0))
+                            if pct_val != -100
+                            else last_p
+                        )
+                        chg_abs = last_p - prev_c
+            return {
                         "symbol": bk_key,
                         "display": f"{coin_part}THB",
                         "last": last_p,
