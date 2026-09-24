@@ -1,4 +1,5 @@
 # chart_builders.py — Full Engine: 11 Professional Indicators, Dynamic Sub-panes & Bottom-only TimeScale
+from core.pine_bridge import PineBridgeEngine
 import pandas as pd
 import numpy as np
 import streamlit as st
@@ -52,6 +53,36 @@ def is_timeframe_visible(tf: str) -> bool:
     if "w" in tf_str or "mo" in tf_str:
         return st.session_state.get("vis_week_month", True)
     return True
+
+
+def render_pine_hud_overlay():
+    """สร้างกล่อง HUD Dashboard สีดำ-เหลืองลอยตัวที่มุมซ้ายล่างของกราฟเหมือนใน TradingView"""
+    hud = st.session_state.get("pine_hud_stats")
+    if not hud or not st.session_state.get("custom_pine_active", False):
+        return
+
+    net_color = "#00e676" if str(hud.get("net_pl", "")).startswith("+") else "#ff5252"
+    hold_color = "#00e676" if hud.get("holding") == "YES" else "#ffb74d"
+
+    st.markdown(f"""
+        <div style="position: fixed; bottom: 35px; left: 75px; z-index: 999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; font-size: 11px; background: rgba(13, 17, 23, 0.95); border: 1px solid #30363d; border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); pointer-events: none; min-width: 175px;">
+            <div style="display: flex; background: #ffd600; color: #000; font-weight: 800; padding: 4px 8px; justify-content: space-between; border-top-left-radius: 5px; border-top-right-radius: 5px; font-size: 11px;">
+                <span>{hud.get('title', 'DIAMOND V11.3')}</span>
+                <span style="font-size: 10px; opacity: 0.85;">{hud.get('subtitle', 'DYNAMIC TP')}</span>
+            </div>
+            <table style="width: 100%; border-collapse: collapse; color: #c9d1d9; margin: 0; padding: 2px;">
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">EXPLOSION</td><td style="padding: 2.5px 8px; text-align: right; color: #58a6ff; font-weight: 600;">{hud.get('explosion', 'CHOP / WAIT')}</td></tr>
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">Win Rate</td><td style="padding: 2.5px 8px; text-align: right; color: #58a6ff; font-weight: bold;">{hud.get('win_rate', '12.62%')}</td></tr>
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">Net P/L</td><td style="padding: 2.5px 8px; text-align: right; color: {net_color}; font-weight: bold;">{hud.get('net_pl', '-705.06%')}</td></tr>
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">Total Profit</td><td style="padding: 2.5px 8px; text-align: right; color: #00e676;">{hud.get('total_profit', '+242.69%')}</td></tr>
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">Total Loss</td><td style="padding: 2.5px 8px; text-align: right; color: #ff5252;">{hud.get('total_loss', '-947.75%')}</td></tr>
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">TP Count</td><td style="padding: 2.5px 8px; text-align: right; color: #00e5ff; font-weight: bold;">{hud.get('tp_count', '0 Times')}</td></tr>
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">Holding</td><td style="padding: 2.5px 8px; text-align: right; color: {hold_color}; font-weight: bold;">{hud.get('holding', 'YES')}</td></tr>
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">Trailing High</td><td style="padding: 2.5px 8px; text-align: right; color: #ffd600; font-weight: 600;">{hud.get('trailing_high', '0.7499')}</td></tr>
+                <tr><td style="padding: 2.5px 8px; color: #8b949e;">RSI Current</td><td style="padding: 2.5px 8px; text-align: right; color: #f8fafc; font-weight: bold;">{hud.get('rsi_current', '49.86')}</td></tr>
+            </table>
+        </div>
+    """, unsafe_allow_html=True)
 
 
 def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
@@ -373,6 +404,88 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         })
 
     # ══════════════════════════════════════════════════════════
+    # 6. Pine Script Interpreter Bridge Overlay (Diamond Armor / สคริปต์ของฉัน)
+    # ══════════════════════════════════════════════════════════
+    markers = []
+    if st.session_state.get("custom_pine_active", False):
+        pine_code = st.session_state.get("custom_pine_code", "")
+        if pine_code:
+            try:
+                engine = PineBridgeEngine(pine_code)
+                pine_res = engine.execute(d)
+                if pine_res:
+                    # 1. วาดเส้นอินดิเคเตอร์จาก Pine Script (Fast, Slow, Trend)
+                    for p in pine_res.get("plots", []):
+                        line_data = [
+                            {"time": int(records[i]["time"]), "value": float(val)}
+                            for i, val in enumerate(p["series"])
+                            if i < len(records) and pd.notna(val) and records[i]["time"] > 0
+                        ]
+                        line_style = 2 if p.get("dash") == "dot" else 0
+                        price_series.append({
+                            "type": "Line",
+                            "data": line_data,
+                            "options": {
+                                "color": p["color"],
+                                "lineWidth": p.get("width", 2),
+                                "lineStyle": line_style,
+                                "priceLineVisible": False,
+                                "lastValueVisible": False
+                            }
+                        })
+
+                    # 2. วาดจุด Trailing Stop Dots (จุดกลมใต้แท่งเทียนสีส้ม/แดงเหมือนรูปที่ 2)
+                    trail_series = pine_res.get("trailing_dots", pd.Series(dtype=float))
+                    if not trail_series.empty:
+                        dot_data = [
+                            {"time": int(records[i]["time"]), "value": float(val)}
+                            for i, val in enumerate(trail_series)
+                            if i < len(records) and pd.notna(val) and records[i]["time"] > 0
+                        ]
+                        price_series.append({
+                            "type": "Line",
+                            "data": dot_data,
+                            "options": {
+                                "color": "#ff9800",
+                                "lineWidth": 2,
+                                "lineStyle": 3,
+                                "priceLineVisible": False,
+                                "lastValueVisible": False
+                            }
+                        })
+
+                    # 3. ป้ายสัญญาณ BUY / SELL (Markers แคปซูลไอคอนบนแท่งเทียนเหมือนรูปที่ 2)
+                    res_df = pine_res.get("df", pd.DataFrame())
+                    if not res_df.empty and "buy_signal" in res_df.columns:
+                        for i in range(len(records)):
+                            if records[i]["time"] <= 0:
+                                continue
+                            if res_df["buy_signal"].iloc[i]:
+                                markers.append({
+                                    "time": int(records[i]["time"]),
+                                    "position": "belowBar",
+                                    "color": "#00e676",
+                                    "shape": "arrowUp",
+                                    "text": "🏷️ BUY"
+                                })
+                            elif res_df["sell_signal"].iloc[i]:
+                                markers.append({
+                                    "time": int(records[i]["time"]),
+                                    "position": "aboveBar",
+                                    "color": "#ff3366",
+                                    "shape": "arrowDown",
+                                    "text": "⚠️ SELL ALL"
+                                })
+
+                    if "hud" in pine_res:
+                        st.session_state["pine_hud_stats"] = pine_res["hud"]
+            except Exception:
+                pass
+
+    if markers:
+        price_series[0]["markers"] = sanitize_markers(markers)
+
+    # ══════════════════════════════════════════════════════════
     # Sub-panes (RSI, MACD, Stochastic, ATR, ADX, Volume)
     # ══════════════════════════════════════════════════════════
     def make_rsi_pane():
@@ -599,4 +712,10 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
      for i, c in enumerate(charts):
         c["chart"]["timeScale"] = dict(c["chart"].get("timeScale", pane_ts)).copy()
         c["chart"]["timeScale"]["visible"] = (i == len(charts) - 1)
+
+    # ══════════════════════════════════════════════════════════
+    # แสดงกล่อง HUD Dashboard สถิติกลยุทธ์มุมซ้ายล่างเหมือน TradingView (รูปที่ 2)
+    # ══════════════════════════════════════════════════════════
+    render_pine_hud_overlay()
+
     return charts
