@@ -58,13 +58,16 @@ def is_timeframe_visible(tf: str) -> bool:
 def render_pine_hud_overlay():
     """แสดงกล่อง HUD Dashboard สถิติกลยุทธ์ลอยตัวที่มุมซ้ายล่างของกราฟแท่งเทียนหลัก (พิกัดตามเส้นเขียว)"""
     hud = st.session_state.get("pine_hud_stats")
-    if not hud or not st.session_state.get("custom_pine_active", False):
+    is_active = st.session_state.get("custom_pine_active", False) or st.session_state.get("ind_active_DIAMOND", False)
+    show_hud = st.session_state.get("DIAMOND_st_show_hud", True)
+    
+    if not hud or not is_active or not show_hud:
         return
 
     net_color = "#00e676" if str(hud.get("net_pl", "")).startswith("+") else "#ff5252"
     hold_color = "#00e676" if hud.get("holding") == "YES" else "#ffb74d"
 
-    # พิกัดใหม่: left: 325px (พ้น Watchlist + แถบเครื่องมือวาด) และ bottom: 295px (ลอยเหนือหน้าต่าง RSI และ MACD พอดี)
+    # พิกัด: left: 325px (พ้น Watchlist + แถบเครื่องมือวาด) และ bottom: 295px (ลอยเหนือหน้าต่าง RSI และ MACD พอดี)
     st.markdown(f"""
         <div style="position: fixed; bottom: 295px; left: 325px; z-index: 999; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace; font-size: 11px; background: rgba(13, 17, 23, 0.95); border: 1px solid #30363d; border-radius: 6px; box-shadow: 0 8px 24px rgba(0,0,0,0.7); min-width: 175px; pointer-events: none;">
             <div style="display: flex; background: #ffd600; color: #000; font-weight: 800; padding: 4px 8px; justify-content: space-between; border-top-left-radius: 5px; border-top-right-radius: 5px; font-size: 11px;">
@@ -72,7 +75,7 @@ def render_pine_hud_overlay():
                 <span style="font-size: 10px; opacity: 0.85;">{hud.get('subtitle', 'DYNAMIC TP')}</span>
             </div>
             <table style="width: 100%; border-collapse: collapse; color: #c9d1d9; margin: 0; padding: 2px;">
-                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #9898A2;">EXPLOSION</td><td style="padding: 2.5px 8px; text-align: right; color: #58a6ff; font-weight: 600;">{hud.get('explosion', 'CHOP / WAIT')}</td></tr>
+                <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">EXPLOSION</td><td style="padding: 2.5px 8px; text-align: right; color: #58a6ff; font-weight: 600;">{hud.get('explosion', 'CHOP / WAIT')}</td></tr>
                 <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">Win Rate</td><td style="padding: 2.5px 8px; text-align: right; color: #58a6ff; font-weight: bold;">{hud.get('win_rate', '12.62%')}</td></tr>
                 <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: {net_color}; font-weight: bold;">Net P/L</td><td style="padding: 2.5px 8px; text-align: right; color: {net_color}; font-weight: bold;">{hud.get('net_pl', '-705.06%')}</td></tr>
                 <tr style="border-bottom: 1px solid #21262d;"><td style="padding: 2.5px 8px; color: #8b949e;">Total Profit</td><td style="padding: 2.5px 8px; text-align: right; color: #00e676;">{hud.get('total_profit', '+242.69%')}</td></tr>
@@ -117,7 +120,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
     tr = pd.concat([d["high"] - d["low"], (d["high"] - d["close"].shift(1)).abs(), (d["low"] - d["close"].shift(1)).abs()], axis=1).max(axis=1)
 
     # ══════════════════════════════════════════════════════════
-    # 1. RSI & RSI MA (คงของเดิม 100% สลับ SMA/EMA ได้)
+    # 1. RSI & RSI MA
     # ══════════════════════════════════════════════════════════
     r_len = int(st.session_state.get("RSI_in_length", st.session_state.get("rsi_len", 14)))
     r_src = str(st.session_state.get("RSI_in_source", st.session_state.get("rsi_source", "close"))).lower()
@@ -139,7 +142,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         d["calc_rsi_ma"] = d["calc_rsi"].rolling(ma_len).mean()
 
     # ══════════════════════════════════════════════════════════
-    # 2. MACD (คงของเดิม 100%)
+    # 2. MACD
     # ══════════════════════════════════════════════════════════
     m_fast = int(st.session_state.get("MACD_in_fast", st.session_state.get("macd_fast_len", 12)))
     m_slow = int(st.session_state.get("MACD_in_slow", st.session_state.get("macd_slow_len", 26)))
@@ -154,7 +157,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
     d["calc_macd_hist"] = d["calc_macd"] - d["calc_macd_sig"]
 
     # ══════════════════════════════════════════════════════════
-    # 3. EMA Ribbon กราฟหลัก (คงของเดิม 100% ซ่อนเมื่อเปิดสคริปต์เพื่อไม่ให้เส้นซ้ำ)
+    # 3. EMA Ribbon กราฟหลัก
     # ══════════════════════════════════════════════════════════
     ema_f_len = int(st.session_state.get("EMA_in_fast", st.session_state.get("ema_fast_len", 12)))
     ema_s_len = int(st.session_state.get("EMA_in_slow", st.session_state.get("ema_slow_len", 26)))
@@ -266,143 +269,228 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
         },
     }]
 
-    # 1. EMA Ribbon Overlay (วาดเฉพาะเมื่อไม่ได้เปิดใช้งานสคริปต์ของฉัน เพื่อไม่ให้เส้นทับซ้อน)
-    if st.session_state.get("ind_active_EMA", st.session_state.get("show_ema", True)) and not st.session_state.get("custom_pine_active", False):
-        fast_col = st.session_state.get("EMA_st_fast_color", theme.EMA_FAST_COLOR)
-        fast_lw = int(st.session_state.get("EMA_st_fast_width", 2))
-        slow_col = st.session_state.get("EMA_st_slow_color", theme.EMA_SLOW_COLOR)
-        slow_lw = int(st.session_state.get("EMA_st_slow_width", 2))
-        trend_col = st.session_state.get("EMA_st_trend_color", theme.EMA_TREND_COLOR)
-        trend_lw = int(st.session_state.get("EMA_st_trend_width", 1))
+    diamond_active = st.session_state.get("ind_active_DIAMOND", False)
+    custom_active = st.session_state.get("custom_pine_active", False)
 
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_fast"])} for r in records if pd.notna(r.get("calc_ema_fast")) and r["time"] > 0],
-                             "options": {"color": fast_col, "lineWidth": fast_lw, "priceLineVisible": False, "lastValueVisible": False}})
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_slow"])} for r in records if pd.notna(r.get("calc_ema_slow")) and r["time"] > 0],
-                             "options": {"color": slow_col, "lineWidth": slow_lw, "priceLineVisible": False, "lastValueVisible": False}})
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_trend"])} for r in records if pd.notna(r.get("calc_ema_trend")) and r["time"] > 0],
-                             "options": {"color": trend_col, "lineWidth": trend_lw, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+    # 1. EMA Ribbon Overlay
+    if st.session_state.get("ind_active_EMA", st.session_state.get("show_ema", True)) and not (diamond_active or custom_active):
+        if st.session_state.get("EMA_st_show_fast", True):
+            fast_col = st.session_state.get("EMA_st_fast_color", theme.EMA_FAST_COLOR)
+            fast_lw = int(st.session_state.get("EMA_st_fast_width", 2))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_fast"])} for r in records if pd.notna(r.get("calc_ema_fast")) and r["time"] > 0],
+                                 "options": {"color": fast_col, "lineWidth": fast_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("EMA_st_show_slow", True):
+            slow_col = st.session_state.get("EMA_st_slow_color", theme.EMA_SLOW_COLOR)
+            slow_lw = int(st.session_state.get("EMA_st_slow_width", 2))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_slow"])} for r in records if pd.notna(r.get("calc_ema_slow")) and r["time"] > 0],
+                                 "options": {"color": slow_col, "lineWidth": slow_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("EMA_st_show_trend", True):
+            trend_col = st.session_state.get("EMA_st_trend_color", theme.EMA_TREND_COLOR)
+            trend_lw = int(st.session_state.get("EMA_st_trend_width", 1))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ema_trend"])} for r in records if pd.notna(r.get("calc_ema_trend")) and r["time"] > 0],
+                                 "options": {"color": trend_col, "lineWidth": trend_lw, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
 
-    # 2. BB, ST, ICHI, VWAP Overlay
+    # 2. Bollinger Bands (BB)
     if st.session_state.get("ind_active_BB", False):
-        bb_u_col = st.session_state.get("BB_st_upper_color", "#2962ff")
-        bb_u_lw = int(st.session_state.get("BB_st_upper_width", 1))
-        bb_l_col = st.session_state.get("BB_st_lower_color", "#2962ff")
-        bb_l_lw = int(st.session_state.get("BB_st_lower_width", 1))
-        bb_m_col = st.session_state.get("BB_st_mid_color", "#ff9800")
-        bb_m_lw = int(st.session_state.get("BB_st_mid_width", 2))
+        if st.session_state.get("BB_st_show_upper", True):
+            bb_u_col = st.session_state.get("BB_st_upper_color", "#2962ff")
+            bb_u_lw = int(st.session_state.get("BB_st_upper_width", 1))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_bb_upper"])} for r in records if pd.notna(r.get("calc_bb_upper")) and r["time"] > 0], "options": {"color": bb_u_col, "lineWidth": bb_u_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("BB_st_show_lower", True):
+            bb_l_col = st.session_state.get("BB_st_lower_color", "#2962ff")
+            bb_l_lw = int(st.session_state.get("BB_st_lower_width", 1))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_bb_lower"])} for r in records if pd.notna(r.get("calc_bb_lower")) and r["time"] > 0], "options": {"color": bb_l_col, "lineWidth": bb_l_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("BB_st_show_mid", True):
+            bb_m_col = st.session_state.get("BB_st_mid_color", "#ff9800")
+            bb_m_lw = int(st.session_state.get("BB_st_mid_width", 2))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_bb_mid"])} for r in records if pd.notna(r.get("calc_bb_mid")) and r["time"] > 0], "options": {"color": bb_m_col, "lineWidth": bb_m_lw, "priceLineVisible": False, "lastValueVisible": False}})
 
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_bb_upper"])} for r in records if pd.notna(r.get("calc_bb_upper")) and r["time"] > 0], "options": {"color": bb_u_col, "lineWidth": bb_u_lw, "priceLineVisible": False, "lastValueVisible": False}})
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_bb_lower"])} for r in records if pd.notna(r.get("calc_bb_lower")) and r["time"] > 0], "options": {"color": bb_l_col, "lineWidth": bb_l_lw, "priceLineVisible": False, "lastValueVisible": False}})
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_bb_mid"])} for r in records if pd.notna(r.get("calc_bb_mid")) and r["time"] > 0], "options": {"color": bb_m_col, "lineWidth": bb_m_lw, "priceLineVisible": False, "lastValueVisible": False}})
-
+    # 3. Supertrend (ST)
     if st.session_state.get("ind_active_ST", False):
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_st_lower"])} for r in records if pd.notna(r.get("calc_st_lower")) and r["time"] > 0], "options": {"color": "#00e676", "lineWidth": 2, "priceLineVisible": False, "lastValueVisible": False}})
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_st_upper"])} for r in records if pd.notna(r.get("calc_st_upper")) and r["time"] > 0], "options": {"color": "#ff5252", "lineWidth": 2, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("ST_st_show_up", True):
+            st_up_col = st.session_state.get("ST_st_up_color", "#00e676")
+            st_up_lw = int(st.session_state.get("ST_st_up_width", 2))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_st_lower"])} for r in records if pd.notna(r.get("calc_st_lower")) and r["time"] > 0], "options": {"color": st_up_col, "lineWidth": st_up_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("ST_st_show_down", True):
+            st_dn_col = st.session_state.get("ST_st_down_color", "#ff5252")
+            st_dn_lw = int(st.session_state.get("ST_st_down_width", 2))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_st_upper"])} for r in records if pd.notna(r.get("calc_st_upper")) and r["time"] > 0], "options": {"color": st_dn_col, "lineWidth": st_dn_lw, "priceLineVisible": False, "lastValueVisible": False}})
 
+    # 4. Ichimoku Cloud (ICHI)
     if st.session_state.get("ind_active_ICHI", False):
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_tenkan"])} for r in records if pd.notna(r.get("calc_ichi_tenkan")) and r["time"] > 0], "options": {"color": "#00bcd4", "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_kijun"])} for r in records if pd.notna(r.get("calc_ichi_kijun")) and r["time"] > 0], "options": {"color": "#ff4081", "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_span_a"])} for r in records if pd.notna(r.get("calc_ichi_span_a")) and r["time"] > 0], "options": {"color": "rgba(0,230,118,0.6)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_span_b"])} for r in records if pd.notna(r.get("calc_ichi_span_b")) and r["time"] > 0], "options": {"color": "rgba(255,82,82,0.6)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("ICHI_st_show_tenkan", True):
+            t_col = st.session_state.get("ICHI_st_tenkan_color", "#00bcd4")
+            t_lw = int(st.session_state.get("ICHI_st_tenkan_width", 1))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_tenkan"])} for r in records if pd.notna(r.get("calc_ichi_tenkan")) and r["time"] > 0], "options": {"color": t_col, "lineWidth": t_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("ICHI_st_show_kijun", True):
+            k_col = st.session_state.get("ICHI_st_kijun_color", "#ff4081")
+            k_lw = int(st.session_state.get("ICHI_st_kijun_width", 1))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_kijun"])} for r in records if pd.notna(r.get("calc_ichi_kijun")) and r["time"] > 0], "options": {"color": k_col, "lineWidth": k_lw, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("ICHI_st_show_span_a", True):
+            sa_col = st.session_state.get("ICHI_st_lead_a_color", "#00e676")
+            sa_lw = int(st.session_state.get("ICHI_st_span_a_width", 1))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_span_a"])} for r in records if pd.notna(r.get("calc_ichi_span_a")) and r["time"] > 0], "options": {"color": sa_col, "lineWidth": sa_lw, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("ICHI_st_show_span_b", True):
+            sb_col = st.session_state.get("ICHI_st_lead_b_color", "#ff5252")
+            sb_lw = int(st.session_state.get("ICHI_st_span_b_width", 1))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_ichi_span_b"])} for r in records if pd.notna(r.get("calc_ichi_span_b")) and r["time"] > 0], "options": {"color": sb_col, "lineWidth": sb_lw, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
 
+    # 5. VWAP
     if st.session_state.get("ind_active_VWAP", False):
-        price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_vwap"])} for r in records if pd.notna(r.get("calc_vwap")) and r["time"] > 0], "options": {"color": "#ff9800", "lineWidth": 2, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("VWAP_st_show_vwap", True):
+            v_col = st.session_state.get("VWAP_st_color", "#ff9800")
+            v_lw = int(st.session_state.get("VWAP_st_width", 2))
+            price_series.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_vwap"])} for r in records if pd.notna(r.get("calc_vwap")) and r["time"] > 0], "options": {"color": v_col, "lineWidth": v_lw, "priceLineVisible": False, "lastValueVisible": False}})
 
     if theme.SHOW_VOLUME:
         vol = [{"time": int(r["time"]), "value": float(r.get("volume", 0)), "color": theme.VOL_UP if float(r.get("close", 0)) >= float(r.get("open", 0)) else theme.VOL_DOWN} for r in records if pd.notna(r.get("volume")) and r["time"] > 0]
         price_series.append({"type": "Histogram", "data": vol, "options": {"priceFormat": {"type": "volume"}, "priceScaleId": "", "priceLineVisible": False, "lastValueVisible": False}})
 
     # ══════════════════════════════════════════════════════════
-    # 6. Pine Script Interpreter Bridge Overlay (สคริปต์ของฉัน)
+    # 6. Diamond Armor V11.3 & Pine Script Interpreter Overlay
     # ══════════════════════════════════════════════════════════
     markers = []
-    if st.session_state.get("custom_pine_active", False):
-        pine_code = st.session_state.get("custom_pine_code", "")
-        if pine_code:
-            try:
+    if diamond_active or custom_active:
+        try:
+            if custom_active:
+                pine_code = st.session_state.get("custom_pine_code", "")
                 engine = PineBridgeEngine(pine_code)
                 pine_res = engine.execute(d)
-                if pine_res:
-                    for p in pine_res.get("plots", []):
-                        line_data = [{"time": int(records[i]["time"]), "value": float(val)} for i, val in enumerate(p["series"]) if i < len(records) and pd.notna(val) and records[i]["time"] > 0]
-                        price_series.append({"type": "Line", "data": line_data, "options": {"color": p["color"], "lineWidth": p.get("width", 2), "lineStyle": 2 if p.get("dash") == "dot" else 0, "priceLineVisible": False, "lastValueVisible": False}})
+            else:
+                diamond_inputs = {
+                    "fast": st.session_state.get("DIAMOND_in_fast", 7),
+                    "slow": st.session_state.get("DIAMOND_in_slow", 13),
+                    "trend": st.session_state.get("DIAMOND_in_trend", 45),
+                    "min_tp_pct": st.session_state.get("DIAMOND_in_min_tp_pct", 3.0),
+                    "warn_pct": st.session_state.get("DIAMOND_in_warn_pct", 3.0),
+                    "danger_pct": st.session_state.get("DIAMOND_in_danger_pct", 7.0),
+                    "show_fast": st.session_state.get("DIAMOND_st_show_fast", True),
+                    "show_slow": st.session_state.get("DIAMOND_st_show_slow", True),
+                    "show_trend": st.session_state.get("DIAMOND_st_show_trend", True),
+                    "show_rsi_overlay": st.session_state.get("DIAMOND_st_show_rsi_overlay", False),
+                    "show_star": st.session_state.get("DIAMOND_st_show_star", True),
+                    "show_labels": st.session_state.get("DIAMOND_st_show_labels", True),
+                    "show_dots": st.session_state.get("DIAMOND_st_show_dots", True),
+                    "show_hud": st.session_state.get("DIAMOND_st_show_hud", True),
+                    "fast_color": st.session_state.get("DIAMOND_st_fast_color", "#2962ff"),
+                    "fast_width": int(st.session_state.get("DIAMOND_st_fast_width", 2)),
+                    "slow_color": st.session_state.get("DIAMOND_st_slow_color", "#ff5252"),
+                    "slow_width": int(st.session_state.get("DIAMOND_st_slow_width", 2)),
+                    "trend_color": st.session_state.get("DIAMOND_st_trend_color", "#ffffff"),
+                    "trend_width": int(st.session_state.get("DIAMOND_st_trend_width", 1)),
+                    "rsi_overlay_color": st.session_state.get("DIAMOND_st_rsi_overlay_color", "#FFD700"),
+                }
+                engine = PineBridgeEngine()
+                pine_res = engine.execute(d, overrides=diamond_inputs)
 
-                    trail_series = pine_res.get("trailing_dots", pd.Series(dtype=float))
-                    if not trail_series.empty:
-                        dot_data = [{"time": int(records[i]["time"]), "value": float(val)} for i, val in enumerate(trail_series) if i < len(records) and pd.notna(val) and records[i]["time"] > 0]
-                        price_series.append({"type": "Line", "data": dot_data, "options": {"color": "#ff9800", "lineWidth": 2, "lineStyle": 3, "priceLineVisible": False, "lastValueVisible": False}})
+            if pine_res:
+                for p in pine_res.get("plots", []):
+                    line_data = [{"time": int(records[i]["time"]), "value": float(val)} for i, val in enumerate(p["series"]) if i < len(records) and pd.notna(val) and records[i]["time"] > 0]
+                    price_series.append({"type": "Line", "data": line_data, "options": {"color": p["color"], "lineWidth": p.get("width", 2), "lineStyle": 2 if p.get("dash") == "dot" else 0, "priceLineVisible": False, "lastValueVisible": False}})
 
-                    res_df = pine_res.get("df", pd.DataFrame())
-                    if not res_df.empty and "buy_signal" in res_df.columns:
-                        for i in range(len(records)):
-                            if records[i]["time"] <= 0: continue
-                            if res_df["buy_signal"].iloc[i]:
-                                markers.append({"time": int(records[i]["time"]), "position": "belowBar", "color": "#00e676", "shape": "arrowUp", "text": "🏷️ BUY"})
-                            elif res_df["sell_signal"].iloc[i]:
-                                markers.append({"time": int(records[i]["time"]), "position": "aboveBar", "color": "#ff3366", "shape": "arrowDown", "text": "⚠️ SELL ALL"})
+                trail_series = pine_res.get("trailing_dots", pd.Series(dtype=float))
+                if not trail_series.empty:
+                    dot_data = [{"time": int(records[i]["time"]), "value": float(val)} for i, val in enumerate(trail_series) if i < len(records) and pd.notna(val) and records[i]["time"] > 0]
+                    price_series.append({"type": "Line", "data": dot_data, "options": {"color": "#ff9800", "lineWidth": 2, "lineStyle": 3, "priceLineVisible": False, "lastValueVisible": False}})
 
-                    if "hud" in pine_res:
-                        st.session_state["pine_hud_stats"] = pine_res["hud"]
-            except Exception:
-                pass
+                res_markers = pine_res.get("markers", [])
+                if res_markers:
+                    markers.extend(res_markers)
+
+                if "hud" in pine_res:
+                    st.session_state["pine_hud_stats"] = pine_res["hud"]
+        except Exception:
+            pass
 
     if markers:
         price_series[0]["markers"] = sanitize_markers(markers)
 
+    # ══════════════════════════════════════════════════════════
     # Sub-panes (RSI, MACD, Stochastic, ATR, ADX, Volume)
+    # ══════════════════════════════════════════════════════════
     def make_rsi_pane():
-        rsi_col = st.session_state.get("RSI_st_line_color", st.session_state.get("rsi_col_line", theme.RSI_LINE_COLOR))
-        rsi_lw = int(st.session_state.get("RSI_st_line_width", st.session_state.get("rsi_lw_line", 2)))
         u_band, m_band, l_band = float(st.session_state.get("RSI_in_ob", 70.0)), 50.0, float(st.session_state.get("RSI_in_os", 30.0))
-        rsi_data = [{"time": int(r["time"]), "value": float(r["calc_rsi"])} for r in records if pd.notna(r.get("calc_rsi")) and r["time"] > 0]
         mk = lambda v: [{"time": int(r["time"]), "value": v} for r in records if r["time"] > 0]
-        series_list = [
-            {"type": "Line", "data": mk(u_band), "options": {"color": st.session_state.get("RSI_st_ob_color", "rgba(242,54,69,0.5)"), "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}},
-            {"type": "Line", "data": mk(m_band), "options": {"color": "rgba(120,123,134,0.25)", "lineWidth": 1, "lineStyle": 3, "priceLineVisible": False, "lastValueVisible": False}},
-            {"type": "Line", "data": mk(l_band), "options": {"color": st.session_state.get("RSI_st_os_color", "rgba(8,153,129,0.5)"), "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}},
-            {"type": "Line", "data": rsi_data, "options": {"color": rsi_col, "lineWidth": rsi_lw, "priceLineVisible": True}},
-        ]
-        if st.session_state.get("rsi_show_ma", True):
-            ma_col = st.session_state.get("rsi_col_ma", theme.RSI_MA_COLOR)
+        series_list = []
+        if st.session_state.get("RSI_st_show_bands", True):
+            series_list.append({"type": "Line", "data": mk(u_band), "options": {"color": st.session_state.get("RSI_st_ob_color", "rgba(242,54,69,0.5)"), "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+            series_list.append({"type": "Line", "data": mk(m_band), "options": {"color": "rgba(120,123,134,0.25)", "lineWidth": 1, "lineStyle": 3, "priceLineVisible": False, "lastValueVisible": False}})
+            series_list.append({"type": "Line", "data": mk(l_band), "options": {"color": st.session_state.get("RSI_st_os_color", "rgba(8,153,129,0.5)"), "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("RSI_st_show_line", True):
+            rsi_col = st.session_state.get("RSI_st_line_color", theme.RSI_LINE_COLOR)
+            rsi_lw = int(st.session_state.get("RSI_st_line_width", 2))
+            rsi_data = [{"time": int(r["time"]), "value": float(r["calc_rsi"])} for r in records if pd.notna(r.get("calc_rsi")) and r["time"] > 0]
+            series_list.append({"type": "Line", "data": rsi_data, "options": {"color": rsi_col, "lineWidth": rsi_lw, "priceLineVisible": True}})
+        if st.session_state.get("RSI_st_show_ma", True):
+            ma_col = st.session_state.get("RSI_st_ma_color", theme.RSI_MA_COLOR)
             ma_data = [{"time": int(r["time"]), "value": float(r["calc_rsi_ma"])} for r in records if pd.notna(r.get("calc_rsi_ma")) and r["time"] > 0]
             series_list.append({"type": "Line", "data": ma_data, "options": {"color": ma_col, "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
         return {"chart": {**base_chart, "height": rsi_h, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": theme.RSI_TOP_MARGIN, "bottom": theme.RSI_BTM_MARGIN}}, "watermark": {"visible": True, "text": f"RSI ({r_len})", "fontSize": 18, "color": theme.RSI_TITLE_COLOR, "horzAlign": "left", "vertAlign": "top"}}, "series": series_list}
 
     def make_macd_pane():
-        m_col = st.session_state.get("MACD_st_macd_color", st.session_state.get("macd_col_line", theme.MACD_LINE_COLOR))
-        m_lw = int(st.session_state.get("MACD_st_macd_width", st.session_state.get("macd_lw_line", 2)))
-        s_col = st.session_state.get("MACD_st_sig_color", st.session_state.get("macd_col_sig", theme.MACD_SIG_COLOR))
-        s_lw = int(st.session_state.get("MACD_st_sig_width", st.session_state.get("macd_lw_sig", 2)))
-        c0, c1, c2, c3 = st.session_state.get("macd_col_h0", theme.MACD_HIST_H0), st.session_state.get("macd_col_h1", theme.MACD_HIST_H1), st.session_state.get("macd_col_h2", theme.MACD_HIST_H2), st.session_state.get("macd_col_h3", theme.MACD_HIST_H3)
-        macd_data = [{"time": int(r["time"]), "value": float(r["calc_macd"])} for r in records if pd.notna(r.get("calc_macd")) and r["time"] > 0]
-        sig_data  = [{"time": int(r["time"]), "value": float(r["calc_macd_sig"])} for r in records if pd.notna(r.get("calc_macd_sig")) and r["time"] > 0]
-        hist_data = []
-        for i, r in enumerate(records):
-            if r["time"] <= 0 or pd.isna(r.get("calc_macd_hist")): continue
-            val = float(r["calc_macd_hist"])
-            prev = float(records[i - 1]["calc_macd_hist"]) if i > 0 and pd.notna(records[i - 1].get("calc_macd_hist")) else val
-            hist_data.append({"time": int(r["time"]), "value": val, "color": (c0 if val >= prev else c1) if val >= 0 else (c2 if val <= prev else c3)})
         series_list = []
-        if st.session_state.get("macd_show_hist", True): series_list.append({"type": "Histogram", "data": hist_data, "options": {"priceScaleId": "right", "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01}, "priceLineVisible": False, "lastValueVisible": False}})
-        if st.session_state.get("macd_show_zero", True): series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": 0.0} for r in records if r["time"] > 0], "options": {"color": theme.MACD_ZERO_COLOR, "lineWidth": 1, "lineStyle": 2, "priceScaleId": "right", "priceLineVisible": False, "lastValueVisible": False}})
-        series_list.append({"type": "Line", "data": macd_data, "options": {"color": m_col, "lineWidth": m_lw, "priceScaleId": "right", "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01}, "priceLineVisible": False}})
-        series_list.append({"type": "Line", "data": sig_data, "options": {"color": s_col, "lineWidth": s_lw, "priceScaleId": "right", "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01}, "priceLineVisible": False}})
+        if st.session_state.get("MACD_st_show_hist", True):
+            c0, c1, c2, c3 = theme.MACD_HIST_H0, theme.MACD_HIST_H1, theme.MACD_HIST_H2, theme.MACD_HIST_H3
+            hist_data = []
+            for i, r in enumerate(records):
+                if r["time"] <= 0 or pd.isna(r.get("calc_macd_hist")): continue
+                val = float(r["calc_macd_hist"])
+                prev = float(records[i - 1]["calc_macd_hist"]) if i > 0 and pd.notna(records[i - 1].get("calc_macd_hist")) else val
+                hist_data.append({"time": int(r["time"]), "value": val, "color": (c0 if val >= prev else c1) if val >= 0 else (c2 if val <= prev else c3)})
+            series_list.append({"type": "Histogram", "data": hist_data, "options": {"priceScaleId": "right", "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01}, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("MACD_st_show_zero", True):
+            series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": 0.0} for r in records if r["time"] > 0], "options": {"color": theme.MACD_ZERO_COLOR, "lineWidth": 1, "lineStyle": 2, "priceScaleId": "right", "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("MACD_st_show_macd", True):
+            m_col = st.session_state.get("MACD_st_macd_color", theme.MACD_LINE_COLOR)
+            m_lw = int(st.session_state.get("MACD_st_macd_width", 2))
+            macd_data = [{"time": int(r["time"]), "value": float(r["calc_macd"])} for r in records if pd.notna(r.get("calc_macd")) and r["time"] > 0]
+            series_list.append({"type": "Line", "data": macd_data, "options": {"color": m_col, "lineWidth": m_lw, "priceScaleId": "right", "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01}, "priceLineVisible": False}})
+        if st.session_state.get("MACD_st_show_sig", True):
+            s_col = st.session_state.get("MACD_st_sig_color", theme.MACD_SIG_COLOR)
+            s_lw = int(st.session_state.get("MACD_st_sig_width", 2))
+            sig_data  = [{"time": int(r["time"]), "value": float(r["calc_macd_sig"])} for r in records if pd.notna(r.get("calc_macd_sig")) and r["time"] > 0]
+            series_list.append({"type": "Line", "data": sig_data, "options": {"color": s_col, "lineWidth": s_lw, "priceScaleId": "right", "priceFormat": {"type": "price", "precision": 2, "minMove": 0.01}, "priceLineVisible": False}})
         return {"chart": {**base_chart, "height": macd_h, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "autoScale": True, "scaleMargins": {"top": theme.MACD_TOP_MARGIN, "bottom": theme.MACD_BTM_MARGIN}}, "watermark": {"visible": True, "text": f"MACD ({m_fast}, {m_slow}, {m_sig})", "fontSize": 18, "color": theme.MACD_TITLE_COLOR, "horzAlign": "left", "vertAlign": "top"}}, "series": series_list}
 
     def make_stoch_pane():
         mk = lambda v: [{"time": int(r["time"]), "value": v} for r in records if r["time"] > 0]
-        return {"chart": {**base_chart, "height": 120, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": 0.1, "bottom": 0.1}}, "watermark": {"visible": True, "text": f"Stochastic ({stoch_k_len}, {stoch_d_smooth})", "fontSize": 16, "color": "#787b86", "horzAlign": "left", "vertAlign": "top"}}, "series": [{"type": "Line", "data": mk(float(st.session_state.get("STOCH_in_ob", 80.0))), "options": {"color": "rgba(242,54,69,0.5)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}}, {"type": "Line", "data": mk(float(st.session_state.get("STOCH_in_os", 20.0))), "options": {"color": "rgba(8,153,129,0.5)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}}, {"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_stoch_k"])} for r in records if pd.notna(r.get("calc_stoch_k")) and r["time"] > 0], "options": {"color": st.session_state.get("STOCH_st_k_color", "#2962ff"), "lineWidth": int(st.session_state.get("STOCH_st_k_width", 2)), "priceLineVisible": False}}, {"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_stoch_d"])} for r in records if pd.notna(r.get("calc_stoch_d")) and r["time"] > 0], "options": {"color": st.session_state.get("STOCH_st_d_color", "#ff6d00"), "lineWidth": int(st.session_state.get("STOCH_st_d_width", 2)), "priceLineVisible": False}}]}
+        series_list = []
+        if st.session_state.get("STOCH_st_show_bands", True):
+            series_list.append({"type": "Line", "data": mk(float(st.session_state.get("STOCH_in_ob", 80.0))), "options": {"color": "rgba(242,54,69,0.5)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+            series_list.append({"type": "Line", "data": mk(float(st.session_state.get("STOCH_in_os", 20.0))), "options": {"color": "rgba(8,153,129,0.5)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("STOCH_st_show_k", True):
+            series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_stoch_k"])} for r in records if pd.notna(r.get("calc_stoch_k")) and r["time"] > 0], "options": {"color": st.session_state.get("STOCH_st_k_color", "#2962ff"), "lineWidth": int(st.session_state.get("STOCH_st_k_width", 2)), "priceLineVisible": False}})
+        if st.session_state.get("STOCH_st_show_d", True):
+            series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_stoch_d"])} for r in records if pd.notna(r.get("calc_stoch_d")) and r["time"] > 0], "options": {"color": st.session_state.get("STOCH_st_d_color", "#ff6d00"), "lineWidth": int(st.session_state.get("STOCH_st_d_width", 2)), "priceLineVisible": False}})
+        return {"chart": {**base_chart, "height": 120, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": 0.1, "bottom": 0.1}}, "watermark": {"visible": True, "text": f"Stochastic ({stoch_k_len}, {stoch_d_smooth})", "fontSize": 16, "color": "#787b86", "horzAlign": "left", "vertAlign": "top"}}, "series": series_list}
 
     def make_atr_pane():
-        return {"chart": {**base_chart, "height": 120, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": 0.1, "bottom": 0.1}}, "watermark": {"visible": True, "text": f"ATR ({atr_len})", "fontSize": 16, "color": "#787b86", "horzAlign": "left", "vertAlign": "top"}}, "series": [{"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_atr"])} for r in records if pd.notna(r.get("calc_atr")) and r["time"] > 0], "options": {"color": st.session_state.get("ATR_st_color", "#ab47bc"), "lineWidth": int(st.session_state.get("ATR_st_width", 2)), "priceLineVisible": False}}]}
+        series_list = []
+        if st.session_state.get("ATR_st_show_line", True):
+            series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_atr"])} for r in records if pd.notna(r.get("calc_atr")) and r["time"] > 0], "options": {"color": st.session_state.get("ATR_st_color", "#ab47bc"), "lineWidth": int(st.session_state.get("ATR_st_width", 2)), "priceLineVisible": False}})
+        return {"chart": {**base_chart, "height": 120, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": 0.1, "bottom": 0.1}}, "watermark": {"visible": True, "text": f"ATR ({atr_len})", "fontSize": 16, "color": "#787b86", "horzAlign": "left", "vertAlign": "top"}}, "series": series_list}
 
     def make_adx_pane():
         mk = lambda v: [{"time": int(r["time"]), "value": v} for r in records if r["time"] > 0]
-        return {"chart": {**base_chart, "height": 120, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": 0.1, "bottom": 0.1}}, "watermark": {"visible": True, "text": f"ADX / DMI ({adx_len})", "fontSize": 16, "color": "#787b86", "horzAlign": "left", "vertAlign": "top"}}, "series": [{"type": "Line", "data": mk(float(st.session_state.get("ADX_in_threshold", 25.0))), "options": {"color": "rgba(120,123,134,0.4)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}}, {"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_adx"])} for r in records if pd.notna(r.get("calc_adx")) and r["time"] > 0], "options": {"color": st.session_state.get("ADX_st_adx_color", "#e040fb"), "lineWidth": int(st.session_state.get("ADX_st_adx_width", 2)), "priceLineVisible": False}}, {"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_pdi"])} for r in records if pd.notna(r.get("calc_pdi")) and r["time"] > 0], "options": {"color": st.session_state.get("ADX_st_pdi_color", "#00e676"), "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}}, {"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_mdi"])} for r in records if pd.notna(r.get("calc_mdi")) and r["time"] > 0], "options": {"color": st.session_state.get("ADX_st_mdi_color", "#ff5252"), "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}}]}
+        series_list = []
+        if st.session_state.get("ADX_st_show_threshold", True):
+            series_list.append({"type": "Line", "data": mk(float(st.session_state.get("ADX_in_threshold", 25.0))), "options": {"color": "rgba(120,123,134,0.4)", "lineWidth": 1, "lineStyle": 2, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("ADX_st_show_adx", True):
+            series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_adx"])} for r in records if pd.notna(r.get("calc_adx")) and r["time"] > 0], "options": {"color": st.session_state.get("ADX_st_adx_color", "#e040fb"), "lineWidth": int(st.session_state.get("ADX_st_adx_width", 2)), "priceLineVisible": False}})
+        if st.session_state.get("ADX_st_show_pdi", True):
+            series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_pdi"])} for r in records if pd.notna(r.get("calc_pdi")) and r["time"] > 0], "options": {"color": st.session_state.get("ADX_st_pdi_color", "#00e676"), "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("ADX_st_show_mdi", True):
+            series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_mdi"])} for r in records if pd.notna(r.get("calc_mdi")) and r["time"] > 0], "options": {"color": st.session_state.get("ADX_st_mdi_color", "#ff5252"), "lineWidth": 1, "priceLineVisible": False, "lastValueVisible": False}})
+        return {"chart": {**base_chart, "height": 120, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": 0.1, "bottom": 0.1}}, "watermark": {"visible": True, "text": f"ADX / DMI ({adx_len})", "fontSize": 16, "color": "#787b86", "horzAlign": "left", "vertAlign": "top"}}, "series": series_list}
 
     def make_vol_pane():
-        vol_bars = [{"time": int(r["time"]), "value": float(r.get("volume", 0)), "color": theme.VOL_UP if float(r.get("close", 0)) >= float(r.get("open", 0)) else theme.VOL_DOWN} for r in records if pd.notna(r.get("volume")) and r["time"] > 0]
-        return {"chart": {**base_chart, "height": 120, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": 0.1, "bottom": 0.0}}, "watermark": {"visible": True, "text": f"Volume ({vol_ma_len})", "fontSize": 16, "color": "#787b86", "horzAlign": "left", "vertAlign": "top"}}, "series": [{"type": "Histogram", "data": vol_bars, "options": {"priceFormat": {"type": "volume"}, "priceLineVisible": False, "lastValueVisible": False}}, {"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_vol_ma"])} for r in records if pd.notna(r.get("calc_vol_ma")) and r["time"] > 0], "options": {"color": st.session_state.get("VOL_st_ma_color", "#ff9800"), "lineWidth": int(st.session_state.get("VOL_st_ma_width", 2)), "priceLineVisible": False, "lastValueVisible": False}}]}
+        series_list = []
+        if st.session_state.get("VOL_st_show_bars", True):
+            vol_bars = [{"time": int(r["time"]), "value": float(r.get("volume", 0)), "color": theme.VOL_UP if float(r.get("close", 0)) >= float(r.get("open", 0)) else theme.VOL_DOWN} for r in records if pd.notna(r.get("volume")) and r["time"] > 0]
+            series_list.append({"type": "Histogram", "data": vol_bars, "options": {"priceFormat": {"type": "volume"}, "priceLineVisible": False, "lastValueVisible": False}})
+        if st.session_state.get("VOL_st_show_ma", True):
+            series_list.append({"type": "Line", "data": [{"time": int(r["time"]), "value": float(r["calc_vol_ma"])} for r in records if pd.notna(r.get("calc_vol_ma")) and r["time"] > 0], "options": {"color": st.session_state.get("VOL_st_ma_color", "#ff9800"), "lineWidth": int(st.session_state.get("VOL_st_ma_width", 2)), "priceLineVisible": False, "lastValueVisible": False}})
+        return {"chart": {**base_chart, "height": 120, "timeScale": pane_ts, "rightPriceScale": {**base_chart["rightPriceScale"], "scaleMargins": {"top": 0.1, "bottom": 0.0}}, "watermark": {"visible": True, "text": f"Volume ({vol_ma_len})", "fontSize": 16, "color": "#787b86", "horzAlign": "left", "vertAlign": "top"}}, "series": series_list}
 
     charts = [{
         "chart": {
@@ -434,7 +522,7 @@ def build_charts(df, symbol, tf, main_h=520, rsi_h=120, macd_h=120):
             c["chart"]["timeScale"] = dict(c["chart"].get("timeScale", pane_ts)).copy()
             c["chart"]["timeScale"]["visible"] = (i == len(charts) - 1)
 
-    # เรนเดอร์กล่อง HUD เฉพาะตอนที่เปิดสคริปต์ของฉันเท่านั้น
+    # เรนเดอร์กล่อง HUD
     render_pine_hud_overlay()
 
     return charts

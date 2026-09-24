@@ -4,14 +4,29 @@ import pandas as pd
 
 class PineBridgeEngine:
     """
-    Pine Script v5 Full Math Engine
-    แปลงตรรกะคณิตศาสตร์ครบวงจร: EMA Ribbon, Squeeze Explosion, Trailing Stop, 
-    RSI Pivot Numbers และชุดข้อมูล HUD Table 12 แถวตาม TradingView
+    Pine Script v5 Full Math Engine for Diamond Armor V11.3 - Infinite RSI + Explosion
+    ถอดสูตรคณิตศาสตร์ตรงตามโค้ด TradingView ต้นฉบับ 100% พร้อมระบบควบคุมการแสดงผลทุกส่วน
     """
-    def __init__(self, script_code: str):
+    def __init__(self, script_code: str = ""):
         self.code = script_code
-        self.inputs = {}
-        self.parse_inputs()
+        self.inputs = {
+            "f_len": 7,
+            "s_len": 13,
+            "t_len": 45,
+            "min_tp_pct": 3.0,
+            "warn_pct": 3.0,
+            "danger_pct": 7.0,
+            "show_fast": True,
+            "show_slow": True,
+            "show_trend": True,
+            "show_rsi_overlay": False,
+            "show_star": True,
+            "show_labels": True,
+            "show_dots": True,
+            "show_hud": True,
+        }
+        if self.code:
+            self.parse_inputs()
 
     def parse_inputs(self):
         pattern_int = r'(\w+)\s*=\s*input(?:\.int)?\s*\(\s*(\d+)'
@@ -22,157 +37,199 @@ class PineBridgeEngine:
         for var_name, val in re.findall(pattern_float, self.code):
             self.inputs[var_name] = float(val)
 
-    def calculate_ema(self, series: pd.Series, length: int) -> pd.Series:
-        return series.ewm(span=length, adjust=False).mean()
+        pattern_bool = r'(\w+)\s*=\s*input(?:\.bool)?\s*\(\s*(true|false)'
+        for var_name, val in re.findall(pattern_bool, self.code, re.IGNORECASE):
+            self.inputs[var_name] = (val.lower() == "true")
 
-    def calculate_rsi(self, series: pd.Series, length: int = 14) -> pd.Series:
-        delta = series.diff()
-        gain = delta.clip(lower=0)
-        loss = -delta.clip(upper=0)
-        avg_gain = gain.ewm(com=length - 1, min_periods=length).mean()
-        avg_loss = loss.ewm(com=length - 1, min_periods=length).mean()
-        rs = avg_gain / (avg_loss + 1e-9)
-        return 100 - (100 / (1 + rs))
-
-    def execute(self, df: pd.DataFrame) -> dict:
-        if df.empty or len(df) < 10:
+    def execute(self, df: pd.DataFrame, overrides: dict = None) -> dict:
+        if df is None or df.empty or len(df) < 5:
             return {}
 
         work_df = df.copy()
+        for col in ["open", "high", "low", "close", "volume"]:
+            if col in work_df.columns:
+                work_df[col] = pd.to_numeric(work_df[col], errors="coerce").fillna(0.0)
+
         close = work_df["close"]
         high = work_df["high"]
         low = work_df["low"]
-        vol = work_df.get("volume", pd.Series(100.0, index=work_df.index))
+        time_series = work_df["time"] if "time" in work_df.columns else pd.Series(range(len(work_df)))
 
-        # 1. พารามิเตอร์กลยุทธ์
-        f_len = self.inputs.get("f_len", 7)
-        s_len = self.inputs.get("s_len", 13)
-        t_len = self.inputs.get("t_len", 45)
+        cfg = dict(self.inputs)
+        if overrides:
+            cfg.update(overrides)
 
-        # 2. คำนวณเส้น EMA และ RSI
-        work_df["ema_fast"] = self.calculate_ema(close, f_len)
-        work_df["ema_slow"] = self.calculate_ema(close, s_len)
-        work_df["ema_trend"] = self.calculate_ema(close, t_len)
-        work_df["rsi"] = self.calculate_rsi(close, 14)
+        f_len = int(cfg.get("f_len", cfg.get("fast", 7)))
+        s_len = int(cfg.get("s_len", cfg.get("slow", 13)))
+        t_len = int(cfg.get("t_len", cfg.get("trend", 45)))
+        min_tp_pct = float(cfg.get("min_tp_pct", 3.0))
+        warn_pct = float(cfg.get("warn_pct", 3.0))
+        danger_pct = float(cfg.get("danger_pct", 7.0))
 
-        # 3. คำนวณความผันผวนและสถานะ Explosion (BB vs KC Squeeze)
-        tr = pd.concat([high - low, (high - close.shift(1)).abs(), (low - close.shift(1)).abs()], axis=1).max(axis=1)
-        atr20 = tr.rolling(20).mean().fillna(tr.ewm(span=20).mean())
-        bb_std = close.rolling(20).std().fillna(0)
-        bb_width = bb_std * 2.0
-        kc_width = atr20 * 1.5
-        
-        # Explosion: เมื่อแถบ BB ระเบิดกว้างกว่า KC และวอลุ่มเข้า
-        is_explosion = (bb_width > kc_width) & (vol > vol.rolling(20).mean())
-        current_explosion = "EXPLOSION" if bool(is_explosion.iloc[-1]) else "CHOP / WAIT"
+        show_fast = bool(cfg.get("show_fast", True))
+        show_slow = bool(cfg.get("show_slow", True))
+        show_trend = bool(cfg.get("show_trend", True))
+        show_rsi_overlay = bool(cfg.get("show_rsi_overlay", False))
+        show_star = bool(cfg.get("show_star", True))
+        show_labels = bool(cfg.get("show_labels", True))
+        show_dots = bool(cfg.get("show_dots", True))
+        show_hud = bool(cfg.get("show_hud", True))
 
-        # 4. สัญญาณ Crossover (BUY) และ Crossunder (SELL)
-        prev_fast = work_df["ema_fast"].shift(1)
-        prev_slow = work_df["ema_slow"].shift(1)
-        raw_buy = (prev_fast <= prev_slow) & (work_df["ema_fast"] > work_df["ema_slow"])
-        raw_sell = (prev_fast >= prev_slow) & (work_df["ema_fast"] < work_df["ema_slow"])
+        # 1. คำนวณเส้น EMA Ribbon
+        ema_f = close.ewm(span=f_len, adjust=False).mean()
+        ema_s = close.ewm(span=s_len, adjust=False).mean()
+        ema_t = close.ewm(span=t_len, adjust=False).mean()
 
-        # 5. จุด Trailing Stop และ Trailing High
-        work_df["trailing_dots"] = np.where(close > work_df["ema_slow"], low - (atr20 * 0.4), np.nan)
+        # 2. คำนวณ RSI (14)
+        delta = close.diff()
+        gain = delta.clip(lower=0)
+        loss = -delta.clip(upper=0)
+        avg_gain = gain.ewm(com=13, min_periods=14).mean()
+        avg_loss = loss.ewm(com=13, min_periods=14).mean()
+        rs = avg_gain / avg_loss.replace(0, 1e-9)
+        rsi_v = (100.0 - (100.0 / (1.0 + rs))).fillna(50.0)
 
-        # 6. Bar-by-bar Trade State Machine (คำนวณ 12 ตัวแปรตามรูปที่ 1 และ 2)
-        w_count = 0
-        l_count = 0
+        # 3. จุดตัด Crossovers
+        prev_f = ema_f.shift(1)
+        prev_s = ema_s.shift(1)
+        cross_up = (prev_f <= prev_s) & (ema_f > ema_s)
+        cross_dn = (prev_f >= prev_s) & (ema_f < ema_s)
+
+        # 4. Squeeze & Explosion
+        hl = high - low
+        is_sqz = (hl.rolling(10).mean() < hl.rolling(30).mean()) & ((ema_f - ema_s).abs() < (close * 0.005))
+        mom10 = close - close.shift(10)
+        is_boom = (rsi_v > 60) & (close > ema_f) & (mom10 > 0)
+        explosion_status = "BOOM! 🚀" if bool(is_boom.iloc[-1]) else ("SQUEEZE 💎" if bool(is_sqz.iloc[-1]) else "CHOP / WAIT")
+
+        # 5. Early Warning Detection
+        lowest_l5 = low.rolling(5).min()
+        lowest_rsi5 = rsi_v.rolling(5).min().shift(1)
+        early_warning = (low == lowest_l5) & (rsi_v > lowest_rsi5) & (rsi_v < 40)
+
+        prev_c = close.shift(1)
+        prev_ef = ema_f.shift(1)
+        c_cross_ef = (prev_c <= prev_ef) & (close > ema_f)
+        ema3 = close.ewm(span=3, adjust=False).mean()
+        prev_ema3 = ema3.shift(1)
+        c_crossunder_ema3 = (prev_c >= prev_ema3) & (close < ema3)
+
+        # RSI Scaled Overlay line
+        ema20 = close.ewm(span=20, adjust=False).mean()
+        rsi_scaled = ema20 * (1.0 + (rsi_v - 50.0) / 150.0)
+
+        # 6. Bar-by-bar Trade State Machine
+        hi_price = 0.0
+        entry_p = 0.0
+        is_long = False
+        just_sold = False
+        tp_count = 0
+
         p_total = 0.0
         l_total = 0.0
-        tp_count = 0
-        is_long = False
-        entry_price = 0.0
-        hi_price = float(high.iloc[0])
-        early_warning = False
-        just_sold = False
-        sell_bars_ago = 999
+        w_count = 0
+        l_count = 0
 
-        buy_signal = [False] * len(work_df)
-        sell_signal = [False] * len(work_df)
+        markers = []
+        warning_dots = [np.nan] * len(work_df)
 
         for i in range(len(work_df)):
-            c_price = float(close.iloc[i])
-            h_price = float(high.iloc[i])
-            rsi_val = float(work_df["rsi"].iloc[i]) if pd.notna(work_df["rsi"].iloc[i]) else 50.0
+            c = float(close.iloc[i])
+            h = float(high.iloc[i])
+            l = float(low.iloc[i])
+            r = float(rsi_v.iloc[i])
+            t_val = int(time_series.iloc[i])
 
-            # Early Bird Detection: โมเมนตัม RSI พุ่งพ้น 50 ก่อน EMA ตัด
-            if not is_long and rsi_val > 52.0 and work_df["ema_fast"].iloc[i] > work_df["ema_fast"].iloc[max(0, i-1)]:
-                early_warning = True
-            else:
-                early_warning = False
+            if t_val <= 0:
+                continue
+
+            # ดาวเตือนรอบเทรนด์ (⭐)
+            if show_star and cross_up.iloc[i]:
+                markers.append({"time": t_val, "position": "belowBar", "color": "#FFD700", "shape": "arrowUp", "text": "⭐"})
+            if show_star and cross_dn.iloc[i]:
+                markers.append({"time": t_val, "position": "aboveBar", "color": "#FFFFFF", "shape": "arrowDown", "text": "⭐"})
 
             # เงื่อนไขเข้าซื้อ
-            if raw_buy.iloc[i] and not is_long:
+            b_sig = (cross_up.iloc[i] and c > ema_t.iloc[i]) or (just_sold and c_cross_ef.iloc[i] and c > ema_t.iloc[i])
+
+            if b_sig and not is_long:
                 is_long = True
-                entry_price = c_price
-                hi_price = h_price
-                buy_signal[i] = True
                 just_sold = False
-                sell_bars_ago = 999
+                tp_count = 0
+                entry_p = c
+                hi_price = c
+                if show_labels:
+                    markers.append({"time": t_val, "position": "belowBar", "color": "#00e676", "shape": "arrowUp", "text": "🚀 BUY"})
             elif is_long:
-                if h_price > hi_price:
-                    hi_price = h_price
-                    # Take Profit hit เมื่อทำจุดสูงสุดใหม่เกิน 3%
-                    if (hi_price - entry_price) / entry_price >= 0.03:
-                        tp_count += 1
+                hi_price = max(hi_price, h)
+                pnl = (c - entry_p) / entry_p * 100.0
 
-                # เงื่อนไขขาย: EMA ตัดลง หรือ หลุด Trailing Stop
-                trail_stop_level = hi_price - (float(atr20.iloc[i]) * 1.5)
-                if raw_sell.iloc[i] or (c_price < trail_stop_level):
-                    is_long = False
-                    exit_price = c_price
-                    trade_pl = ((exit_price - entry_price) / entry_price) * 100.0
-                    if trade_pl > 0:
-                        w_count += 1
-                        p_total += trade_pl
-                    else:
-                        l_count += 1
-                        l_total += abs(trade_pl)
-                    sell_signal[i] = True
-                    just_sold = True
-                    sell_bars_ago = 0
+                if pnl >= min_tp_pct and r > 65.0 and c_crossunder_ema3.iloc[i]:
+                    tp_count += 1
+                    if show_labels:
+                        markers.append({"time": t_val, "position": "aboveBar", "color": "#00BCD4", "shape": "arrowDown", "text": "💎 TP"})
 
-            if not is_long and sell_bars_ago < 5:
-                sell_bars_ago += 1
-                just_sold = True
+                if show_dots:
+                    if c < hi_price * (1.0 - (danger_pct / 100.0)):
+                        warning_dots[i] = h * 1.002
+                    elif c < hi_price * (1.0 - (warn_pct / 100.0)):
+                        warning_dots[i] = h * 1.001
             else:
-                just_sold = False
+                if show_dots and early_warning.iloc[i]:
+                    warning_dots[i] = l * 0.998
 
-        work_df["buy_signal"] = buy_signal
-        work_df["sell_signal"] = sell_signal
+            # เงื่อนไขขาย
+            s_sig = is_long and cross_dn.iloc[i]
+            if s_sig:
+                is_long = False
+                just_sold = True
+                m_pnl = (c - entry_p) / entry_p * 100.0
+                if m_pnl > 0:
+                    p_total += m_pnl
+                    w_count += 1
+                else:
+                    l_total += abs(m_pnl)
+                    l_count += 1
+                if show_labels:
+                    markers.append({"time": t_val, "position": "aboveBar", "color": "#ff3366", "shape": "arrowDown", "text": "⚠️ SELL ALL"})
+                hi_price = 0.0
 
-        # 7. สรุปค่าสถิติตามโค้ดรูปที่ 1 และ 2
-        total_closed = w_count + l_count
-        win_rate = (w_count * 100.0 / total_closed) if total_closed > 0 else 31.47
-        net_pl = (p_total - l_total) if total_closed > 0 else 71.78
-        cur_rsi = float(work_df["rsi"].iloc[-1])
+        # สรุปสถิติ HUD Dashboard
+        total_trades = w_count + l_count
+        win_rate = (w_count * 100.0 / total_trades) if total_trades > 0 else 0.0
+        net_pl = p_total - l_total
 
-        hud_table_data = {
+        hud = {
             "title": "DIAMOND V11.3",
             "subtitle": "DYNAMIC TP",
-            "explosion": current_explosion,
+            "explosion": explosion_status,
             "win_rate": f"{win_rate:.2f}%",
             "net_pl": f"{net_pl:+.2f}%",
-            "total_profit": f"+{p_total:.2f}%" if p_total > 0 else "+522.40%",
-            "total_loss": f"-{l_total:.2f}%" if l_total > 0 else "-450.62%",
-            "tp_count": f"{tp_count} Times" if tp_count > 0 else "259 Times",
+            "total_profit": f"+{p_total:.2f}%",
+            "total_loss": f"-{l_total:.2f}%",
+            "tp_count": f"{tp_count} Times",
             "holding": "YES" if is_long else "NO",
-            "early_bird": "READY" if early_warning else "NONE",
+            "early_bird": "READY" if bool(early_warning.iloc[-1]) else "NONE",
             "last_sell_hit": "WATCH" if just_sold else "NO",
-            "trailing_high": f"{hi_price:.4f}",
-            "rsi_current": f"{cur_rsi:.2f}"
+            "trailing_high": f"{hi_price:.4f}" if is_long else "0.0000",
+            "rsi_current": f"{rsi_v.iloc[-1]:.2f}"
         }
+
+        # รวบรวมเส้น Plot ตามสวิตช์เปิด-ปิด
+        plots = []
+        if show_fast:
+            plots.append({"name": f"Fast EMA ({f_len})", "series": ema_f, "color": cfg.get("fast_color", "#2962ff"), "width": int(cfg.get("fast_width", 2))})
+        if show_slow:
+            plots.append({"name": f"Slow EMA ({s_len})", "series": ema_s, "color": cfg.get("slow_color", "#ff5252"), "width": int(cfg.get("slow_width", 2))})
+        if show_trend:
+            plots.append({"name": f"Trend EMA ({t_len})", "series": ema_t, "color": cfg.get("trend_color", "#ffffff"), "width": int(cfg.get("trend_width", 1)), "dash": "dot"})
+        if show_rsi_overlay:
+            plots.append({"name": "RSI Overlay", "series": rsi_scaled, "color": cfg.get("rsi_overlay_color", "#FFD700"), "width": int(cfg.get("rsi_overlay_width", 1))})
 
         return {
             "df": work_df,
-            "plots": [
-                {"name": f"Fast EMA ({f_len})", "series": work_df["ema_fast"], "color": "#00b0ff", "width": 2},
-                {"name": f"Slow EMA ({s_len})", "series": work_df["ema_slow"], "color": "#ff1744", "width": 2},
-                {"name": f"Trend EMA ({t_len})", "series": work_df["ema_trend"], "color": "#ffffff", "width": 1.5, "dash": "dot"}
-            ],
-            "trailing_dots": work_df["trailing_dots"],
-            "buy_points": work_df[work_df["buy_signal"]],
-            "sell_points": work_df[work_df["sell_signal"]],
-            "hud": hud_table_data
+            "plots": plots,
+            "trailing_dots": pd.Series(warning_dots, index=work_df.index) if show_dots else pd.Series(dtype=float),
+            "markers": markers,
+            "hud": hud if show_hud else {}
         }
