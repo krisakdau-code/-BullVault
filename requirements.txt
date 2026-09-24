@@ -4,3 +4,5 @@ requests
 pandas
 numpy
 yfinance
+plotly
+pyarrow
