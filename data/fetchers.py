@@ -376,44 +376,71 @@ def fetch_ticker_24h(symbol: str) -> dict:
         except Exception:
             pass
 
-    # 2. กระดาน Binance (เหรียญที่จับคู่กับ USDT, BUSD, USDC)
+   # 2. กระดาน Binance (เหรียญที่จับคู่กับ USDT, BUSD, USDC)
     b_sym = sym.replace("_", "").upper()
     if any(b_sym.endswith(x) for x in ["USDT", "BUSD", "USDC", "BTC", "ETH"]):
-        try:
-            r = requests.get(f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={b_sym}", timeout=4)
-            if r.status_code == 200:
-                item = r.json()
-                last_p = float(item.get("lastPrice", 0.0))
-                prev_c = float(item.get("prevClosePrice", last_p))
-                pct_val = float(item.get("priceChangePercent", 0.0))
-                chg_abs = float(item.get("priceChange", last_p - prev_c))
-                base_v = float(item.get("volume", 0.0))
-                quote_v = float(item.get("quoteVolume", 0.0))
-                high_24 = float(item.get("highPrice", 0.0))
-                low_24 = float(item.get("lowPrice", 0.0))
-                bid_p = float(item.get("bidPrice", 0.0))
-                ask_p = float(item.get("askPrice", 0.0))
+      try:
+        # ดึง Ticker ข้อมูล Bid / Ask / Volume
+        r = requests.get(
+            f"https://data-api.binance.vision/api/v3/ticker/24hr?symbol={b_sym}",
+            timeout=4,
+        )
+        item = r.json() if r.status_code == 200 else {}
 
-                return {
-                    "symbol": b_sym,
-                    "display": b_sym,
-                    "last": last_p,
-                    "last_price": last_p,
-                    "prev_close": prev_c,
-                    "bid": bid_p,
-                    "ask": ask_p,
-                    "high_24h": high_24,
-                    "low_24h": low_24,
-                    "change_abs": chg_abs,
-                    "change_pct": pct_val,
-                    "price_change_pct": pct_val,
-                    "base_volume": base_v,
-                    "volume_24h": base_v,
-                    "quote_volume": quote_v,
-                    "ts": time.time(),
-                }
+        last_p = float(item.get("lastPrice", 0.0))
+        prev_c = float(item.get("prevClosePrice", last_p))
+        bid_p = float(item.get("bidPrice", 0.0))
+        ask_p = float(item.get("askPrice", 0.0))
+        high_24 = float(item.get("highPrice", 0.0))
+        low_24 = float(item.get("lowPrice", 0.0))
+        base_v = float(item.get("volume", 0.0))
+        quote_v = float(item.get("quoteVolume", 0.0))
+
+        # ดึงแท่งเทียน 1D (Daily 00:00 UTC) เพื่อคำนวณ % และราคาล่าสุดให้ตรงกับ TradingView เป๊ะๆ
+        try:
+          rk = requests.get(
+              f"https://data-api.binance.vision/api/v3/klines?symbol={b_sym}&interval=1d&limit=2",
+              timeout=3,
+          )
+          if rk.status_code == 200:
+            kl = rk.json()
+            if len(kl) >= 2:
+              prev_c = float(
+                  kl[0][4]
+              )  # ราคาปิดแท่งเมื่อวาน (ตัดรอบ 00:00 UTC ตามแบบ TradingView)
+              last_p = float(kl[1][4])  # ราคาปิดแท่งล่าสุดแบบเรียลไทม์
+              high_24 = max(high_24, float(kl[1][2]))
+              low_24 = (
+                  min(low_24, float(kl[1][3]))
+                  if low_24 > 0
+                  else float(kl[1][3])
+              )
         except Exception:
-            pass
+          pass
+
+        chg_abs = last_p - prev_c
+        pct_val = (chg_abs / prev_c * 100.0) if prev_c > 0 else 0.0
+
+        return {
+            "symbol": b_sym,
+            "display": b_sym,
+            "last": last_p,
+            "last_price": last_p,
+            "prev_close": prev_c,
+            "bid": bid_p,
+            "ask": ask_p,
+            "high_24h": high_24,
+            "low_24h": low_24,
+            "change_abs": chg_abs,
+            "change_pct": pct_val,
+            "price_change_pct": pct_val,
+            "base_volume": base_v,
+            "volume_24h": base_v,
+            "quote_volume": quote_v,
+            "ts": time.time(),
+        }
+      except Exception:
+        pass
 
     # 3. สินทรัพย์อื่น ๆ (Forex / Stocks) ดึงผ่าน yfinance
     try:
