@@ -629,6 +629,9 @@ def dashboard():
    # จุดวงเขียว 2: ปุ่ม Indicators
     with c_ind:
         if st.button("📊 Indicators", key="btn_open_ind_modal", type="secondary", use_container_width=True):
+            st.session_state["modal_indicators_open"] = True
+
+        if st.session_state.get("modal_indicators_open", False):
             show_indicators_modal()
 
     # =========================================================================

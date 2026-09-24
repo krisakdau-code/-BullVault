@@ -1,6 +1,12 @@
 ﻿import streamlit as st
 import re
 
+try:
+    from streamlit_monaco import st_monaco
+    HAS_MONACO = True
+except ImportError:
+    HAS_MONACO = False
+
 PRICE_SOURCES = ["close", "open", "high", "low", "hl2", "hlc3", "ohlc4"]
 
 INDICATOR_CONFIGS = {
@@ -92,7 +98,7 @@ plot(ema_f, color=color.blue, title="Fast EMA")
 plot(ema_s, color=color.red, title="Slow EMA")
 plot(ema_t, color=color.white, title="Trend EMA")
 ''',
-                "active": True,
+                "active": False,
                 "fav": True
             },
             "16/4/69 (Smart Money Strategy)": {
@@ -119,28 +125,16 @@ def apply_pine_script_to_chart(script_title, script_code, is_active):
     st.session_state["custom_pine_title"] = script_title
     st.session_state["custom_pine_code"] = script_code
 
-    if is_active:
-        f_val, s_val, t_val = 7, 13, 45
-        m_f = re.search(r'f_len\s*=\s*input(?:\.int)?\s*\(\s*(\d+)', script_code)
-        m_s = re.search(r's_len\s*=\s*input(?:\.int)?\s*\(\s*(\d+)', script_code)
-        m_t = re.search(r't_len\s*=\s*input(?:\.int)?\s*\(\s*(\d+)', script_code)
-        if m_f: f_val = int(m_f.group(1))
-        if m_s: s_val = int(m_s.group(1))
-        if m_t: t_val = int(m_t.group(1))
+def _trigger_app_rerun():
+    try:
+        st.rerun(scope="app")
+    except TypeError:
+        st.rerun()
 
-        st.session_state["show_ema"] = True
-        st.session_state["ind_active_EMA"] = True
-        st.session_state["EMA_in_fast"] = f_val
-        st.session_state["EMA_in_slow"] = s_val
-        st.session_state["EMA_in_trend"] = t_val
-        st.session_state["EMA_st_fast_color"] = "#2962ff"
-        st.session_state["EMA_st_slow_color"] = "#ff1744"
-        st.session_state["EMA_st_trend_color"] = "#ffffff"
-    else:
-        st.session_state["custom_pine_active"] = False
+def _on_modal_dismiss():
+    st.session_state["modal_indicators_open"] = False
 
-@st.dialog("อินดิเคเตอร์ ตัวชี้วัด และกลยุทธ์ (Indicators Library & Pine Script)", width="large")
-def show_indicators_modal():
+def _render_modal_body():
     init_indicator_state()
 
     st.markdown("""
@@ -150,13 +144,9 @@ def show_indicators_modal():
             box-shadow: 0 0 12px rgba(255, 152, 0, 0.45) !important;
             background-color: #0d1117 !important;
             color: #f8fafc !important;
-            font-family: monospace !important;
-            font-size: 13.5px !important;
+            font-family: 'Consolas', 'Monaco', monospace !important;
+            font-size: 13px !important;
             border-radius: 8px !important;
-        }
-        .stTextArea textarea:focus {
-            border: 2px solid #ffb74d !important;
-            box-shadow: 0 0 18px rgba(255, 152, 0, 0.75) !important;
         }
         .tv-nav-header {
             font-size: 11.5px;
@@ -177,7 +167,6 @@ def show_indicators_modal():
 
     col_nav, col_content = st.columns([0.30, 0.70], gap="medium")
 
-    # ── เมนูนำทางฝั่งซ้าย (คลิกแล้วไม่สั่ง rerun ทั้งหน้า จึงไม่เด้งปิด) ──
     with col_nav:
         st.markdown("<div class='tv-nav-header'>ส่วนตัว</div>", unsafe_allow_html=True)
         nav_items_personal = [
@@ -199,10 +188,9 @@ def show_indicators_modal():
         if st.button("⚡ ตัวแก้ไข Pine Script", key="nav_pine", use_container_width=True, type="primary" if is_active_pine else "secondary"):
             st.session_state["sidebar_active_nav"] = "⚡ ตัวแก้ไข Pine Script (Pine Editor)"
 
-    # ── พื้นที่แสดงผลฝั่งขวา ──
     with col_content:
         if st.session_state["sidebar_active_nav"] == "⚡ ตัวแก้ไข Pine Script (Pine Editor)":
-            st.markdown("<div style='font-size: 15px; font-weight: bold; color: #ff9800; margin-bottom: 8px;'>⚡ ตัวแก้ไข Pine Script (Pine Editor) — เครื่องมือออกแบบกลยุทธ์</div>", unsafe_allow_html=True)
+            st.markdown("<div style='font-size: 15px; font-weight: bold; color: #ff9800; margin-bottom: 8px;'>⚡ Pine Editor — ตัวแก้ไขโค้ดกลยุทธ์ (Monaco Engine)</div>", unsafe_allow_html=True)
             
             db = st.session_state["my_scripts"]
             script_list = list(db.keys()) + ["+ สร้างสคริปต์ใหม่"]
@@ -221,13 +209,16 @@ def show_indicators_modal():
             with ed_c2:
                 script_title_input = st.text_input("ชื่อสคริปต์:", value=active_title, key="editor_title_input")
 
-            pine_code_input = st.text_area("Pine Editor Code:", value=active_code, height=270, key="editor_code_textarea")
-
-            btn_col1, btn_col2, btn_col3 = st.columns([0.45, 0.25, 0.30])
+            # แสดง Monaco Code Editor สไตล์ TradingView (มีเลขบรรทัด และแยกสีคำสั่ง)
+            if HAS_MONACO:
+                pine_code_input = st_monaco(value=active_code, height="300px", language="python", theme="vs-dark", key=f"monaco_{cur_sel}")
+            else:
+                pine_code_input = st.text_area("Pine Script Code:", value=active_code, height=270, key="editor_code_textarea")
+                btn_col1, btn_del, btn_col2, btn_col3 = st.columns([0.35, 0.20, 0.20, 0.25])
             with btn_col1:
                 if st.button("💾 บันทึกสคริปต์ลงคลัง", use_container_width=True, type="primary"):
                     if script_title_input and script_title_input != "+ สร้างสคริปต์ใหม่":
-                        is_active_prev = db.get(script_title_input, {}).get("active", True)
+                        is_active_prev = db.get(script_title_input, {}).get("active", False)
                         is_fav_prev = db.get(script_title_input, {}).get("fav", False)
                         db[script_title_input] = {
                             "author": "Takayakating9...",
@@ -241,6 +232,18 @@ def show_indicators_modal():
                         st.session_state["current_editor_script_name"] = script_title_input
                         st.session_state["sidebar_active_nav"] = "👤 สคริปต์ของฉัน (เครื่องมือที่ฉันออกแบบ)"
                         st.success(f"บันทึก '{script_title_input}' สำเร็จ!")
+                        _trigger_app_rerun()
+        
+            with btn_del:
+                if cur_sel in db and cur_sel != "+ สร้างสคริปต์ใหม่":
+                    if st.button("🗑️ ลบสคริปต์", use_container_width=True, type="secondary"):
+                        if db[cur_sel].get("active", False):
+                            apply_pine_script_to_chart(cur_sel, "", False)
+                        del db[cur_sel]
+                        remaining = list(db.keys())
+                        st.session_state["current_editor_script_name"] = remaining[0] if remaining else "+ สร้างสคริปต์ใหม่"
+                        st.toast(f"ลบ '{cur_sel}' เรียบร้อยแล้ว")
+                        _trigger_app_rerun()
 
             with btn_col2:
                 if cur_sel in db:
@@ -249,11 +252,12 @@ def show_indicators_modal():
                     if tgl_act != cur_act:
                         db[cur_sel]["active"] = tgl_act
                         apply_pine_script_to_chart(cur_sel, db[cur_sel]["code"], tgl_act)
+                        _trigger_app_rerun()
 
             with btn_col3:
                 if st.button("🔍 ตรวจสอบโค้ด", use_container_width=True, type="secondary"):
                     if "//@version=5" in pine_code_input or "strategy" in pine_code_input or "indicator" in pine_code_input:
-                        st.info("✅ ไวยากรณ์ถูกต้อง: พร้อมทำงานบนกราฟ")
+                        st.info("✅ ไวยากรณ์ถูกต้อง: พร้อมประมวลผลบนกราฟ")
                     else:
                         st.error("❌ จำเป็นต้องมี //@version=5 หรือ indicator/strategy")
 
@@ -272,7 +276,7 @@ def show_indicators_modal():
                     if search_kw and (search_kw not in s_name.lower()):
                         continue
                     
-                    row_star, row_title, row_author, row_sw = st.columns([0.08, 0.48, 0.28, 0.16], vertical_alignment="center")
+                    row_star, row_title, row_author, row_sw, row_del = st.columns([0.08, 0.44, 0.24, 0.14, 0.10], vertical_alignment="center")
                     with row_star:
                         is_fav = s_data.get("fav", False)
                         if st.button("⭐" if is_fav else "☆", key=f"fav_btn_script_{s_name}", help="ติดดาวรายการโปรด"):
@@ -287,7 +291,16 @@ def show_indicators_modal():
                         if tgl_val != is_act:
                             s_data["active"] = tgl_val
                             apply_pine_script_to_chart(s_name, s_data["code"], tgl_val)
-
+                            _trigger_app_rerun()
+                    with row_del:
+                        if st.button("🗑️", key=f"del_script_btn_{s_name}", help=f"ลบสคริปต์ {s_name}"):
+                            if s_data.get("active", False):
+                                apply_pine_script_to_chart(s_name, "", False)
+                            del db[s_name]
+                            remaining = list(db.keys())
+                            st.session_state["current_editor_script_name"] = remaining[0] if remaining else "+ สร้างสคริปต์ใหม่"
+                            st.toast(f"ลบ '{s_name}' เรียบร้อยแล้ว")
+                            _trigger_app_rerun()
                     with st.expander(f"📝 ดูและแก้ไขสคริปต์ {s_name}"):
                         st.code(s_data["code"], language="pine")
                         if st.button(f"✏️ เปิดในตัวแก้ไข Pine Editor", key=f"load_ed_{s_name}", use_container_width=True):
@@ -315,6 +328,7 @@ def show_indicators_modal():
                                 if tgl_val != is_act:
                                     s_data["active"] = tgl_val
                                     apply_pine_script_to_chart(s_name, s_data["code"], tgl_val)
+                                    _trigger_app_rerun()
 
                 for code, cfg in INDICATOR_CONFIGS.items():
                     act_k = f"ind_active_{code}"
@@ -343,6 +357,7 @@ def show_indicators_modal():
                             if code == "EMA": st.session_state["show_ema"] = new_act
                             elif code == "RSI": st.session_state["show_rsi_pane"] = new_act
                             elif code == "MACD": st.session_state["show_macd_pane"] = new_act
+                            _trigger_app_rerun()
 
                     with st.expander(f"⚙️ ตั้งค่า {cfg['name']} (Inputs & Style)"):
                         t_in, t_st = st.tabs(["📥 Inputs (การคำนวณ)", "🎨 Style (รูปแบบและสี)"])
@@ -373,6 +388,15 @@ def show_indicators_modal():
                                     with s_cols[idx % 2]:
                                         st.session_state[st_k] = st.slider(f"ความหนา {k.replace('_width', '').title()}", 1, 4, value=int(st.session_state.get(st_k, default_val)), key=f"ui_{st_k}")
                                     idx += 1
+
+try:
+    @st.dialog("อินดิเคเตอร์ ตัวชี้วัด และกลยุทธ์ (Indicators Library & Pine Script)", width="large", on_dismiss=_on_modal_dismiss)
+    def show_indicators_modal():
+        _render_modal_body()
+except TypeError:
+    @st.dialog("อินดิเคเตอร์ ตัวชี้วัด และกลยุทธ์ (Indicators Library & Pine Script)", width="large")
+    def show_indicators_modal():
+        _render_modal_body()
 
 def show_indicators_library_modal():
     show_indicators_modal()
