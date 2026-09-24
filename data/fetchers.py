@@ -48,8 +48,52 @@ YF_TF_MAP = {
     "D": "1d", "2D": "1d", "3D": "1d", "W": "1wk", "M": "1mo"
 }
 
+def standardize_symbol(symbol: str) -> str:
+    """แปลงและปรับมาตรฐานชื่อสัญลักษณ์ข้ามกระดาน ป้องกันข้อผิดพลาด API และชื่อสับสน"""
+    if not symbol:
+        return ""
+    s = str(symbol).strip().upper()
+    
+    # 1. สินค้าเกษตรข้าว
+    if s.startswith("RICE") and not s.startswith("RICE:"):
+        return "RICE:" + s[4:].lstrip(":")
+    if s.startswith("FOB") and not s.startswith("FOB:"):
+        return "FOB:" + s[3:].lstrip(":")
+    if s.startswith("RICE:") or s.startswith("FOB:") or "ZR=F" in s:
+        return s
+        
+    # 2. สินค้าโภคภัณฑ์และค่าเงิน
+    if any(s.endswith(x) for x in ["=F", "=X"]):
+        return s
+        
+    # 3. หุ้นไทย SET (Yahoo Finance format: .BK)
+    if s.endswith(".BK"):
+        return s
+    if s.endswith("BK") and not (s.startswith("THB_") or "_THB" in s or s.endswith("USDT")):
+        ticker = s[:-2]
+        if ticker:
+            return f"{ticker}.BK"
+            
+    # 4. คริปโต Bitkub (format: THB_xxx)
+    if s.endswith("_THB"):
+        coin = s[:-4]
+        return f"THB_{coin}"
+    if s.endswith("THB") and not s.startswith("THB_"):
+        coin = s[:-3]
+        if coin:
+            return f"THB_{coin}"
+
+    # 5. คริปโตทั่วไป
+    if s == "BTC":
+        return "BTCUSDT"
+    if not any(s.endswith(x) for x in ["USDT", "BUSD", "USDC"]) and not s.startswith("THB_") and not s.endswith(".BK"):
+        return f"{s}USDT"
+        
+    return s
+
 def is_yahoo_symbol(symbol: str) -> bool:
-    return any(suffix in symbol for suffix in [".BK", ".HK", ".SS", ".SZ", ".VN", "=F", "=X"])
+    s = standardize_symbol(symbol)
+    return any(suffix in s for suffix in [".BK", ".HK", ".SS", ".SZ", ".VN", "=F", "=X"])
 
 def resample_ohlcv(df: pd.DataFrame, target_tf: str) -> pd.DataFrame:
     """รวมแท่งเทียนอัตโนมัติสำหรับ Timeframe ที่ไม่มีใน API ตรงๆ"""
@@ -93,7 +137,7 @@ def get_usd_thb_rate() -> float:
 
 @st.cache_data(ttl=15, show_spinner=False)
 def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> pd.DataFrame:
-    clean_sym = symbol.strip().upper()
+    clean_sym = standardize_symbol(symbol)
     cache_path = _get_cache_path(clean_sym, tf)
     cached_df = _load_cached_df(cache_path)
     
@@ -228,9 +272,28 @@ def fetch_ohlcv(symbol: str = "BTCUSDT", tf: str = "1h", limit: int = 2000) -> p
 
 @st.cache_data(ttl=10, show_spinner=False)
 def fetch_ticker_24h(symbol: str = "BTCUSDT") -> dict:
-    clean_sym = symbol.strip().upper()
+    clean_sym = standardize_symbol(symbol).strip().upper()
     default_stats = {"last_price": 0.0, "price_change_pct": 0.0, "high_24h": 0.0, "low_24h": 0.0, "volume_24h": 0.0}
 
+    # 1. สินค้าเกษตรข้าว (RICE / FOB)
+    if clean_sym.startswith("RICE:") or clean_sym.startswith("FOB:") or "ZR=F" in clean_sym:
+        try:
+            from data.rice_ohlcv import generate_rice_ohlcv
+            df = generate_rice_ohlcv(clean_sym, bars=2)
+            if df is not None and len(df) >= 2:
+                prev_p = float(df["close"].iloc[-2])
+                last_p = float(df["close"].iloc[-1])
+                pct = round(((last_p - prev_p) / prev_p) * 100, 2) if prev_p else 0.0
+                vol = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0.0
+                return {
+                    "last_price": last_p, "price_change_pct": pct,
+                    "high_24h": float(df["high"].iloc[-1]), "low_24h": float(df["low"].iloc[-1]),
+                    "volume_24h": vol
+                }
+        except Exception:
+            pass
+
+    # 2. หุ้นไทย SET, ทองคำ, Forex (Yahoo Finance)
     if is_yahoo_symbol(clean_sym):
         try:
             import yfinance as yf
@@ -246,6 +309,7 @@ def fetch_ticker_24h(symbol: str = "BTCUSDT") -> dict:
         except Exception:
             return default_stats
 
+    # 3. Bitkub (_THB / THB_)
     if "_THB" in clean_sym or clean_sym.startswith("THB_"):
         coin = clean_sym.replace("_THB", "").replace("THB_", "")
         bk_symbol = f"THB_{coin}"
@@ -265,6 +329,7 @@ def fetch_ticker_24h(symbol: str = "BTCUSDT") -> dict:
         except Exception:
             pass
 
+    # 4. Binance Crypto
     clean_crypto = clean_sym.replace("/", "").replace(" ", "")
     url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={clean_crypto}"
     try:
@@ -306,7 +371,7 @@ def _generate_fallback_data(symbol: str, limit: int) -> pd.DataFrame:
     })
 
 def resolve_market_info(symbol: str) -> dict:
-    sym = symbol.strip()
+    sym = standardize_symbol(symbol).strip()
     if sym.startswith("RICE:"):
         name_th = sym.replace("RICE:", "")
         return {"symbol": sym, "display_name": name_th, "exchange": "ไทย (หน้าโรงสี)", "category": "สินค้าเกษตร", "currency": "THB", "unit": "บาท/ตัน", "is_thb_native": True}

@@ -1,11 +1,11 @@
-# ui/sidebar_refactored.py — Streamlined Terminal Sidebar (Compact Watchlist Rows)
+# ui/sidebar_refactored.py — Streamlined Terminal Sidebar (Compact Watchlist Rows - TradingView Standard)
 import streamlit as st
 import datetime
 import json
 import os
 import requests
 from ui.symbol_modal import render_symbol_modal
-from data.fetchers import resolve_market_info
+from data.fetchers import resolve_market_info, fetch_ticker_24h, fetch_ohlcv, standardize_symbol
 from ui.rice_seasonality_modal import show_rice_market_modal
 from color_store import (
     COLOR_TAGS, COLOR_KEYS, norm_sym,
@@ -14,16 +14,12 @@ from color_store import (
 
 WATCHLIST_STORE_FILE = "watchlist_store.json"
 
-# ลำดับสี: แดง 🔴 -> ส้ม 🟠 -> เขียว 🟢 -> ฟ้า 🔵 -> เทา/ขาว ⚪
 PREFERRED_COLOR_ORDER = ["red", "orange", "green", "blue", "gray"]
 SORTED_COLOR_KEYS = [k for k in PREFERRED_COLOR_ORDER if k in COLOR_KEYS] + [k for k in COLOR_KEYS if k not in PREFERRED_COLOR_ORDER]
 
 
-# ══════════════════════════════════════════════════════════════
-# ระบบแปลงหน่วย Volume ให้อ่านง่ายแบบ TradingView
-# ══════════════════════════════════════════════════════════════
 def _format_vol(v: float) -> str:
-    """แปลงตัวเลข Volume เป็นหน่วย K, M, B"""
+    """แปลงตัวเลข Volume เป็นหน่วย K, M, B แบบสากล"""
     if v >= 1e9:
         return f"{v / 1e9:.2f} B"
     elif v >= 1e6:
@@ -33,22 +29,17 @@ def _format_vol(v: float) -> str:
     elif v > 0:
         return f"{v:,.0f}"
     return "-"
-# ══════════════════════════════════════════════════════════════
-# ระบบดึงราคา % และ Volume (Fast Cache Ticker)
-# ══════════════════════════════════════════════════════════════
+
+
 @st.cache_data(ttl=15, show_spinner=False)
 def _get_live_ticker(sym: str):
-    """ดึงราคา, % 24h, และ Volume จาก Binance API แบบแคช 15 วินาที"""
+    """ดึงราคา, % 24h, และ Volume รวม 24h จาก fetch_ticker_24h รองรับทุกกระดาน"""
     try:
-        s = norm_sym(sym).upper()
-        if not any(s.endswith(x) for x in ["USDT", "BUSD", "USDC", "BTC"]):
-            s += "USDT"
-        url = f"https://api.binance.com/api/v3/ticker/24hr?symbol={s}"
-        resp = requests.get(url, timeout=1.2).json()
-        if "lastPrice" in resp:
-            p = float(resp["lastPrice"])
-            c = float(resp["priceChangePercent"])
-            v = float(resp.get("volume", 0.0))
+        t = fetch_ticker_24h(sym)
+        if t and (t.get("last_price", 0) > 0 or t.get("price_change_pct", 0) != 0 or t.get("volume_24h", 0) > 0):
+            p = float(t["last_price"])
+            c = float(t.get("price_change_pct", 0.0))
+            v = float(t.get("volume_24h", 0.0))
             p_str = f"{p:,.2f}" if p >= 1 else f"{p:.4f}"
             c_str = f"{c:+.2f}%"
             v_str = _format_vol(v)
@@ -62,22 +53,11 @@ def _get_live_ticker(sym: str):
 def _get_active_candle(sym: str, tf_str: str = "1h"):
     """ดึงแท่งเทียนล่าสุดตามไทม์เฟรมของกราฟ เพื่อให้ % Change ตรงกับกราฟหลัก 100%"""
     try:
-        s = norm_sym(sym).upper()
-        if not any(s.endswith(x) for x in ["USDT", "BUSD", "USDC", "BTC"]):
-            s += "USDT"
-        tf_map = {
-            "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
-            "1h": "1h", "2h": "2h", "3h": "3h", "4h": "4h",
-            "D": "1d", "1D": "1d", "2D": "3d", "3D": "3d",
-            "W": "1w", "1W": "1w", "M": "1M", "1M": "1M"
-        }
-        interval = tf_map.get(tf_str, "1h")
-        url = f"https://api.binance.com/api/v3/klines?symbol={s}&interval={interval}&limit=2"
-        res = requests.get(url, timeout=1.5).json()
-        if isinstance(res, list) and len(res) >= 2:
-            prev_close = float(res[-2][4])  # ราคาปิดแท่งก่อนหน้า (ฐานเดียวกับ 3 วงสีเขียว)
-            last_close = float(res[-1][4])  # ราคาปิดแท่งปัจจุบัน
-            vol = float(res[-1][5])
+        df = fetch_ohlcv(sym, tf=tf_str, limit=2)
+        if df is not None and len(df) >= 2:
+            prev_close = float(df["close"].iloc[-2])
+            last_close = float(df["close"].iloc[-1])
+            vol = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0.0
             diff = last_close - prev_close
             pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
             p_str = f"{last_close:,.2f}" if last_close >= 1 else f"{last_close:.4f}"
@@ -87,9 +67,8 @@ def _get_active_candle(sym: str, tf_str: str = "1h"):
     except Exception:
         pass
     return None
-# ══════════════════════════════════════════════════════════════
-# ระบบบันทึกข้อมูล Watchlist และกลุ่มสีลงไฟล์ถาวร
-# ══════════════════════════════════════════════════════════════
+
+
 def load_saved_data():
     if os.path.exists(WATCHLIST_STORE_FILE):
         try:
@@ -107,6 +86,7 @@ def load_saved_data():
     ]
     return default_watchlist, {}
 
+
 def save_watchlist_data():
     try:
         raw_rows = st.session_state.get("custom_watchlist", [])
@@ -123,9 +103,42 @@ def save_watchlist_data():
         pass
 
 
-# ══════════════════════════════════════════════════════════════
-# 1. กล่องโมดอลศูนย์ตั้งค่ารวม (Unified Settings Dialog)
-# ══════════════════════════════════════════════════════════════
+def add_to_watchlist(sym_code: str):
+    """เพิ่มเหรียญเข้า Watchlist โดยตรงแบบ TradingView (ไม่เพิ่มซ้ำ)"""
+    if not sym_code:
+        return
+    clean = standardize_symbol(sym_code)
+    raw = norm_sym(sym_code).upper()
+    existing = [norm_sym(r[0] if isinstance(r, (list, tuple)) else (r.get("symbol") if isinstance(r, dict) else r)).upper() for r in st.session_state.get("custom_watchlist", [])]
+    existing_clean = [standardize_symbol(s) for s in existing]
+    if raw not in existing and clean not in existing_clean:
+        if "custom_watchlist" not in st.session_state:
+            st.session_state["custom_watchlist"] = []
+        st.session_state["custom_watchlist"].append((raw, "-", "-", True))
+        save_watchlist_data()
+
+
+def remove_from_watchlist(target_sym: str):
+    """ลบเหรียญออกจาก Watchlist ทันทีแบบ 1-Click และสลับเหรียญหากเหรียญที่ลบกำลังเปิดดูอยู่"""
+    t_clean = standardize_symbol(target_sym)
+    target_norm = norm_sym(target_sym).upper()
+
+    st.session_state["custom_watchlist"] = [
+        item for item in st.session_state.get("custom_watchlist", [])
+        if norm_sym(item[0] if isinstance(item, (list, tuple)) else item).upper() not in [target_norm, t_clean]
+        and standardize_symbol(item[0] if isinstance(item, (list, tuple)) else item) != t_clean
+    ]
+    assign_color(target_sym, None)
+    assign_color(t_clean, None)
+    save_watchlist_data()
+
+    cur_sel = st.session_state.get("current_symbol", "BTCUSDT")
+    if standardize_symbol(cur_sel) == t_clean or norm_sym(cur_sel).upper() == target_norm:
+        rem = st.session_state.get("custom_watchlist", [])
+        fallback = rem[0][0] if rem else "BTCUSDT"
+        set_active_symbol(fallback)
+
+
 @st.dialog("⚙️ การตั้งค่าระบบและชาร์ต (Unified Settings)")
 def show_chart_settings_dialog():
     tab_chart, tab_ui = st.tabs([
@@ -178,38 +191,30 @@ def show_chart_settings_dialog():
         if st.button("💾 บันทึกและปรับใช้", type="primary", use_container_width=True):
             st.rerun()
 
-# ══════════════════════════════════════════════════════════════
-# 2. ฟังก์ชันจัดการข้อมูลเหรียญและสี
-# ══════════════════════════════════════════════════════════════
+
 def set_active_symbol(sym_code: str):
-    sym_code = norm_sym(sym_code)
-    st.session_state["current_symbol"] = sym_code
-    st.session_state["selected_symbol"] = sym_code
-    
-    if "custom_watchlist" not in st.session_state:
-        st.session_state["custom_watchlist"] = []
-    
-    existing = [norm_sym(r[0] if isinstance(r, (list, tuple)) else (r.get("symbol") if isinstance(r, dict) else r)) for r in st.session_state["custom_watchlist"]]
-    if sym_code not in existing:
-        st.session_state["custom_watchlist"].insert(0, (sym_code, "-", "-", True))
-        save_watchlist_data()
+    """สลับเหรียญบนกราฟหลัก (ตัดระบบ Auto-insert เพื่อไม่ให้เหรียญเด้งกลับมาเอง)"""
+    clean_sym = standardize_symbol(sym_code)
+    st.session_state["current_symbol"] = clean_sym
+    st.session_state["selected_symbol"] = clean_sym
 
     if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
         active_id = st.session_state.get("active_tab_id")
         for t in st.session_state["chart_tabs"]:
             if t.get("id") == active_id:
-                t["symbol"] = sym_code
+                t["symbol"] = clean_sym
                 break
 
     if "open_tabs" in st.session_state and st.session_state.open_tabs:
         active_id = st.session_state.get("active_tab_id")
         for t in st.session_state.open_tabs:
             if t.get("id") == active_id:
-                t["symbol"] = sym_code
+                t["symbol"] = clean_sym
                 break
 
     for k in ("active_key", "df_data", "last_fetch_time"):
         st.session_state.pop(k, None)
+
 
 def _color_menu(sym: str, prefix: str = "wl") -> None:
     s = norm_sym(sym)
@@ -228,15 +233,7 @@ def _color_menu(sym: str, prefix: str = "wl") -> None:
         assign_color(s, None)
         save_watchlist_data()
         st.rerun()
-    if st.button("🗑️ ลบจาก Watchlist", key=f"{prefix}_clr_{s}_del", use_container_width=True):
-        assign_color(s, None)
-        if "custom_watchlist" in st.session_state:
-            st.session_state["custom_watchlist"] = [
-                item for item in st.session_state["custom_watchlist"]
-                if norm_sym(item[0] if isinstance(item, (list, tuple)) else item) != s
-            ]
-        save_watchlist_data()
-        st.rerun()
+
 
 def _normalize_row(row):
     if isinstance(row, dict):
@@ -247,9 +244,6 @@ def _normalize_row(row):
     return (norm_sym(row), "-", "-", True)
 
 
-# ══════════════════════════════════════════════════════════════
-# 3. เมนูหลักแถบข้าง SIDEBAR (Fragmented UI)
-# ══════════════════════════════════════════════════════════════
 @st.fragment
 def render_sidebar():
     st.markdown('<div id="custom-left-menu-anchor" style="display:none;"></div>', unsafe_allow_html=True)
@@ -268,10 +262,8 @@ def render_sidebar():
     if "wl_sort_mode" not in st.session_state:
         st.session_state["wl_sort_mode"] = "none"
 
-    # สไตล์ UI TradingView + เพิ่มการบีบระยะห่างแถว Watchlist ให้กระชับ
     st.markdown("""
     <style>
-    /* สไตล์ปุ่มหัวตารางสำหรับจัดเรียง */
     .tv-sort-wrap div[data-testid="stBaseButton-tertiary"] button,
     .tv-sort-wrap button {
         background: transparent !important;
@@ -307,42 +299,38 @@ def render_sidebar():
         color: #ff7d1e !important;
     }
 
-    /* ── บีบระยะห่างแถว Watchlist ให้ชิดกระชับ ── */
-   div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) {
-    gap: 10px !important;
-}
-div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) {
-    margin-bottom: -6px !important;   /* <--- ตัวนี้ควบคุมความชิดระหว่างแถว */
-}
-div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElementContainer"] {
-    margin: 0 !important;
-    padding: 0 !important;
-}
+    div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) {
+        gap: 6px !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) {
+        margin-bottom: -4px !important;
+    }
+    div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElementContainer"] {
+        margin: 0 !important;
+        padding: 0 !important;
+    }
     div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) button {
         min-height: 24px !important;
         height: 24px !important;
-        padding: 0px 6px !important;
-        font-size: 11px !important;
+        padding: 0px 4px !important;
+        font-size: 11.5px !important;
+        font-family: 'JetBrains Mono', monospace !important;
     }
     div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stPopover"] button {
-        min-height: 24px !important;
-        height: 24px !important;
-        width: 24px !important;
-        padding: 0 !important;
-    }
-
-    /* ปุ่มจุดส้มนีออนหลังชื่อเหรียญ */
-    .tv-neon-wrap div[data-testid="stPopover"] button {
-        background: rgba(255, 107, 0, 0.18) !important;
-        border: 1px solid #FF7D1E !important;
-        color: #FF7D1E !important;
-        box-shadow: 0 0 7px rgba(255, 125, 30, 0.55) !important;
-        padding: 0 !important;
         min-height: 22px !important;
         height: 22px !important;
         width: 22px !important;
+        padding: 0 !important;
+    }
+
+    /* ปุ่มจุดสีจัดการกลุ่มสี */
+    .tv-neon-wrap div[data-testid="stPopover"] button {
+        background: rgba(255, 107, 0, 0.14) !important;
+        border: 1px solid rgba(255, 125, 30, 0.4) !important;
+        color: #FF7D1E !important;
+        padding: 0 !important;
         border-radius: 50% !important;
-        font-size: 10px !important;
+        font-size: 9px !important;
         display: flex !important;
         align-items: center !important;
         justify-content: center !important;
@@ -350,60 +338,75 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
     .tv-neon-wrap div[data-testid="stPopover"] button:hover {
         background: #FF7D1E !important;
         color: #131722 !important;
-        box-shadow: 0 0 12px #FF7D1E !important;
+        box-shadow: 0 0 8px #FF7D1E !important;
     }
+
+    /* ปุ่มลบ ✕ สไตล์ TradingView */
+    .tv-del-btn button {
+        background: transparent !important;
+        border: none !important;
+        color: #555e6d !important;
+        font-size: 12px !important;
+        font-weight: 700 !important;
+        padding: 0 !important;
+        min-height: 22px !important;
+        height: 22px !important;
+        width: 22px !important;
+        border-radius: 3px !important;
+        box-shadow: none !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+    .tv-del-btn button:hover {
+        color: #ff3366 !important;
+        background: rgba(255, 51, 102, 0.18) !important;
+    }
+
     .tv-val-up {
-        color: #1CED0D;
-        font-size: 15px;
-        font-weight: 700;
-        white-space: nowrap;
+        color: #00e676 !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        white-space: nowrap !important;
     }
     .tv-val-down {
-        color: #F23645;
-        font-size: 11px;
-        font-weight: 700;
-        white-space: nowrap;
+        color: #ff3366 !important;
+        font-size: 11.5px !important;
+        font-weight: 700 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        white-space: nowrap !important;
     }
     .tv-vol-text {
-        color: #E37D1C;
-        font-size: 15px;
-        font-weight: 600;
-        text-align: right;
-        white-space: nowrap;
+        color: #ff8c00 !important;
+        font-size: 11px !important;
+        font-weight: 600 !important;
+        font-family: 'JetBrains Mono', monospace !important;
+        white-space: nowrap !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # ปุ่มสลับแท็บหลัก: ตลาด  | กราฟเปรียบเทียบ (เขียว)
+    # ปุ่มสลับแท็บหลัก: ตลาด | กราฟเปรียบเทียบ
     t_c1, t_c2 = st.columns(2)
     with t_c1:
         if st.button("ตลาด", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "market" else "secondary"):
             st.session_state["sidebar_active_tab"] = "market"
             st.rerun()
     with t_c2:
-        if st.button("กราฟเปรียบเทียบ (เขียว)", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "tools" else "secondary"):
+        if st.button("กราฟเปรียบเทียบ", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "tools" else "secondary"):
             st.session_state["sidebar_active_tab"] = "tools"
             st.rerun()
 
     # ──────────────────────────────────────────────────────────
-    # TAB 1: ตลาด
+    # TAB 1: ตลาด (Watchlist สไตล์ TradingView)
     # ──────────────────────────────────────────────────────────
     if st.session_state["sidebar_active_tab"] == "market":
         selected_sym = st.session_state.get("current_symbol", "BTCUSDT")
-        meta = resolve_market_info(selected_sym)
-        tag = meta.get("exchange", "BINANCE")
 
-        # บันทึกเหรียญปัจจุบันเข้า Watchlist อัตโนมัติถ้ายังไม่มี
-        existing_syms = [norm_sym(r[0] if isinstance(r, (list, tuple)) else (r.get("symbol") if isinstance(r, dict) else r)) for r in st.session_state["custom_watchlist"]]
-        if norm_sym(selected_sym) not in existing_syms:
-            st.session_state["custom_watchlist"].insert(0, (norm_sym(selected_sym), "-", "-", True))
-            save_watchlist_data()
-
-        # ปุ่มค้นหาเหรียญเต็มความกว้าง
-        if st.button(f"🔍 {selected_sym}  [{tag}]", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
+        # 1. ปุ่มค้นหาเหรียญมาตรฐาน (ไม่ล็อกชื่อเหรียญค้างไว้ให้สับสน)
+        if st.button("🔍 ค้นหาเหรียญ / สัญลักษณ์สินทรัพย์...", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
             render_symbol_modal()
 
-        # แถบกรอง 5 สี เรียงลำดับ: ALL -> แดง -> ส้ม -> เขียว -> ฟ้า -> เทา
+        # แถบกรอง 5 สี
         st.markdown("<div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>", unsafe_allow_html=True)
         f_cols = st.columns([1.1, 1, 1, 1, 1, 1], gap="small")
         active = st.session_state.get("color_filter")
@@ -421,10 +424,27 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
                     st.session_state["color_filter"] = None if active == ckey else ckey
                     st.rerun()
 
-        # ส่วนหัวตาราง Watchlist พร้อมปุ่มคลิกจัดเรียง (สัญลักษณ์ | เปลี่ยน | ปริมาณ)
-        st.markdown("<div style='font-size:12px; color:#8b949e; margin:10px 0 2px 0;'>📋 รายการสินทรัพย์เฝ้าดู</div>", unsafe_allow_html=True)
-        h_c1, h_c2, h_c3 = st.columns([1.47, 0.77, 0.76], gap="small", vertical_alignment="center")
+        # 2. ส่วนหัวตาราง Watchlist พร้อมปุ่ม ➕ เพิ่มเหรียญ (ตัดเมนู ..^ เดิมทิ้ง 100%)
+        h_title, h_add = st.columns([1.8, 0.4], gap="small", vertical_alignment="center")
+        with h_title:
+            st.markdown("<div style='font-size:12px; font-weight:700; color:#8b949e;'>📋 รายการสินทรัพย์เฝ้าดู</div>", unsafe_allow_html=True)
+        with h_add:
+            with st.popover("➕", help="เพิ่มเหรียญ/หุ้น เข้า Watchlist"):
+                st.markdown("<b style='font-size:12px; color:#00e676;'>➕ เพิ่มเหรียญเข้า Watchlist</b>", unsafe_allow_html=True)
+                new_sym_in = st.text_input("พิมพ์ชื่อเหรียญหรือหุ้น:", placeholder="เช่น BTC, ETH, DELTABK, PERPTHB", key="quick_add_sym_input")
+                c_add_btn, c_browse = st.columns([0.6, 0.4])
+                with c_add_btn:
+                    if st.button("เพิ่ม", key="btn_confirm_quick_add", type="primary", use_container_width=True):
+                        if new_sym_in.strip():
+                            add_to_watchlist(new_sym_in.strip())
+                            st.toast(f"เพิ่ม '{new_sym_in.strip().upper()}' แล้ว!")
+                            st.rerun()
+                with c_browse:
+                    if st.button("ค้นหา...", key="btn_browse_symbols", use_container_width=True):
+                        render_symbol_modal()
 
+        # ส่วนหัวคอลัมน์ตาราง 4 ช่อง จัดสัดส่วนตรงกับข้อมูลข้างล่าง
+        h_c1, h_c2, h_c3, h_c4 = st.columns([1.44, 0.90, 0.86, 0.28], gap="small", vertical_alignment="center")
         sort_mode = st.session_state.get("wl_sort_mode", "none")
 
         with h_c1:
@@ -432,13 +452,8 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
             if sort_mode == "sym_asc": lbl_sym = "สัญลักษณ์ ▲"
             elif sort_mode == "sym_desc": lbl_sym = "สัญลักษณ์ ▼"
             st.markdown('<div class="tv-sort-wrap">', unsafe_allow_html=True)
-            if st.button(lbl_sym, key="btn_sort_sym", type="tertiary", use_container_width=True, help="คลิกเพื่อเรียงชื่อตัวอักษร"):
-                if sort_mode == "sym_asc":
-                    st.session_state["wl_sort_mode"] = "sym_desc"
-                elif sort_mode == "sym_desc":
-                    st.session_state["wl_sort_mode"] = "none"
-                else:
-                    st.session_state["wl_sort_mode"] = "sym_asc"
+            if st.button(lbl_sym, key="btn_sort_sym", type="tertiary", use_container_width=True):
+                st.session_state["wl_sort_mode"] = "sym_desc" if sort_mode == "sym_asc" else ("none" if sort_mode == "sym_desc" else "sym_asc")
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -447,13 +462,8 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
             if sort_mode == "pct_desc": lbl_pct = "เปลี่ยน ▼"
             elif sort_mode == "pct_asc": lbl_pct = "เปลี่ยน ▲"
             st.markdown('<div class="tv-sort-wrap">', unsafe_allow_html=True)
-            if st.button(lbl_pct, key="btn_sort_pct", type="tertiary", use_container_width=True, help="คลิกเพื่อเรียงตาม % บวกลบ"):
-                if sort_mode == "pct_desc":
-                    st.session_state["wl_sort_mode"] = "pct_asc"
-                elif sort_mode == "pct_asc":
-                    st.session_state["wl_sort_mode"] = "none"
-                else:
-                    st.session_state["wl_sort_mode"] = "pct_desc"
+            if st.button(lbl_pct, key="btn_sort_pct", type="tertiary", use_container_width=True):
+                st.session_state["wl_sort_mode"] = "pct_asc" if sort_mode == "pct_desc" else ("none" if sort_mode == "pct_asc" else "pct_desc")
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -461,55 +471,50 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
             lbl_vol = "ปริมาณ"
             if sort_mode == "vol_desc": lbl_vol = "ปริมาณ ▼"
             st.markdown('<div class="tv-sort-right">', unsafe_allow_html=True)
-            if st.button(lbl_vol, key="btn_sort_vol", type="tertiary", use_container_width=True, help="คลิกเพื่อเรียงตาม Volume มากสุด"):
-                if sort_mode == "vol_desc":
-                    st.session_state["wl_sort_mode"] = "none"
-                else:
-                    st.session_state["wl_sort_mode"] = "vol_desc"
+            if st.button(lbl_vol, key="btn_sort_vol", type="tertiary", use_container_width=True):
+                st.session_state["wl_sort_mode"] = "none" if sort_mode == "vol_desc" else "vol_desc"
                 st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
+
+        with h_c4:
+            st.markdown("<span style='font-size:10px; color:#555e6d;'>ลบ</span>", unsafe_allow_html=True)
 
         raw_rows = [_normalize_row(r) for r in st.session_state.get("custom_watchlist", [])]
         rows = [r for r in raw_rows if get_sym_color_key(r[0]) == active] if active else raw_rows
 
         if not rows:
-            st.caption("ไม่มีเหรียญในกลุ่มนี้")
+            st.caption("ไม่มีเหรียญในกลุ่มนี้ กดปุ่ม ➕ ด้านบนเพื่อเพิ่มเหรียญ")
 
-        # ไทม์เฟรมปัจจุบันของชาร์ต
         active_tf = (
             st.session_state.get("timeframe") or 
             st.session_state.get("selected_timeframe") or 
             st.session_state.get("current_timeframe") or 
+            st.session_state.get("selected_tf") or
             st.session_state.get("tf") or 
             "1h"
         )
 
-        # เตรียมข้อมูลสำหรับแสดงผลและจัดเรียง (ซิงค์ตามแท่งเทียนกราฟหลัก)
         display_rows = []
         for sym, p_val, c_val, is_up in rows:
             dot = get_sym_color_dot(sym)
-            v_val = "-"
             c_num = 0.0
             v_num = 0.0
+            v_val = "-"
+            p_val = "-"
+            c_val = "+0.00%"
+            is_up = True
 
-            # ตรวจสอบว่าเป็นเหรียญเดียวกับที่กำลังเปิดกราฟอยู่หรือไม่
-            s_base = norm_sym(sym).upper().replace("USDT", "").replace("/", "").replace("-", "")
-            sel_base = norm_sym(selected_sym).upper().replace("USDT", "").replace("/", "").replace("-", "")
-            is_active = (s_base == sel_base) or (norm_sym(sym) == norm_sym(selected_sym))
+            s_std = standardize_symbol(sym)
+            sel_std = standardize_symbol(selected_sym)
+            is_active = (s_std == sel_std) or (norm_sym(sym).upper() == norm_sym(selected_sym).upper())
 
+            # 3.1 ดึง 24h Ticker เพื่อใช้ปริมาณซื้อขาย 24 ชั่วโมง (มาตรฐานเดียวกันตลอดเวลา ไม่สับสนกับแท่ง 1 ชม.)
+            ticker_data = _get_live_ticker(sym)
+            if ticker_data:
+                p_val, c_val, v_val, is_up, c_num, v_num = ticker_data
+
+            # 3.2 ซิงค์ % เปลี่ยนแปลงกับแท่งเทียนกราฟปัจจุบันเฉพาะเหรียญที่กำลังเปิดดู
             if is_active:
-                matched = False
-                # 1. ค้นหาจาก DataFrame ใน session_state ก่อน
-                df_act = None
-                for k in ("df_data", "df", "chart_df", "data"):
-                    v_df = st.session_state.get(k)
-                    if v_df is not None and hasattr(v_df, "columns") and len(v_df) >= 2:
-                        df_act = v_df
-                        break
-
-            if is_active:
-                matched = False
-                # 1. ค้นหาจาก DataFrame ใน session_state ก่อน
                 df_act = None
                 for k in ("df_data", "df", "chart_df", "data"):
                     v_df = st.session_state.get(k)
@@ -518,46 +523,20 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
                         break
 
                 if df_act is not None:
-                    # ค้นหาคอลัมน์ close และ volume แบบยืดหยุ่น รองรับทั้งคริปโตและหุ้นไทย
                     c_col = next((c for c in df_act.columns if "close" in str(c).lower()), None)
-                    v_col = next((c for c in df_act.columns if "volume" in str(c).lower() or "vol" in str(c).lower()), None)
-
                     if c_col and len(df_act) >= 2:
                         last_close = float(df_act[c_col].iloc[-1])
-                        prev_close = float(df_act[c_col].iloc[-2])  # เทียบกับราคาปิดแท่งก่อนหน้าเหมือน 3 วงสีเขียว
-                        l_vol = float(df_act[v_col].iloc[-1]) if v_col else 0.0
+                        prev_close = float(df_act[c_col].iloc[-2])
                         diff = last_close - prev_close
                         pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
                         p_val = f"{last_close:,.2f}" if last_close >= 1 else f"{last_close:.4f}"
                         c_val = f"{pct:+.2f}%"
-                        v_val = _format_vol(l_vol)
                         is_up = (diff >= 0)
                         c_num = pct
-                        v_num = l_vol
-                        matched = True
-                    elif c_col and len(df_act) == 1:
-                        last_close = float(df_act[c_col].iloc[-1])
-                        p_val = f"{last_close:,.2f}" if last_close >= 1 else f"{last_close:.4f}"
-                        c_val = "+0.00%"
-                        matched = True
-
-                # 2. ถ้า session_state ยังไม่มี DataFrame ให้ดึงแท่งเทียนไทม์เฟรมปัจจุบันโดยตรง
-                if not matched:
+                else:
                     candle_data = _get_active_candle(sym, active_tf)
                     if candle_data:
-                        p_val, c_val, v_val, is_up, c_num, v_num = candle_data
-                        matched = True
-
-                # 3. กรณีดึงแท่งเทียนไม่สำเร็จ ให้ใช้ Live Ticker เดิมเป็นตัวสำรอง
-                if not matched:
-                    live_data = _get_live_ticker(sym)
-                    if live_data:
-                        p_val, c_val, v_val, is_up, c_num, v_num = live_data
-            else:
-                # รายการอื่นที่ไม่ได้เปิดอยู่ ดึงผ่าน Live Ticker ตามปกติ
-                live_data = _get_live_ticker(sym)
-                if live_data:
-                    p_val, c_val, v_val, is_up, c_num, v_num = live_data
+                        p_val, c_val, _, is_up, c_num, _ = candle_data
 
             display_rows.append({
                 "sym": sym,
@@ -570,7 +549,6 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
                 "v_num": v_num
             })
 
-        # จัดเรียงลำดับ
         if sort_mode == "sym_asc":
             display_rows.sort(key=lambda x: x["sym"])
         elif sort_mode == "sym_desc":
@@ -582,7 +560,6 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
         elif sort_mode == "vol_desc":
             display_rows.sort(key=lambda x: x["v_num"], reverse=True)
 
-        # กรอบคอนเทนเนอร์พร้อมเลื่อนด้วยเมาส์ (แถวชิดกระชับ ความสูง 24px)
         with st.container(height=480):
             for item in display_rows:
                 sym = item["sym"]
@@ -591,33 +568,36 @@ div[data-testid="stVerticalBlock"]:has(.tv-neon-wrap) div[data-testid="stElement
                 v_val = item["v_val"]
                 is_up = item["is_up"]
 
-                c1, c2, c3 = st.columns([1.15, 0.32, 1.53], gap="small", vertical_alignment="center")
-                with c1:
+                # 4. แบ่งคอลัมน์อิสระ 5 ช่อง ไม่บีบอัด ไม่ขึ้นตัวอักษรแปลกปลอม
+                c_sym, c_tag, c_pct, c_vol, c_del = st.columns([1.18, 0.26, 0.90, 0.86, 0.28], gap="small", vertical_alignment="center")
+                with c_sym:
                     btn_title = f"{dot} {sym}".strip()
                     if st.button(btn_title, key=f"wl_btn_{sym}", use_container_width=True):
                         set_active_symbol(sym)
                         st.rerun()
-                with c2:
+                with c_tag:
                     st.markdown('<div class="tv-neon-wrap">', unsafe_allow_html=True)
-                    with st.popover("●", use_container_width=True, help=f"จัดการกลุ่มสี / ลบ {sym}"):
+                    with st.popover("●", use_container_width=True, help=f"จัดกลุ่มสี {sym}"):
                         _color_menu(sym, prefix="wl")
                     st.markdown('</div>', unsafe_allow_html=True)
-                with c3:
+                with c_pct:
                     cls = "tv-val-up" if is_up else "tv-val-down"
-                    st.markdown(
-                        f'<div style="display:flex; justify-content:space-between; align-items:center; height:24px; width:100%; padding-left:4px;">'
-                        f'<span class="{cls}">{c_val}</span>'
-                        f'<span class="tv-vol-text">{v_val}</span>'
-                        f'</div>',
-                        unsafe_allow_html=True
-                    )
+                    st.markdown(f'<div style="text-align:right;"><span class="{cls}">{c_val}</span></div>', unsafe_allow_html=True)
+                with c_vol:
+                    st.markdown(f'<div style="text-align:right;"><span class="tv-vol-text">{v_val}</span></div>', unsafe_allow_html=True)
+                with c_del:
+                    st.markdown('<div class="tv-del-btn">', unsafe_allow_html=True)
+                    if st.button("✕", key=f"wl_del_{sym}", help=f"ลบ {sym} ออกจาก Watchlist"):
+                        remove_from_watchlist(sym)
+                        st.rerun()
+                    st.markdown('</div>', unsafe_allow_html=True)
 
     # ──────────────────────────────────────────────────────────
     # TAB 2: กราฟเปรียบเทียบ
     # ──────────────────────────────────────────────────────────
     else:
         st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ หมวดหมู่เปรียบเทียบ</div>", unsafe_allow_html=True)
-        
+
         c1, c2 = st.columns(2)
         with c1:
             if st.button("🌾 ตลาดข้าว", key="btn_rice_modal", use_container_width=True, type="secondary"):

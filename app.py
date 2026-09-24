@@ -123,8 +123,8 @@ st.markdown("""
         transition: all 0.15s ease-in-out !important;
     }
     #toggle-btn-anchor:hover {
-        color: #ff8c00 !important;
-        border-color: #ff8c00 !important;
+        color: #2BFF005B !important;
+        border-color: #04FF004C !important;
         box-shadow: 0 0 8px rgba(255, 140, 0, 0.4) !important;
     }
 
@@ -138,7 +138,7 @@ st.markdown("""
     section[data-testid="stMain"] .block-container,
     .block-container {
         padding-top: 0px !important;
-        margin-top: -38px !important;
+        margin-top: -12px !important;
         padding-bottom: 0rem !important;
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
@@ -148,23 +148,23 @@ st.markdown("""
     /* 4. สไตล์ปุ่มแท็บด้านบนสุด: ส้มสะท้อนแสง Neon Glow */
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="primary"],
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-primary"] {
-        background: linear-gradient(135deg, #ff6b00, #ff8c00) !important;
-        color: #000000 !important;
+        background: linear-gradient(135deg, #40FF0010, #37FF0057) !important;
+        color: #C0E8AE !important;
         font-weight: 700 !important;
         font-size: 12.5px !important;
-        border: 1px solid #ffa033 !important;
+        border: 1px solid #44FF3300 !important;
         border-radius: 4px !important;
         height: 28px !important;
         min-height: 28px !important;
-        box-shadow: 0 0 12px rgba(255, 107, 0, 0.5) !important;
+        box-shadow: 0 0 12px rgba(119 255 0 / 0.73) !important;
         backdrop-filter: blur(8px) !important;
     }
 
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="secondary"],
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-secondary"] {
         background: #0e1118 !important;
-        color: #8b949e !important;
-        border: 1px solid #1e2433 !important;
+        color: #9E8B8B !important;
+        border: 1px solid #331E1E !important;
         border-radius: 4px !important;
         height: 28px !important;
         min-height: 28px !important;
@@ -194,7 +194,7 @@ st.markdown("""
         cursor: pointer !important;
         font-size: 12px !important;
         font-weight: 600 !important;
-        color: #8b949e !important;
+        color: #9E8B8B !important;
         background: transparent !important;
         border: 1px solid transparent !important;
         transition: all 0.15s ease !important;
@@ -212,9 +212,9 @@ st.markdown("""
 
     div[data-testid="stRadio"] > div[role="radiogroup"] label:has(input:checked) {
         color: #000000 !important;
-        background: linear-gradient(135deg, #ff6b00, #ff8c00) !important;
+        background: linear-gradient(135deg, #15FF0000, #00FF2F00) !important;
         font-weight: 700 !important;
-        box-shadow: 0 0 10px rgba(255, 107, 0, 0.5) !important;
+        box-shadow: 0 0 10px rgba(255 157 0 / 0.7) !important;
     }
 
     /* 6. ปุ่ม Indicators */
@@ -325,11 +325,11 @@ def inject_workspace_resizers():
             user-select: none;
         }
         .ctx-header {
-            color: #8b949e;
+            color: #9E8B8B;
             font-size: 11px;
             font-weight: bold;
             padding: 4px 8px;
-            border-bottom: 1px solid #2a2e39;
+            border-bottom: 1px solid #392A2A;
             margin-bottom: 3px;
         }
         .ctx-item {
@@ -575,14 +575,13 @@ def dashboard():
     active_id = st.session_state["active_tab_id"]
     active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
 
-    # ซิงค์ค่าเหรียญ: ตรวจสอบว่ามีการกดเลือกเหรียญใหม่จาก Sidebar หรือ Modal หรือไม่
-    incoming_sym = st.session_state.get("selected_symbol") or st.session_state.get("current_symbol")
-    if incoming_sym and incoming_sym != active_tab.get("symbol"):
-        active_tab["symbol"] = incoming_sym  # อัปเดตแท็บด้านบนให้เป็นเหรียญใหม่
+   # ซิงค์ค่าเหรียญแบบปลอดบั๊ก: เคลียร์ selected_symbol ทันทีเพื่อไม่ให้ค่าค้างข้ามเหรียญ
+    incoming_sym = st.session_state.pop("selected_symbol", None)
+    if incoming_sym:
+        active_tab["symbol"] = incoming_sym
 
     symbol = active_tab["symbol"]
     st.session_state["current_symbol"] = symbol
-    st.session_state["selected_symbol"] = symbol
 
     tf = active_tab.get("tf", st.session_state.get("selected_tf", "1h"))
     st.session_state["selected_tf"] = tf
@@ -637,6 +636,7 @@ def dashboard():
                 st.session_state["active_tab_id"] = t["id"]
                 st.session_state["current_symbol"] = t["symbol"]
                 st.session_state["selected_tf"] = t["tf"]
+                st.session_state.pop("selected_symbol", None)  # <--- เพิ่มบรรทัดนี้ เพื่อป้องกันชื่อเหรียญสลับค้าง
                 st.rerun()
 
         if has_close:
