@@ -274,7 +274,7 @@ with open(os.path.join("data", "bitkub_crypto.json"), "w", encoding="utf-8") as 
 print("   -> ดึง Binance Global...")
 binance_dict = {}
 try:
-    r = requests.get("https://api.binance.com/api/v3/exchangeInfo", headers=HEADERS, timeout=10)
+    r = requests.get("https://data-api.binance.vision/api/v3/exchangeInfo", headers=HEADERS, timeout=10)
     for s in r.json().get("symbols", []):
         if s.get("quoteAsset") == "USDT" and s.get("status") == "TRADING":
             binance_dict[s["symbol"]] = f"{s['baseAsset']}/USDT | Binance"
