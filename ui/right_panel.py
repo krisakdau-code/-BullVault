@@ -243,11 +243,20 @@ def render_price_quote_fragment(
     <span style="color:#00e676; font-size:11px; font-weight:bold;">● ตลาดเปิด</span>
     </div>
     <div style="color:#867878; font-size:12px;">{meta.get('exchange', 'BINANCE')} • {meta.get('category', 'Crypto')}</div>
-    <div style="font-size:24px; font-weight:bold; color:#fff; margin-top:4px;">
-    {fmt_price(curr_p)} <span style="font-size:13px; color:#867878;">{display_unit}</span>
-    </div>
-    <div style="color:{color_hex}; font-size:13px; font-weight:bold;">
-    {sign}{fmt_price(chg_val)} ({sign}{chg_pct:.2f}%)
+    <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:4px; margin-bottom:8px;">
+      <div>
+         <span style="font-size:24px; font-weight:800; color:#ffffff; font-family:'JetBrains Mono', monospace; letter-spacing:-0.5px;">
+            {fmt_price(curr_p)}
+         </span>
+         <span style="font-size:12px; color:#867878; font-weight:600; margin-left:3px;">
+            {display_unit}
+         </span>
+      </div>
+      <div style="text-align:right;">
+          <span style="color:{color_hex}; font-size:17px; font-weight:800; font-family:'JetBrains Mono', monospace;">
+            {sign}{fmt_price(chg_val)} ({sign}{chg_pct:.2f}%)
+          </span>
+      </div>
     </div>
     <div style="display:flex; gap:6px; margin-top:8px;">
     <div style="flex:1; background:#1e293b; padding:4px; border-radius:4px; text-align:center; color:#38bdf8; font-size:11px;">

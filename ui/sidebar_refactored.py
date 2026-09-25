@@ -393,15 +393,15 @@ def render_sidebar():
 
     .tv-val-up {
         color: #00e676 !important;
-        font-size: 11.5px !important;
-        font-weight: 700 !important;
+        font-size: 13.5px !important;
+        font-weight: 800 !important;
         font-family: 'JetBrains Mono', monospace !important;
         white-space: nowrap !important;
     }
     .tv-val-down {
         color: #ff3366 !important;
-        font-size: 11.5px !important;
-        font-weight: 700 !important;
+        font-size: 13.5px !important;
+        font-weight: 800 !important;
         font-family: 'JetBrains Mono', monospace !important;
         white-space: nowrap !important;
     }
