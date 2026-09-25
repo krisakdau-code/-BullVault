@@ -24,7 +24,7 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
     cur_tf = st.session_state.get("selected_tf", "1h")
 
     # =========================================================================
-    # 1. CSS จัดระเบียบโครงสร้าง Mobile ตามรูปที่ 2
+    # 1. CSS จัดระเบียบโครงสร้าง Mobile
     # =========================================================================
     st.markdown("""
     <style>
@@ -35,14 +35,12 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             padding-right: 4px !important;
         }
 
-        /* ซ่อนปุ่ม ☰ มุมซ้ายบน */
         #toggle-btn-anchor, #floating-toggle-btn, .floating-toggle,
         div:has(> #toggle-btn-anchor), div:has(> #floating-toggle-btn),
         div[data-testid="stSidebarCollapseButton"] {
             display: none !important;
         }
 
-        /* ล็อกแถวปุ่ม 6 สี ให้เรียงแนวนอน 1 แถวเสมอ */
         div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
@@ -64,7 +62,6 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             width: 100% !important;
         }
 
-        /* กรอบแสดงรายการเหรียญ */
         div[data-testid="stVerticalBlockBorderWrapper"] {
             height: auto !important;
             min-height: 48px !important;
@@ -76,7 +73,6 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             padding: 4px !important;
         }
 
-        /* ตรึงแถบควบคุม 4 ปุ่ม ไว้เหนือแถบล่าง 6 ปุ่ม พอดีเป๊ะ */
         div[data-testid="stHorizontalBlock"]:has(.subchart-marker) {
             position: fixed !important;
             bottom: 52px !important;
@@ -126,7 +122,6 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             color: #ff9d42 !important;
         }
 
-        /* แถบนำทางด้านล่าง 6 ปุ่ม */
         div[data-testid="stHorizontalBlock"]:has(.bottom-nav-marker) {
             position: fixed !important;
             bottom: 0px !important;
@@ -197,7 +192,6 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
     </style>
     """, unsafe_allow_html=True)
 
-    # สคริปต์ JavaScript จัดการปุ่มตั้งค่า (วงสีเขียว) และนาฬิกา BKK (วงสีแดง) ให้สมส่วน
     components.html("""
     <script>
     (function() {
@@ -205,10 +199,8 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
         setInterval(() => {
             d.querySelectorAll('#toggle-btn-anchor, #floating-toggle-btn').forEach(e => e.style.setProperty('display', 'none', 'important'));
 
-            // จัดการวงสีเขียว (ปุ่มตั้งค่า) และวงสีแดง (นาฬิกา BKK LIVE)
             d.querySelectorAll('button').forEach(btn => {
                 if (btn.innerText && btn.innerText.includes('ตั้งค่า')) {
-                    // วงสีเขียว: ขนาดเล็กลง และโปร่งแสง
                     btn.style.setProperty('background', 'rgba(255, 255, 255, 0.08)', 'important');
                     btn.style.setProperty('border', '1px solid rgba(255, 255, 255, 0.16)', 'important');
                     btn.style.setProperty('color', '#a0aec0', 'important');
@@ -220,7 +212,6 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
                     btn.style.setProperty('width', 'auto', 'important');
                     btn.style.setProperty('box-shadow', 'none', 'important');
 
-                    // วงสีแดง: นาฬิกา BKK LIVE ดึงเข้าแถวเดียวกันชิดขวา ไม่ตกขอบ
                     const row = btn.closest('[data-testid="stHorizontalBlock"]');
                     if (row) {
                         row.style.setProperty('display', 'flex', 'important');
@@ -265,13 +256,16 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
     else:
         chart_renderer()
 
-        # แถบควบคุม 4 ปุ่ม ใต้กราฟ
         c_sym, c_tf, c_clr, c_fs = st.columns([1.3, 1.1, 0.9, 0.5], gap="small")
 
         with c_sym:
             st.markdown('<div class="subchart-marker" style="display:none;"></div>', unsafe_allow_html=True)
             with st.popover(f"🔍 {cur_sym} ▾", use_container_width=True):
-                st.markdown("<div style='font-size:12px; font-weight:700; color:#ff7d1e; margin-bottom:6px;'>⚡ เลือกกลุ่มดาว / สี</div>", unsafe_allow_html=True)
+                # ขยับตัวหนังสือขึ้นและเพิ่มระยะห่างด้านล่าง ไม่ให้ทับซ้อนปุ่มสี
+                st.markdown(
+                    "<div style='font-size:12px; font-weight:700; color:#ff7d1e; margin-top:2px; margin-bottom:12px; line-height:1.4;'>⚡ เลือกกลุ่มดาว / สี</div>",
+                    unsafe_allow_html=True
+                )
 
                 cur_col = st.session_state.get("mobile_quick_col", "star")
                 c_cols = st.columns(6)

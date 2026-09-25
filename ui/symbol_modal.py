@@ -83,7 +83,43 @@ DEFAULT_RICE = ["RICE:ข้าวเปลือกหอมมะลิ", "RIC
 
 @st.dialog("ค้นหาและเลือกสินทรัพย์ (Symbol Search)", width="large")
 def render_symbol_modal():
-    # 1. ตัวเลือกหมวดหมู่หลัก 4 ตลาด
+    # CSS: ปรับหมวดหมู่ 4 ตลาดเป็น Pill Tabs แนวนอนแบบปัดเลื่อนซ้าย-ขวาได้ ไม่โดนตัดข้อความ
+    st.markdown("""
+    <style>
+        div[data-testid="stDialog"] div[role="radiogroup"],
+        div[data-testid="stModal"] div[role="radiogroup"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
+            gap: 10px !important;
+            padding-bottom: 6px !important;
+            margin-bottom: 4px !important;
+            scrollbar-width: thin !important;
+        }
+        div[data-testid="stDialog"] div[role="radiogroup"] > label,
+        div[data-testid="stModal"] div[role="radiogroup"] > label {
+            flex: 0 0 auto !important;
+            white-space: nowrap !important;
+            background: rgba(255, 255, 255, 0.05) !important;
+            padding: 4px 10px !important;
+            border-radius: 16px !important;
+            border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        div[data-testid="stDialog"] div[role="radiogroup"]::-webkit-scrollbar,
+        div[data-testid="stModal"] div[role="radiogroup"]::-webkit-scrollbar {
+            height: 3px !important;
+        }
+        div[data-testid="stDialog"] div[role="radiogroup"]::-webkit-scrollbar-thumb,
+        div[data-testid="stModal"] div[role="radiogroup"]::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.25) !important;
+            border-radius: 3px !important;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # 1. ตัวเลือกหมวดหมู่หลัก 4 ตลาด (ปัดเลื่อนแนวนอนได้ ไม่ล้นจอ)
     market_category = st.radio(
         "เลือกหมวดหมู่ตลาด",
         ["🪙 คริปโต (10 กระดาน)", "📈 ตลาดหุ้น", "💱 ฟอเร็กซ์", "🛢️ โภคภัณฑ์ / สินค้าเกษตร"],
@@ -225,7 +261,6 @@ def render_symbol_modal():
                         sym = display_symbols[i + j]
                         in_wl = sym in wl_syms
                         
-                        # รวมไอคอนสถานะ + ชื่อเหรียญ + คำอธิบาย เป็นการ์ดปุ่มเดียว
                         th_name = SYMBOL_NAMES_TH.get(sym)
                         icon = "✓ " if in_wl else "➕ "
                         btn_label = f"{icon}**{sym}**  \n:gray[{th_name}]" if th_name else f"{icon}**{sym}**"
