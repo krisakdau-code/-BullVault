@@ -1,4 +1,11 @@
 {
-  "watchlist": [],
+  "watchlist": [
+    [
+      "BTCUSDT",
+      "-",
+      "-",
+      true
+    ]
+  ],
   "colors": {}
 }

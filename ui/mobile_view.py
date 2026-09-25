@@ -37,7 +37,76 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             display: none !important;
         }
 
-        /* 2. ตรึงแถบควบคุม 4 ปุ่ม ไว้ที่บริเวณวงสีแดง (เหนือแถบล่าง 6 ปุ่ม พอดีเป๊ะ) */
+        /* 2. ล็อกขนาด 16.666% เฉพาะแถวปุ่ม 6 สีเท่านั้น (ไม่กระทบรายชื่อเหรียญหรือหน้าค้นหา) */
+        div[data-testid="stHorizontalBlock"]:has(button[key*="mq_col_"]),
+        div[data-testid="stHorizontalBlock"]:has(button[key*="cf_"]) {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            gap: 3px !important;
+            width: 100% !important;
+            margin: 4px 0 8px 0 !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(button[key*="mq_col_"]) > div[data-testid="column"],
+        div[data-testid="stHorizontalBlock"]:has(button[key*="cf_"]) > div[data-testid="column"],
+        div[data-testid="stHorizontalBlock"]:has(button[key*="mq_col_"]) > div[data-testid="stColumn"],
+        div[data-testid="stHorizontalBlock"]:has(button[key*="cf_"]) > div[data-testid="stColumn"] {
+            min-width: 0 !important;
+            max-width: 16.666% !important;
+            flex: 1 1 16.666% !important;
+            width: 16.666% !important;
+            padding: 0 1px !important;
+            margin: 0 !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(button[key*="mq_col_"]) button,
+        div[data-testid="stHorizontalBlock"]:has(button[key*="cf_"]) button {
+            padding: 2px 0px !important;
+            height: 34px !important;
+            min-height: 34px !important;
+            font-size: 15px !important;
+            width: 100% !important;
+        }
+
+        /* 3. กรอบแสดงเหรียญ (วงสีเขียว): หดตัวแนบพอดีเมื่อมีเหรียญน้อย ยืดได้สูงสุด 60vh พร้อมเลื่อน Scroll */
+        div[data-testid="stVerticalBlockBorderWrapper"] {
+            height: auto !important;
+            min-height: 60px !important;
+            max-height: 60vh !important;
+            overflow-y: auto !important;
+            background: #0d1117 !important;
+            border: 1px solid rgba(255, 255, 255, 0.08) !important;
+            border-radius: 8px !important;
+            padding: 4px !important;
+        }
+
+        /* จัดแถวข้อมูลเหรียญในแนวนอนให้สมส่วน ไม่บีบอักษร */
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] {
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 4px !important;
+            padding: 3px 4px !important;
+            margin: 1px 0 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
+        }
+
+        /* 4. จัดแถบล่างสุด (⚙️ ตั้งค่า และ นาฬิกา BKK) แยกซ้าย-ขวา ไม่ทับกัน */
+        div[data-testid="stHorizontalBlock"]:has(button[key*="settings"]),
+        div[data-testid="stHorizontalBlock"]:has(div[class*="bkk"]),
+        div[data-testid="stHorizontalBlock"]:has(*:contains("BKK")) {
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            width: 100% !important;
+            padding: 6px 4px !important;
+            margin-top: 6px !important;
+        }
+
+        /* 5. ตรึงแถบควบคุม 4 ปุ่ม ไว้เหนือแถบล่าง 6 ปุ่ม พอดีเป๊ะ */
         div[data-testid="stHorizontalBlock"]:has(.subchart-marker) {
             position: fixed !important;
             bottom: 52px !important;
@@ -88,7 +157,7 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             color: #ff9d42 !important;
         }
 
-        /* 3. แถบนำทางด้านล่าง 6 ปุ่ม (Fixed ขอบล่างสุด 0px) */
+        /* 6. แถบนำทางด้านล่าง 6 ปุ่ม (Fixed ขอบล่างสุด 0px) */
         div[data-testid="stHorizontalBlock"]:has(.bottom-nav-marker) {
             position: fixed !important;
             bottom: 0px !important;
@@ -224,15 +293,73 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
         with c_sym:
             st.markdown('<div class="subchart-marker" style="display:none;"></div>', unsafe_allow_html=True)
             with st.popover(f"🔍 {cur_sym} ▾", use_container_width=True):
-                st.caption("สลับเหรียญด่วน")
-                wl_rows = st.session_state.get("custom_watchlist", [])
-                for row in wl_rows[:6]:
-                    s_code = row[0] if isinstance(row, (list, tuple)) else (row.get("symbol") if isinstance(row, dict) else str(row))
-                    if st.button(f"💎 {s_code}", key=f"mob_qsym_{s_code}", use_container_width=True):
-                        st.session_state["current_symbol"] = s_code
-                        st.session_state.pop("selected_symbol", None)
-                        st.rerun()
+                st.markdown(
+                    "<div style='font-size:12px; font-weight:700; color:#ff7d1e; margin-bottom:6px;'>⚡ เลือกกลุ่มดาว / สี</div>",
+                    unsafe_allow_html=True
+                )
+
+                # 1. แถวปุ่มเลือกกลุ่มสี 6 ปุ่ม
+                COLOR_TABS = [
+                    ("⭐", "star", ["star", "yellow", "fav"]),
+                    ("🔴", "red", ["red"]),
+                    ("🟠", "orange", ["orange"]),
+                    ("🟢", "green", ["green"]),
+                    ("🔵", "blue", ["blue"]),
+                    ("⚪", "white", ["white", "gray"])
+                ]
+
+                cur_col = st.session_state.get("mobile_quick_col", "star")
+                c_cols = st.columns(6)
+                for idx, (emoji, key, _) in enumerate(COLOR_TABS):
+                    with c_cols[idx]:
+                        if st.button(emoji, key=f"mq_col_{key}"):
+                            st.session_state["mobile_quick_col"] = key
+                            st.rerun()
+
+                # 2. ดึงรายชื่อเหรียญตามกลุ่มสีที่เลือก
+                def _load_wlists():
+                    import os, json
+                    for p in [".color_watchlists.json", "data/.color_watchlists.json"]:
+                        if os.path.exists(p):
+                            try:
+                                with open(p, "r", encoding="utf-8") as f:
+                                    return json.load(f)
+                            except Exception:
+                                pass
+                    return {}
+
+                matched_symbols = []
+                if cur_col == "star":
+                    # กรณีเลือกดาว ⭐ ให้ดึงตรงจากรายการเฝ้าดูหลัก (custom_watchlist)
+                    cw = st.session_state.get("custom_watchlist", [])
+                    for item in cw:
+                        s_name = item[0] if isinstance(item, (list, tuple)) else (item.get("symbol") if isinstance(item, dict) else str(item))
+                        if s_name:
+                            matched_symbols.append(s_name)
+                else:
+                    wlists = _load_wlists()
+                    active_aliases = next((a for _, k, a in COLOR_TABS if k == cur_col), [cur_col])
+                    for k, v in wlists.items():
+                        if k.lower() in active_aliases:
+                            matched_symbols = v
+                            break
+
+                # 3. แสดงเหรียญในกลุ่ม กดปุ๊บ กราฟเปลี่ยนปั๊บ
+                if matched_symbols:
+                    st.markdown("<div style='max-height: 220px; overflow-y: auto; margin: 6px 0; display: flex; flex-direction: column; gap: 4px;'>", unsafe_allow_html=True)
+                    for item in matched_symbols:
+                        s_code = item.get("symbol", item) if isinstance(item, dict) else str(item)
+                        if st.button(f"🪙 {s_code}", key=f"qpick_{s_code}", use_container_width=True):
+                            st.session_state["current_symbol"] = s_code
+                            st.session_state.pop("selected_symbol", None)
+                            st.rerun()
+                    st.markdown("</div>", unsafe_allow_html=True)
+                else:
+                    st.caption("ไม่มีเหรียญในกลุ่มนี้")
+
                 st.divider()
+
+                # 4. ปุ่มค้นหาสินทรัพย์ทั้งหมดเดิม
                 if st.button("🔎 ค้นหาสินทรัพย์ทั้งหมด...", key="mob_open_sym_search", use_container_width=True):
                     render_symbol_modal()
 

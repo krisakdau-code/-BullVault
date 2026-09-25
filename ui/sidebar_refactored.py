@@ -467,8 +467,6 @@ def render_sidebar():
 
         if st.button("🔍 ค้นหาเหรียญ / สัญลักษณ์สินทรัพย์...", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
             render_symbol_modal()
-
-        st.markdown("<div style='font-size:11px; color:#8b949e; margin-top:8px; margin-bottom:4px;'>🏷️ กลุ่มสีโปรด (คลิกเพื่อกรอง):</div>", unsafe_allow_html=True)
         f_cols = st.columns([1.1, 1, 1, 1, 1, 1], gap="small")
         active = st.session_state.get("color_filter")
 
