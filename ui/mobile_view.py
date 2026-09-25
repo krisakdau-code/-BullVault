@@ -23,11 +23,11 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
         .block-container {
             padding-top: 2px !important;
             padding-bottom: 94px !important;
-            padding-left: 2px !important;
-            padding-right: 2px !important;
+            padding-left: 4px !important;
+            padding-right: 4px !important;
         }
 
-        /* 1. ซ่อนปุ่ม ☰ สีส้มมุมซ้ายบนเฉพาะโหมดมือถือ */
+        /* ซ่อนปุ่ม ☰ สีส้มมุมซ้ายบนเฉพาะโหมดมือถือ */
         #toggle-btn-anchor,
         #floating-toggle-btn,
         .floating-toggle,
@@ -37,73 +37,89 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             display: none !important;
         }
 
-        /* 2. ล็อกขนาด 16.666% เฉพาะแถวปุ่ม 6 สีเท่านั้น (ไม่กระทบรายชื่อเหรียญหรือหน้าค้นหา) */
-        div[data-testid="stHorizontalBlock"]:has(button[key*="mq_col_"]),
-        div[data-testid="stHorizontalBlock"]:has(button[key*="cf_"]) {
-            display: flex !important;
-            flex-direction: row !important;
-            flex-wrap: nowrap !important;
-            align-items: center !important;
-            gap: 3px !important;
-            width: 100% !important;
-            margin: 4px 0 8px 0 !important;
-        }
-        div[data-testid="stHorizontalBlock"]:has(button[key*="mq_col_"]) > div[data-testid="column"],
-        div[data-testid="stHorizontalBlock"]:has(button[key*="cf_"]) > div[data-testid="column"],
-        div[data-testid="stHorizontalBlock"]:has(button[key*="mq_col_"]) > div[data-testid="stColumn"],
-        div[data-testid="stHorizontalBlock"]:has(button[key*="cf_"]) > div[data-testid="stColumn"] {
-            min-width: 0 !important;
-            max-width: 16.666% !important;
-            flex: 1 1 16.666% !important;
-            width: 16.666% !important;
-            padding: 0 1px !important;
-            margin: 0 !important;
-        }
-        div[data-testid="stHorizontalBlock"]:has(button[key*="mq_col_"]) button,
-        div[data-testid="stHorizontalBlock"]:has(button[key*="cf_"]) button {
-            padding: 2px 0px !important;
-            height: 34px !important;
-            min-height: 34px !important;
-            font-size: 15px !important;
-            width: 100% !important;
+        /* 1. ล็อกแถวแนวนอนในหน้ารายการมือถือ ไม่ให้ Streamlit แตกแถวดิ่งเด็ดขาด */
+        @media (max-width: 768px) {
+            div[data-testid="stHorizontalBlock"] {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                align-items: center !important;
+                gap: 4px !important;
+            }
         }
 
-        /* 3. กรอบแสดงเหรียญ (วงสีเขียว): หดตัวแนบพอดีเมื่อมีเหรียญน้อย ยืดได้สูงสุด 60vh พร้อมเลื่อน Scroll */
+        /* แถบปุ่ม 6 สี: บังคับกระจาย 6 ช่องเท่ากันพอดีเป๊ะ */
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) {
+            margin: 4px 0 6px 0 !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="column"],
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) > div[data-testid="stColumn"] {
+            flex: 1 1 16.666% !important;
+            max-width: 16.666% !important;
+            min-width: 0 !important;
+            padding: 0 1px !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(> div:nth-child(6)) button {
+            height: 34px !important;
+            min-height: 34px !important;
+            padding: 0 !important;
+            font-size: 15px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        /* 2. กรอบแสดงเหรียญ (วงสีเขียว): หดตามจำนวนจริง ยืดลงเมื่อมีเยอะ ไม่ทิ้งกล่องดำเปล่า */
         div[data-testid="stVerticalBlockBorderWrapper"] {
             height: auto !important;
-            min-height: 60px !important;
-            max-height: 60vh !important;
+            min-height: 48px !important;
+            max-height: 56vh !important;
             overflow-y: auto !important;
-            background: #0d1117 !important;
+            background: #090b10 !important;
             border: 1px solid rgba(255, 255, 255, 0.08) !important;
             border-radius: 8px !important;
             padding: 4px !important;
+            margin: 4px 0 !important;
         }
 
-        /* จัดแถวข้อมูลเหรียญในแนวนอนให้สมส่วน ไม่บีบอักษร */
+        /* แถวข้อมูลเหรียญในกรอบสีเขียว: จัดสัดส่วนแนวนอนสมส่วน ไม่หักเป็นขั้นบันได */
         div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] {
             display: flex !important;
             flex-direction: row !important;
             flex-wrap: nowrap !important;
             align-items: center !important;
             justify-content: space-between !important;
-            gap: 4px !important;
-            padding: 3px 4px !important;
-            margin: 1px 0 !important;
+            padding: 3px 2px !important;
             border-bottom: 1px solid rgba(255, 255, 255, 0.04) !important;
         }
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
+        div[data-testid="stVerticalBlockBorderWrapper"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            min-width: 0 !important;
+            width: auto !important;
+            flex: 1 1 auto !important;
+            padding: 0 1px !important;
+        }
 
-        /* 4. จัดแถบล่างสุด (⚙️ ตั้งค่า และ นาฬิกา BKK) แยกซ้าย-ขวา ไม่ทับกัน */
-        div[data-testid="stHorizontalBlock"]:has(button[key*="settings"]),
-        div[data-testid="stHorizontalBlock"]:has(div[class*="bkk"]),
-        div[data-testid="stHorizontalBlock"]:has(*:contains("BKK")) {
+        /* 3. จัดระยะหัวข้อและหัวตาราง (วงสีแดงบน) ไม่ให้เกยทับกัน */
+        div[data-testid="stMarkdownContainer"] h3,
+        div[data-testid="stMarkdownContainer"] h4,
+        div[data-testid="stMarkdownContainer"] p {
+            margin-top: 2px !important;
+            margin-bottom: 2px !important;
+            line-height: 1.3 !important;
+        }
+
+        /* 4. แถบล่างสุด (⚙️ ตั้งค่า และ นาฬิกา BKK): แยกซ้าย-ขวา ชัดเจน */
+        div[data-testid="stHorizontalBlock"]:has(*:contains("BKK")),
+        div[data-testid="stHorizontalBlock"]:has(button:contains("ตั้งค่า")) {
             display: flex !important;
             flex-direction: row !important;
-            justify-content: space-between !important;
+            flex-wrap: nowrap !important;
             align-items: center !important;
+            justify-content: space-between !important;
             width: 100% !important;
-            padding: 6px 4px !important;
-            margin-top: 6px !important;
+            padding: 6px 2px !important;
+            margin-top: 4px !important;
         }
 
         /* 5. ตรึงแถบควบคุม 4 ปุ่ม ไว้เหนือแถบล่าง 6 ปุ่ม พอดีเป๊ะ */
@@ -233,7 +249,7 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
     </style>
     """, unsafe_allow_html=True)
 
-    # สคริปต์ล็อกตำแหน่งและซ่อนปุ่ม ☰ อัตโนมัติ
+    # สคริปต์ล็อกตำแหน่งและจัดระเบียบโครงสร้าง Mobile อัตโนมัติ
     components.html("""
     <script>
     (function() {
@@ -243,7 +259,39 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             const tb = doc.querySelectorAll('#toggle-btn-anchor, #floating-toggle-btn');
             tb.forEach(el => el.style.setProperty('display', 'none', 'important'));
 
-            // 2. ล็อกแถบควบคุม 4 ปุ่ม (บริเวณวงสีแดง)
+            // 2. ล็อกแถบ 6 สีให้เรียงแนวนอน
+            const colorBlocks = doc.querySelectorAll('[data-testid="stHorizontalBlock"]');
+            colorBlocks.forEach(b => {
+                const cols = b.querySelectorAll(':scope > div[data-testid="column"], :scope > div[data-testid="stColumn"]');
+                if (cols.length === 6 && !b.querySelector('.bottom-nav-marker')) {
+                    b.style.setProperty('display', 'flex', 'important');
+                    b.style.setProperty('flex-direction', 'row', 'important');
+                    b.style.setProperty('flex-wrap', 'nowrap', 'important');
+                    cols.forEach(c => {
+                        c.style.setProperty('width', '16.666%', 'important');
+                        c.style.setProperty('max-width', '16.666%', 'important');
+                        c.style.setProperty('flex', '1 1 16.666%', 'important');
+                    });
+                }
+            });
+
+            // 3. ปรับกรอบรายการเหรียญ (หด-ขยายอัตโนมัติ)
+            const borderBox = doc.querySelector('[data-testid="stVerticalBlockBorderWrapper"]');
+            if (borderBox) {
+                borderBox.style.setProperty('height', 'auto', 'important');
+                borderBox.style.setProperty('max-height', '56vh', 'important');
+                borderBox.style.setProperty('overflow-y', 'auto', 'important');
+                const rows = borderBox.querySelectorAll('[data-testid="stHorizontalBlock"]');
+                rows.forEach(r => {
+                    r.style.setProperty('display', 'flex', 'important');
+                    r.style.setProperty('flex-direction', 'row', 'important');
+                    r.style.setProperty('flex-wrap', 'nowrap', 'important');
+                    r.style.setProperty('align-items', 'center', 'important');
+                    r.style.setProperty('justify-content', 'space-between', 'important');
+                });
+            }
+
+            // 4. ล็อกแถบควบคุม 4 ปุ่ม (บริเวณวงสีแดงเหนือแถบล่าง)
             const sMarker = doc.querySelector('.subchart-marker');
             if (sMarker) {
                 const sBlock = sMarker.closest('[data-testid="stHorizontalBlock"]');
@@ -252,7 +300,7 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
                 }
             }
 
-            // 3. ล็อกแถบล่าง 6 ปุ่ม (ขอบล่างสุด)
+            // 5. ล็อกแถบล่าง 6 ปุ่ม (ขอบล่างสุด 0px)
             const bMarker = doc.querySelector('.bottom-nav-marker');
             if (bMarker) {
                 const bBlock = bMarker.closest('[data-testid="stHorizontalBlock"]');
@@ -316,7 +364,7 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
                             st.session_state["mobile_quick_col"] = key
                             st.rerun()
 
-                # 2. ดึงรายชื่อเหรียญตามกลุ่มสีที่เลือก
+                # 2. โหลดรายชื่อเหรียญตามกลุ่มสีที่เลือก
                 def _load_wlists():
                     import os, json
                     for p in [".color_watchlists.json", "data/.color_watchlists.json"]:
@@ -330,12 +378,23 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
 
                 matched_symbols = []
                 if cur_col == "star":
-                    # กรณีเลือกดาว ⭐ ให้ดึงตรงจากรายการเฝ้าดูหลัก (custom_watchlist)
+                    # กรณีเลือกดาว ⭐: ดึงตรงจาก custom_watchlist หลัก
                     cw = st.session_state.get("custom_watchlist", [])
                     for item in cw:
-                        s_name = item[0] if isinstance(item, (list, tuple)) else (item.get("symbol") if isinstance(item, dict) else str(item))
-                        if s_name:
-                            matched_symbols.append(s_name)
+                        if isinstance(item, (list, tuple)) and len(item) > 0:
+                            matched_symbols.append(str(item[0]))
+                        elif isinstance(item, dict) and "symbol" in item:
+                            matched_symbols.append(str(item["symbol"]))
+                        elif isinstance(item, str) and item.strip():
+                            matched_symbols.append(item.strip())
+                    
+                    # ตรวจสอบเพิ่มเติมในไฟล์ color_watchlists เผื่อมีการบันทึกคีย์ star ไว้
+                    if not matched_symbols:
+                        wlists = _load_wlists()
+                        for k in ["star", "yellow", "fav"]:
+                            if k in wlists and wlists[k]:
+                                matched_symbols = wlists[k]
+                                break
                 else:
                     wlists = _load_wlists()
                     active_aliases = next((a for _, k, a in COLOR_TABS if k == cur_col), [cur_col])
@@ -347,11 +406,14 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
                 # 3. แสดงเหรียญในกลุ่ม กดปุ๊บ กราฟเปลี่ยนปั๊บ
                 if matched_symbols:
                     st.markdown("<div style='max-height: 220px; overflow-y: auto; margin: 6px 0; display: flex; flex-direction: column; gap: 4px;'>", unsafe_allow_html=True)
-                    for item in matched_symbols:
+                    for idx_s, item in enumerate(matched_symbols):
                         s_code = item.get("symbol", item) if isinstance(item, dict) else str(item)
-                        if st.button(f"🪙 {s_code}", key=f"qpick_{s_code}", use_container_width=True):
+                        if st.button(f"🪙 {s_code}", key=f"qpick_{s_code}_{idx_s}", use_container_width=True):
                             st.session_state["current_symbol"] = s_code
                             st.session_state.pop("selected_symbol", None)
+                            for t in st.session_state.get("chart_tabs", []):
+                                if t.get("id") == st.session_state.get("active_tab_id"):
+                                    t["symbol"] = s_code
                             st.rerun()
                     st.markdown("</div>", unsafe_allow_html=True)
                 else:
