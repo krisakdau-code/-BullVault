@@ -12,6 +12,7 @@ ensure_color_state()
 import numpy as np
 import pandas as pd
 import requests
+from ui.mobile_view import render_mobile_view
 from requests.adapters import HTTPAdapter
 import streamlit as st
 import streamlit.components.v1 as components
@@ -628,87 +629,117 @@ def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
 # 1. Fragment แท็บด้านบน (อัปเดต % ทุก 5 วินาที)
 @st.fragment(run_every=5)
 def render_top_tabs_fragment():
-    tabs = st.session_state["chart_tabs"]
-    active_id = st.session_state["active_tab_id"]
-    active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
-    symbol = active_tab["symbol"]
+  tabs = st.session_state["chart_tabs"]
+  active_id = st.session_state["active_tab_id"]
+  active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
+  symbol = active_tab["symbol"]
 
-    # ดึง % จาก ticker_24h เพื่อให้ตัดรอบวันตรงกับ TradingView (ตรงตามวงสีแดง)
-    ticker_24h = fetch_ticker_24h(symbol)
-    live_pct = float(ticker_24h["price_change_pct"]) if ticker_24h and "price_change_pct" in ticker_24h else 0.0
-    pct_sign = "+" if live_pct >= 0 else ""
-    pct_str = f"{pct_sign}{live_pct:.2f}%"
+  # ดึง % จาก ticker_24h เพื่อให้ตัดรอบวันตรงกับ TradingView (ตรงตามวงสีแดง)
+  ticker_24h = fetch_ticker_24h(symbol)
+  live_pct = (
+      float(ticker_24h["price_change_pct"])
+      if ticker_24h and "price_change_pct" in ticker_24h
+      else 0.0
+  )
+  pct_sign = "+" if live_pct >= 0 else ""
+  pct_str = f"{pct_sign}{live_pct:.2f}%"
 
-    has_close = len(tabs) > 1
-    col_widths = [0.01]
-    for _ in tabs:
-        col_widths.append(1.0)
-        if has_close:
-            col_widths.append(0.18)
-    col_widths.append(0.22)
-    col_widths.append(8.0)
+  has_close = len(tabs) > 1
+  col_widths = [0.01]
+  for _ in tabs:
+    col_widths.append(1.0)
+    if has_close:
+      col_widths.append(0.18)
+  col_widths.append(0.22)
+  col_widths.append(8.0)
 
-    t_cols = st.columns(col_widths, gap="small")
-    col_iter = iter(t_cols)
+  t_cols = st.columns(col_widths, gap="small")
+  col_iter = iter(t_cols)
+
+  with next(col_iter):
+    st.markdown('<div id="top-tabs-marker"></div>', unsafe_allow_html=True)
+
+  for t in tabs:
+    is_active = t["id"] == active_id
+    t_meta = resolve_market_info(t["symbol"])
+    t_label = (
+        f"💎 {t_meta['display_name']} {pct_str if is_active else ''}".strip()
+    )
+    btn_type = "primary" if is_active else "secondary"
 
     with next(col_iter):
-        st.markdown('<div id="top-tabs-marker"></div>', unsafe_allow_html=True)
+      if st.button(
+          t_label,
+          key=f"t_btn_{t['id']}",
+          type=btn_type,
+          use_container_width=True,
+      ):
+        st.session_state["active_tab_id"] = t["id"]
+        st.session_state["current_symbol"] = t["symbol"]
+        st.session_state["selected_tf"] = t["tf"]
+        st.session_state.pop("selected_symbol", None)
+        try:
+          st.rerun(scope="app")
+        except TypeError:
+          st.rerun()
 
-    for t in tabs:
-        is_active = (t["id"] == active_id)
-        t_meta = resolve_market_info(t["symbol"])
-        t_label = f"💎 {t_meta['display_name']} {pct_str if is_active else ''}".strip()
-        btn_type = "primary" if is_active else "secondary"
-
-        with next(col_iter):
-            if st.button(t_label, key=f"t_btn_{t['id']}", type=btn_type, use_container_width=True):
-                st.session_state["active_tab_id"] = t["id"]
-                st.session_state["current_symbol"] = t["symbol"]
-                st.session_state["selected_tf"] = t["tf"]
-                st.session_state.pop("selected_symbol", None)
-                st.rerun()
-
-        if has_close:
-            with next(col_iter):
-                if st.button("✕", key=f"t_close_{t['id']}", help="ปิดแท็บนี้", use_container_width=True):
-                    st.session_state["chart_tabs"] = [x for x in tabs if x["id"] != t["id"]]
-                    if t["id"] == active_id:
-                        st.session_state["active_tab_id"] = st.session_state["chart_tabs"][0]["id"]
-                        st.session_state["current_symbol"] = st.session_state["chart_tabs"][0]["symbol"]
-                    st.rerun()
-
-    # ปุ่มบวก (+) อยู่นอกลูป for เสมอ เพื่อไม่ให้สร้าง key ซ้ำ
-    with next(col_iter):
-        if st.button("＋", key="btn_add_tab_global", help="เพิ่มแท็บกราฟใหม่", use_container_width=True):
-            new_tab_id = f"tab_{int(time.time() * 1000)}"
-            new_sym = "ETHUSDT" if symbol == "BTCUSDT" else "BTCUSDT"
-            st.session_state["chart_tabs"].append({
-                "id": new_tab_id,
-                "symbol": new_sym,
-                "tf": active_tab.get("tf", "1h")
-            })
-            st.session_state["active_tab_id"] = new_tab_id
-            st.session_state["current_symbol"] = new_sym
+    if has_close:
+      with next(col_iter):
+        if st.button(
+            "✕",
+            key=f"t_close_{t['id']}",
+            help="ปิดแท็บนี้",
+            use_container_width=True,
+        ):
+          st.session_state["chart_tabs"] = [
+              x for x in tabs if x["id"] != t["id"]
+          ]
+          if t["id"] == active_id:
+            st.session_state["active_tab_id"] = st.session_state["chart_tabs"][
+                0
+            ]["id"]
+            st.session_state["current_symbol"] = st.session_state["chart_tabs"][
+                0
+            ]["symbol"]
+          try:
+            st.rerun(scope="app")
+          except TypeError:
             st.rerun()
 
-# 2. Fragment Watchlist ฝั่งซ้าย (อัปเดตราคาลิสต์ทุก 5 วินาที)
-@st.fragment(run_every=5)
+  # ปุ่มบวก (+) อยู่นอกลูป for เสมอ เพื่อไม่ให้สร้าง key ซ้ำ
+  with next(col_iter):
+    if st.button(
+        "＋",
+        key="btn_add_tab_global",
+        help="เพิ่มแท็บกราฟใหม่",
+        use_container_width=True,
+    ):
+      new_tab_id = f"tab_{int(time.time() * 1000)}"
+      new_sym = "ETHUSDT" if symbol == "BTCUSDT" else "BTCUSDT"
+      st.session_state["chart_tabs"].append(
+          {"id": new_tab_id, "symbol": new_sym, "tf": active_tab.get("tf", "1h")}
+      )
+      st.session_state["active_tab_id"] = new_tab_id
+      st.session_state["current_symbol"] = new_sym
+      try:
+        st.rerun(scope="app")
+      except TypeError:
+        st.rerun()
+
+
+# 2. Watchlist ฝั่งซ้าย (ไม่ครอบ fragment เพื่อให้แตะเลือกเหรียญแล้วกราฟอัปเดตทันที)
 def render_sidebar_fragment():
   render_sidebar()
 
 
-# 3. Fragment แผงวิเคราะห์ฝั่งขวา (อัปเดตสถิติราคาทุก 5 วินาที)
+# 3. แผงวิเคราะห์ฝั่งขวา
 def render_right_panel_fragment(df, meta, is_thb_mode, fx_rate):
   render_right_panel(
       df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
   )
-
-
 # =========================================================================
 # MAIN DASHBOARD ENTRY
 # =========================================================================
-
-
 def dashboard():
   if "clear_cache" in st.query_params:
     st.cache_data.clear()
@@ -758,6 +789,9 @@ def dashboard():
   c_space, c_tf, c_ind, c_right_blank = st.columns(
       [0.35, 5.2, 2.5, 2.0], gap="small"
   )
+  with c_right_blank:
+        is_mobile = st.toggle("📱 มือถือ", value=st.session_state.get("mobile_mode", False), key="toggle_mobile_mode")
+        st.session_state["mobile_mode"] = is_mobile
 
   with c_space:
     st.markdown(
@@ -813,46 +847,65 @@ def dashboard():
     if st.session_state.get("modal_indicators_open", False):
       show_indicators_modal()
 
-  # แถวที่ 3: พื้นที่ทำงาน 3 คอลัมน์หลัก
+  # แถวที่ 3: พื้นที่ทำงานหลัก (สลับระหว่างโหมดมือถือ และโหมดคอมพิวเตอร์)
   raw_charts = build_charts(df, symbol, tf, 520, 120, 120)
   filtered_charts = raw_charts
 
-  col_side, col_chart, col_quote = st.columns([0.88, 3.87, 1.25], gap="small")
+  if st.session_state.get("mobile_mode", False):
+    # 📱 โหมดมือถือ: แสดงผลเต็มหน้าจอตามแบบ TradingView Mobile
+    render_mobile_view(
+        df=df,
+        meta=meta,
+        is_thb_mode=is_thb_mode,
+        fx_rate=fx_rate,
+        chart_renderer=lambda: render_drawing_chart(
+            filtered_charts,
+            height=480,
+            key=f"c_{symbol}_{tf}_mobile",
+            show_toolbar=st.session_state.get("show_draw_toolbar", True),
+        ),
+        watchlist_renderer=lambda: render_sidebar_fragment(),
+    )
+  else:
+    # 💻 โหมดคอมพิวเตอร์เดิม 3 คอลัมน์ 100% (โครงสร้างเดิมทั้งหมด)
+    col_side, col_chart, col_quote = st.columns(
+        [0.88, 3.87, 1.25], gap="small"
+    )
 
-  with col_side:
-    st.markdown(
-        '<div id="custom-left-menu-anchor"></div>', unsafe_allow_html=True
-    )
-    render_sidebar_fragment()
+    with col_side:
+      st.markdown(
+          '<div id="custom-left-menu-anchor"></div>', unsafe_allow_html=True
+      )
+      render_sidebar_fragment()
 
-  with col_chart:
-    st.markdown(
-        '<div id="custom-center-chart-anchor"></div>', unsafe_allow_html=True
-    )
-    render_drawing_chart(
-        filtered_charts,
-        height=530,
-        key=f"c_{symbol}_{tf}",
-        show_toolbar=st.session_state.get("show_draw_toolbar", True),
-    )
+    with col_chart:
+      st.markdown(
+          '<div id="custom-center-chart-anchor"></div>', unsafe_allow_html=True
+      )
+      render_drawing_chart(
+          filtered_charts,
+          height=530,
+          key=f"c_{symbol}_{tf}",
+          show_toolbar=st.session_state.get("show_draw_toolbar", True),
+      )
 
-  with col_quote:
-    st.markdown(
-        '<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True
-    )
-    st.markdown(
-        """
-            <div style="display:flex; align-items:center; margin-bottom:6px;">
-                <span id="btn-collapse-right" title="คลิกเพื่อพับเก็บเมนูขวา" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#FF3366; border-radius:50%; margin-right:6px; box-shadow:0 0 6px #FF3366; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
-                <span id="btn-fullscreen-app" title="คลิกเพื่อขยายเต็มจอ / ออกจากเต็มจอ" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#00FF66; border-radius:50%; margin-right:8px; box-shadow:0 0 6px #00FF66; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
-                <b style='font-size:13px; color:#ffffff;'>บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>
-            </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    render_right_panel_fragment(
-        df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
-    )
+    with col_quote:
+      st.markdown(
+          '<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True
+      )
+      st.markdown(
+          """
+              <div style="display:flex; align-items:center; margin-bottom:6px;">
+                  <span id="btn-collapse-right" title="คลิกเพื่อพับเก็บเมนูขวา" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#FF3366; border-radius:50%; margin-right:6px; box-shadow:0 0 6px #FF3366; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
+                  <span id="btn-fullscreen-app" title="คลิกเพื่อขยายเต็มจอ / ออกจากเต็มจอ" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#00FF66; border-radius:50%; margin-right:8px; box-shadow:0 0 6px #00FF66; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
+                  <b style='font-size:13px; color:#ffffff;'>บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>
+              </div>
+          """,
+          unsafe_allow_html=True,
+      )
+      render_right_panel_fragment(
+          df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
+      )
 
 
 dashboard()
