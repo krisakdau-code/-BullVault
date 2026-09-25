@@ -383,7 +383,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-
 def inject_workspace_resizers():
   components.html(
       """
@@ -489,14 +488,40 @@ def inject_workspace_resizers():
 
                 const shield = createShield();
 
-                // 1. ซ้าย
                 if (sideCol && !doc.getElementById('resizer-left-bar')) {
                     const resizerL = doc.createElement('div');
                     resizerL.id = 'resizer-left-bar';
-                    resizerL.title = 'คลิกลากเพื่อปรับขนาดเมนูซ้าย';
-                    resizerL.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 6px rgba(255,125,30,0.9);"></div>';
-                    resizerL.style.cssText = 'width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -5px; touch-action: none;';
+                    resizerL.title = 'คลิกลากเพื่อปรับขนาด หรือคลิกปุ่มเพื่อพับเก็บ';
+                    resizerL.style.cssText = 'position: relative; width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -5px; touch-action: none;';
+                    
+                    resizerL.innerHTML = `
+                        <div style="width:3px; height:60px; background:#ff7d1e; border-radius:2px; box-shadow:0 0 8px rgba(255,125,30,0.9);"></div>
+                        <div id="btn-collapse-left" title="พับ/กาง เมนูซ้าย" style="position: absolute; left: -3px; width: 16px; height: 32px; background: #181b22; border: 1px solid #ff7d1e; border-radius: 4px; color: #ff7d1e; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; font-weight: bold; box-shadow: 0 0 8px rgba(0,0,0,0.7); transition: all 0.15s ease;">◀</div>
+                    `;
                     sideCol.after(resizerL);
+
+                    // ผูกคลิกที่ลูกศร ◀ / ▶ เพื่อพับและกางเมนูซ้าย
+                    const btnLeft = resizerL.querySelector('#btn-collapse-left');
+                    let isCollapsed = false;
+                    let lastWidth = '240px';
+
+                    btnLeft.onclick = function(e) {
+                        e.stopPropagation();
+                        isCollapsed = !isCollapsed;
+                        if (isCollapsed) {
+                            lastWidth = sideCol.style.width || '240px';
+                            sideCol.style.setProperty('display', 'none', 'important');
+                            btnLeft.innerHTML = '▶';
+                            btnLeft.style.left = '0px';
+                        } else {
+                            sideCol.style.setProperty('display', 'block', 'important');
+                            sideCol.style.setProperty('width', lastWidth, 'important');
+                            sideCol.style.setProperty('flex', '0 0 ' + lastWidth, 'important');
+                            btnLeft.innerHTML = '◀';
+                            btnLeft.style.left = '-3px';
+                        }
+                        notifyResize();
+                    };
 
                     const startDragL = (clientX) => {
                         shield.style.display = 'block';
@@ -526,10 +551,16 @@ def inject_workspace_resizers():
                         doc.addEventListener('touchmove', onTouchMove, { passive: false });
                         doc.addEventListener('touchend', onTouchEnd);
                     };
-                    resizerL.onmousedown = (e) => { e.preventDefault(); startDragL(e.clientX); };
-                    resizerL.ontouchstart = (e) => { if (e.touches[0]) startDragL(e.touches[0].clientX); };
+                    resizerL.onmousedown = (e) => {
+                        if (e.target.id === 'btn-collapse-left') return;
+                        e.preventDefault();
+                        startDragL(e.clientX);
+                    };
+                    resizerL.ontouchstart = (e) => {
+                        if (e.target.id === 'btn-collapse-left') return;
+                        if (e.touches[0]) startDragL(e.touches[0].clientX);
+                    };
                 }
-
                 // 2. ขวา
                 if (rightCol) {
                     rightCol.style.position = 'relative';
@@ -791,7 +822,6 @@ def dashboard():
     st.rerun()
 
   apply_theme()
-  render_floating_sidebar_toggle()
   init_settings_state()
   inject_workspace_resizers()
 
@@ -824,91 +854,15 @@ def dashboard():
         trend=st.session_state["trend_ema"],
     )
 
-  # แถวที่ 1: แถบแท็บสินทรัพย์ด้านบน (อัปเดตอัตโนมัติทุก 5 วิ)
-  render_top_tabs_fragment()
-
- # แถวที่ 2: Timeframe, ปุ่มวาด ✏️, Indicators และโหมดมือถือ
-  c_space, c_tf, c_draw, c_ind, c_right_blank = st.columns(
-      [0.35, 4.8, 0.45, 2.0, 1.8], gap="small"
-  )
-  with c_right_blank:
-    is_mobile = st.toggle("📱 มือถือ", value=st.session_state.get("mobile_mode", False), key="toggle_mobile_mode")
-    st.session_state["mobile_mode"] = is_mobile
-
-  with c_space:
-    st.markdown(
-        '<div id="toggle-btn-anchor" style="height:28px; width:34px;'
-        " display:flex; align-items:center; justify-content:center;"
-        " font-size:16px; color:#9aa0a6; cursor:pointer;"
-        " background:rgba(255,255,255,0.06); border:1px solid #2a2e39;"
-        ' border-radius:4px; margin-top:2px;">☰</div>',
-        unsafe_allow_html=True,
-    )
-
-  with c_tf:
-    st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
-    primary_tfs = [
-        "5m",
-        "15m",
-        "30m",
-        "1h",
-        "2h",
-        "3h",
-        "4h",
-        "D",
-        "2D",
-        "3D",
-        "W",
-        "M",
-    ]
-    cur_tf = tf
-    def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 3
-    new_tf = st.radio(
-        "TF",
-        primary_tfs,
-        index=def_idx,
-        horizontal=True,
-        label_visibility="collapsed",
-        key="toolbar_tf_horizontal",
-    )
-    if new_tf != cur_tf:
-      active_tab["tf"] = new_tf
-      st.session_state["selected_tf"] = new_tf
-      st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
-
-  # ปุ่ม ✏️ วางต่อท้ายเลข Timeframe บน Desktop
-  with c_draw:
-    draw_active = st.session_state.get("show_draw_toolbar", True)
-    btn_type = "primary" if draw_active else "secondary"
-    if st.button(
-        "✏️",
-        key="btn_toggle_draw_desktop",
-        help="เปิด/ปิด แถบเครื่องมือวาดรูป (Draw Toolbar)",
-        type=btn_type,
-        use_container_width=True,
-    ):
-      st.session_state["show_draw_toolbar"] = not draw_active
-      st.rerun()
-
-  with c_ind:
-    if st.button(
-        "📊 Indicators",
-        key="btn_open_ind_modal",
-        type="secondary",
-        use_container_width=True,
-    ):
-      st.session_state["modal_indicators_open"] = True
-
-    if st.session_state.get("modal_indicators_open", False):
-      show_indicators_modal()
-
-  # แถวที่ 3: พื้นที่ทำงานหลัก (สลับระหว่างโหมดมือถือ และโหมดคอมพิวเตอร์)
+  # เตรียมข้อมูลชาร์ต
   raw_charts = build_charts(df, symbol, tf, 520, 120, 120)
   filtered_charts = raw_charts
 
-  if st.session_state.get("mobile_mode", False):
-    # 📱 โหมดมือถือ: แสดงผลเต็มหน้าจอตามแบบ TradingView Mobile
+  # ตรวจสอบโหมดมือถือ
+  is_mobile = st.session_state.get("mobile_mode", False)
+
+  if is_mobile:
+    # 📱 โหมดมือถือ: แสดงผลเฉพาะ Mobile View 100% (ไม่มีปุ่มคอมพิวเตอร์มากองด้านบน)
     render_mobile_view(
         df=df,
         meta=meta,
@@ -923,7 +877,67 @@ def dashboard():
         watchlist_renderer=lambda: render_sidebar_fragment(),
     )
   else:
-    # 💻 โหมดคอมพิวเตอร์เดิม 3 คอลัมน์ 100% (โครงสร้างเดิมทั้งหมด)
+    # 💻 โหมดคอมพิวเตอร์เดิม 100% (แสดงแท็บบน, แถบเวลา, ปุ่มวาด, และ 3 คอลัมน์)
+    render_top_tabs_fragment()
+
+    # แถวที่ 2: Timeframe, ปุ่มวาด ✏️, Indicators และโหมดมือถือ
+    c_tf, c_draw, c_ind, c_right_blank = st.columns(
+        [5.15, 0.45, 2.0, 1.8], gap="small"
+    )
+    with c_right_blank:
+      is_m = st.toggle("📱 มือถือ", value=False, key="toggle_mobile_mode")
+      if is_m:
+        st.session_state["mobile_mode"] = True
+        st.rerun()
+   
+    with c_tf:
+      st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
+      primary_tfs = [
+          "5m", "15m", "30m", "1h", "2h", "3h", "4h",
+          "D", "2D", "3D", "W", "M",
+      ]
+      cur_tf = tf
+      def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 3
+      new_tf = st.radio(
+          "TF",
+          primary_tfs,
+          index=def_idx,
+          horizontal=True,
+          label_visibility="collapsed",
+          key="toolbar_tf_horizontal",
+      )
+      if new_tf != cur_tf:
+        active_tab["tf"] = new_tf
+        st.session_state["selected_tf"] = new_tf
+        st.rerun()
+      st.markdown("</div>", unsafe_allow_html=True)
+
+    with c_draw:
+      draw_active = st.session_state.get("show_draw_toolbar", True)
+      btn_type = "primary" if draw_active else "secondary"
+      if st.button(
+          "✏️",
+          key="btn_toggle_draw_desktop",
+          help="เปิด/ปิด แถบเครื่องมือวาดรูป (Draw Toolbar)",
+          type=btn_type,
+          use_container_width=True,
+      ):
+        st.session_state["show_draw_toolbar"] = not draw_active
+        st.rerun()
+
+    with c_ind:
+      if st.button(
+          "📊 Indicators",
+          key="btn_open_ind_modal",
+          type="secondary",
+          use_container_width=True,
+      ):
+        st.session_state["modal_indicators_open"] = True
+
+      if st.session_state.get("modal_indicators_open", False):
+        show_indicators_modal()
+
+    # แถวที่ 3: โหมดคอมพิวเตอร์ 3 คอลัมน์เดิม 100%
     col_side, col_chart, col_quote = st.columns(
         [0.88, 3.87, 1.25], gap="small"
     )
@@ -962,6 +976,5 @@ def dashboard():
       render_right_panel_fragment(
           df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
       )
-
 
 dashboard()

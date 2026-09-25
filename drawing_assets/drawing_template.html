@@ -230,14 +230,19 @@
 </head>
 <body>
     <div id="container">
-        <div class="chart-legend">
+       <div class="chart-legend" id="chart-legend">
+        <!-- แถวที่ 1: ข้อมูลราคาหลัก (บนสุด โปร่งแสง ไม่ชนกับปุ่มขวา) -->
+        <div class="legend-row-primary">
             <span class="legend-symbol">{{DISPLAY_TITLE}}</span>
             <span class="legend-badge">{{EXCHANGE_NAME}}</span>
             <span id="leg-price" class="legend-price">--</span>
             <span id="leg-change" class="legend-change" title="การเคลื่อนไหวแท่งปัจจุบัน">--</span>
-            <span id="leg-day-change" class="legend-day-change" style="color:{{CHANGE_COLOR}};" title="ผลตอบแทนรอบวัน 00:00 UTC">24h {{CHANGE_PCT}}</span>
             <span id="leg-ohlc" class="legend-ohlc"></span>
-                        
+        </div>
+
+        <!-- แถวที่ 2: ป้าย 24h และปุ่ม SELL / BUY ย้ายลงมาอยู่แถวสองใต้ราคา -->
+        <div class="legend-row-secondary">
+            <span id="leg-day-change" class="legend-day-change" style="color:{{CHANGE_COLOR}};" title="ผลตอบแทนรอบวัน 00:00 UTC">24h {{CHANGE_PCT}}</span>
             <div class="quick-trade-box">
                 <button class="qt-btn qt-sell">
                     <span class="qt-side">SELL</span>
@@ -249,6 +254,7 @@
                 </button>
             </div>
         </div>
+    </div>
 
         <div id="main-pane-container">
             <div id="chart-main"></div>
