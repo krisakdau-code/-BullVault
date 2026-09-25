@@ -161,7 +161,110 @@ def calc_calendar_perf(daily_bars: list) -> dict:
         out[label] = ((last_close - base) / base * 100.0) if base else 0.0
     return out
 
+       # =========================================================================
+# Fragment ส่วนบน: กล่องราคา สถิติ Volume และผลตอบแทน (อัปเดตทุก 5 วินาที)
+# =========================================================================
+@st.fragment(run_every=5)
+def render_price_quote_fragment(df: pd.DataFrame, meta: dict, is_thb_mode: bool, fx_rate: float):
+    mult = (fx_rate if (is_thb_mode and not meta.get("is_thb_native", False)) else 1.0)
+    symbol = meta.get("symbol", "")
+    ticker = get_ticker_24h(symbol)
 
+    if ticker:
+        curr_p = float(df["close"].iloc[-1]) * mult if (df is not None and not df.empty) else (ticker["last"] * mult)
+        chg_pct = ticker["change_pct"]
+        chg_val = ticker["change_abs"] * mult
+        bid_val = ticker["bid"] * mult
+        ask_val = ticker["ask"] * mult
+        d_low = ticker["low_24h"] * mult
+        d_high = ticker["high_24h"] * mult
+        vol_curr = ticker["base_volume"]
+    else:
+        curr_p = float(df["close"].iloc[-1]) * mult
+        prev_p = float(df["close"].iloc[-2]) * mult
+        chg_val = curr_p - prev_p
+        chg_pct = (chg_val / prev_p * 100) if prev_p else 0.0
+        bid_val = curr_p * 0.999
+        ask_val = curr_p * 1.001
+        d_low = float(df["low"].tail(24).min()) * mult
+        d_high = float(df["high"].tail(24).max()) * mult
+        vol_curr = float(df["volume"].iloc[-1])
+
+    daily_bars = fetch_daily_bars(symbol, 400) or []
+    rng_52 = get_52w_range(symbol, fetch_daily_bars)
+    w_low = rng_52["low"] * mult if rng_52["low"] > 0 else float(df["low"].min()) * mult
+    w_high = rng_52["high"] * mult if rng_52["high"] > 0 else float(df["high"].max()) * mult
+
+    vol_avg = float(np.mean([b["volume"] for b in daily_bars[-30:]])) if len(daily_bars) >= 10 else float(df["volume"].tail(30).mean())
+    perfs = calc_calendar_perf(daily_bars)
+
+    display_unit = "THB (บาท)" if (is_thb_mode or meta.get("is_thb_native", False)) else meta.get("unit", "USD")
+
+    with st.container(height=390):
+        color_hex = "#00e676" if chg_val >= 0 else "#ff5252"
+        sign = "+" if chg_val >= 0 else ""
+        st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; border-left:3px solid {color_hex}; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+        <span style="font-weight:bold; font-size:16px; color:#fff;">{meta.get('display_name', meta.get('symbol', ''))}</span>
+        <span style="color:#00e676; font-size:11px; font-weight:bold;">● ตลาดเปิด</span>
+        </div>
+        <div style="color:#867878; font-size:12px;">{meta.get('exchange', 'BINANCE')} • {meta.get('category', 'Crypto')}</div>
+        <div style="font-size:24px; font-weight:bold; color:#fff; margin-top:4px;">
+        {fmt_price(curr_p)} <span style="font-size:13px; color:#867878;">{display_unit}</span>
+        </div>
+        <div style="color:{color_hex}; font-size:13px; font-weight:bold;">
+        {sign}{fmt_price(chg_val)} ({sign}{chg_pct:.2f}%)
+        </div>
+        <div style="display:flex; gap:6px; margin-top:8px;">
+        <div style="flex:1; background:#1e293b; padding:4px; border-radius:4px; text-align:center; color:#38bdf8; font-size:11px;">
+        Bid (เสนอซื้อ) {fmt_price(bid_val)}
+        </div>
+        <div style="flex:1; background:#33141e; padding:4px; border-radius:4px; text-align:center; color:#ff5252; font-size:11px;">
+        Ask (เสนอขาย) {fmt_price(ask_val)}
+        </div>
+        </div>
+        </div>""", unsafe_allow_html=True)
+        d_pct = max(0, min(100, int(((curr_p - d_low) / (d_high - d_low) * 100) if d_high > d_low else 50)))
+        w_pct = max(0, min(100, int(((curr_p - w_low) / (w_high - w_low) * 100) if w_high > w_low else 50)))
+
+        st.markdown(f"""<div style="background:#131722; padding:10px; border-radius:8px; margin-bottom:10px; font-size:11px;">
+        <div style="display:flex; justify-content:space-between; color:#867878;">
+        <span>{fmt_price(d_low)}</span><span style="color:#DCD1D1;">ช่วงระหว่างวัน (Day Range)</span><span>{fmt_price(d_high)}</span>
+        </div>
+        <div style="height:4px; background:#392A2A; border-radius:2px; margin:6px 0; position:relative;">
+        <div style="height:100%; width:{d_pct}%; background:#FF8629; border-radius:2px;"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; color:#867878; margin-top:8px;">
+        <span>{fmt_price(w_low)}</span><span style="color:#DCD1D1;">รอบ 52 สัปดาห์ (52-Week Range)</span><span>{fmt_price(w_high)}</span>
+        </div>
+        <div style="height:4px; background:#392A2A; border-radius:2px; margin:6px 0; position:relative;">
+        <div style="height:100%; width:{w_pct}%; background:#00e676; border-radius:2px;"></div>
+        </div>
+        </div>""", unsafe_allow_html=True)
+
+        st.markdown(f"""<div style="background:#1a1a2e; padding:8px 10px; border-radius:6px; border-left:3px solid #FF6E4D; margin-bottom:10px;">
+        <div style="color:#FAA98B; font-weight:bold;">⚡ สรุปปัจจัยข่าวสารล่าสุด (Market News Summary)</div>
+        <div style="color:#DCD1D1; margin-top:2px;">ติดตามรอบสต็อกผลผลิตและการปรับอัตราดอกเบี้ยส่งผลกระทบต่ออุปสงค์สินค้า</div>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#867878; padding:4px 2px;">
+        <span>ปริมาณการซื้อขาย (Volume)</span><span style="color:#fff; font-weight:bold;">{fmt_volume(vol_curr)}</span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#867878; padding:4px 2px; margin-bottom:10px;">
+        <span>ปริมาณเฉลี่ย (Average Volume 30 แท่ง)</span><span style="color:#fff; font-weight:bold;">{fmt_volume(vol_avg)}</span>
+        </div>""", unsafe_allow_html=True)
+
+        cols = st.columns(3)
+        for idx, (label, val) in enumerate(perfs.items()):
+            c_hex = "#00e676" if val >= 0 else "#ff5252"
+            s_sign = "+" if val >= 0 else ""
+            cols[idx % 3].markdown(f"""<div style="background:#131722; padding:6px; border-radius:4px; text-align:center; margin-bottom:6px;">
+            <div style="font-size:12px; font-weight:bold; color:{c_hex};">{s_sign}{val:.2f}%</div>
+            <div style="font-size:10px; color:#867878;">{label}</div>
+            </div>""", unsafe_allow_html=True)
+
+            # =========================================================================
+# 2. ฟังก์ชันหลักของแผงขวา (เรียกใช้งาน Fragment ส่วนบน และวาดกราฟล่าง)
+# =========================================================================
 def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, fx_rate: float = 35.0):
     tab_overview, tab_pro = st.tabs(["📊 ภาพรวมตลาด", "🧠 วิเคราะห์ข้อมูล & เทคนิค"])
 
@@ -170,106 +273,21 @@ def render_right_panel(df: pd.DataFrame, meta: dict, is_thb_mode: bool = False, 
             st.warning("ไม่มีข้อมูลแท่งเทียนเพียงพอสำหรับการวิเคราะห์")
             return
 
-        mult = (fx_rate if (is_thb_mode and not meta.get("is_thb_native", False)) else 1.0)
         symbol = meta.get("symbol", "")
         ticker = get_ticker_24h(symbol)
 
-        if ticker:
-            curr_p = ticker["last"] * mult
+        # คำนวณ chg_pct ส่งต่อให้หน้าปัด Gauge ด้านล่างนำไปประมวลผล
+        if ticker and "change_pct" in ticker:
             chg_pct = ticker["change_pct"]
-            chg_val = ticker["change_abs"] * mult
-            bid_val = ticker["bid"] * mult
-            ask_val = ticker["ask"] * mult
-            d_low = ticker["low_24h"] * mult
-            d_high = ticker["high_24h"] * mult
-            vol_curr = ticker["base_volume"]
+        elif len(df) >= 2:
+            last_c = float(df["close"].iloc[-1])
+            prev_c = float(df["close"].iloc[-2])
+            chg_pct = ((last_c - prev_c) / prev_c * 100.0) if prev_c > 0 else 0.0
         else:
-            curr_p = float(df["close"].iloc[-1]) * mult
-            prev_p = float(df["close"].iloc[-2]) * mult
-            chg_val = curr_p - prev_p
-            chg_pct = (chg_val / prev_p * 100) if prev_p else 0.0
-            bid_val = curr_p * 0.999
-            ask_val = curr_p * 1.001
-            d_low = float(df["low"].tail(24).min()) * mult
-            d_high = float(df["high"].tail(24).max()) * mult
-            vol_curr = float(df["volume"].iloc[-1])
+            chg_pct = 0.0
 
-        daily_bars = fetch_daily_bars(symbol, 400) or []
-        rng_52 = get_52w_range(symbol, fetch_daily_bars)
-        w_low = rng_52["low"] * mult if rng_52["low"] > 0 else float(df["low"].min()) * mult
-        w_high = rng_52["high"] * mult if rng_52["high"] > 0 else float(df["high"].max()) * mult
-
-        vol_avg = float(np.mean([b["volume"] for b in daily_bars[-30:]])) if len(daily_bars) >= 10 else float(df["volume"].tail(30).mean())
-        perfs = calc_calendar_perf(daily_bars)
-
-        display_unit = "THB (บาท)" if (is_thb_mode or meta.get("is_thb_native", False)) else meta.get("unit", "USD")
-
-        # =========================================================
-        # แท็บ 1 ส่วนบน: กล่องเลื่อนอิสระส่วนบน
-        # =========================================================
-        with st.container(height=390):
-            color_hex = "#00e676" if chg_val >= 0 else "#ff5252"
-            sign = "+" if chg_val >= 0 else ""
-            st.markdown(f"""<div style="background:#131722; padding:12px; border-radius:8px; border-left:3px solid {color_hex}; margin-bottom:10px;">
-<div style="display:flex; justify-content:space-between; align-items:center;">
-<span style="font-weight:bold; font-size:16px; color:#fff;">{meta.get('display_name', meta.get('symbol', ''))}</span>
-<span style="color:#00e676; font-size:11px; font-weight:bold;">🟢 ตลาดเปิด</span>
-</div>
-<div style="color:#867878; font-size:12px;">{meta.get('exchange', 'BINANCE')} • {meta.get('category', 'Crypto')}</div>
-<div style="font-size:24px; font-weight:bold; color:#fff; margin-top:4px;">
-{fmt_price(curr_p)} <span style="font-size:13px; color:#867878;">{display_unit}</span>
-</div>
-<div style="color:{color_hex}; font-size:13px; font-weight:bold;">
-{sign}{fmt_price(chg_val)} ({sign}{chg_pct:.2f}%)
-</div>
-<div style="display:flex; gap:6px; margin-top:8px;">
-<div style="flex:1; background:#1e293b; padding:4px; border-radius:4px; text-align:center; color:#38bdf8; font-size:11px;">
-Bid (เสนอซื้อ) {fmt_price(bid_val)}
-</div>
-<div style="flex:1; background:#33141e; padding:4px; border-radius:4px; text-align:center; color:#ff5252; font-size:11px;">
-Ask (เสนอขาย) {fmt_price(ask_val)}
-</div>
-</div>
-</div>""", unsafe_allow_html=True)
-
-            d_pct = max(0, min(100, int(((curr_p - d_low) / (d_high - d_low) * 100) if d_high > d_low else 50)))
-            w_pct = max(0, min(100, int(((curr_p - w_low) / (w_high - w_low) * 100) if w_high > w_low else 50)))
-
-            st.markdown(f"""<div style="background:#131722; padding:10px; border-radius:8px; margin-bottom:10px; font-size:11px;">
-<div style="display:flex; justify-content:space-between; color:#867878;">
-<span>{fmt_price(d_low)}</span><span style="color:#DCD1D1;">ช่วงระหว่างวัน (Day Range)</span><span>{fmt_price(d_high)}</span>
-</div>
-<div style="height:4px; background:#392A2A; border-radius:2px; margin:6px 0; position:relative;">
-<div style="height:100%; width:{d_pct}%; background:#FF8629; border-radius:2px;"></div>
-</div>
-<div style="display:flex; justify-content:space-between; color:#867878; margin-top:8px;">
-<span>{fmt_price(w_low)}</span><span style="color:#DCD1D1;">รอบ 52 สัปดาห์ (52-Week Range)</span><span>{fmt_price(w_high)}</span>
-</div>
-<div style="height:4px; background:#392A2A; border-radius:2px; margin:6px 0; position:relative;">
-<div style="height:100%; width:{w_pct}%; background:#00e676; border-radius:2px;"></div>
-</div>
-</div>""", unsafe_allow_html=True)
-
-            st.markdown(f"""<div style="background:#1a1a2e; padding:8px 10px; border-radius:6px; border-left:3px solid #FF6E4D; margin-bottom:10px; font-size:11px;">
-<div style="color:#FAA98B; font-weight:bold;">⚡ สรุปปัจจัยข่าวสารล่าสุด (Market News Summary)</div>
-<div style="color:#DCD1D1; margin-top:2px;">ติดตามรอบสต็อกผลผลิตและการปรับอัตราดอกเบี้ยส่งผลกระทบต่ออุปสงค์สินค้า</div>
-</div>
-<div style="display:flex; justify-content:space-between; font-size:11px; color:#867878; padding:4px 2px;">
-<span>ปริมาณการซื้อขาย (Volume)</span><span style="color:#fff; font-weight:bold;">{fmt_volume(vol_curr)}</span>
-</div>
-<div style="display:flex; justify-content:space-between; font-size:11px; color:#867878; padding:4px 2px; margin-bottom:10px;">
-<span>ปริมาณเฉลี่ย (Average Volume 30 แท่ง)</span><span style="color:#fff; font-weight:bold;">{fmt_volume(vol_avg)}</span>
-</div>""", unsafe_allow_html=True)
-
-            cols = st.columns(3)
-            for idx, (label, val) in enumerate(perfs.items()):
-                c_hex = "#00e676" if val >= 0 else "#ff5252"
-                s_sign = "+" if val >= 0 else ""
-                cols[idx % 3].markdown(f"""<div style="background:#131722; padding:6px; border-radius:4px; text-align:center; margin-bottom:6px; border:1px solid #1e222d;">
-<div style="font-size:12px; font-weight:bold; color:{c_hex};">{s_sign}{val:.2f}%</div>
-<div style="font-size:10px; color:#867878;">{label}</div>
-</div>""", unsafe_allow_html=True)
-
+        # เรียกเฉพาะกล่องราคาให้อัปเดตทุก 5 วินาที
+        render_price_quote_fragment (df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate)
         # =========================================================
         # แท็บ 1 ส่วนล่าง: กล่องเลื่อนอิสระส่วนล่าง
         # =========================================================
