@@ -210,7 +210,7 @@ def render_symbol_modal():
     else:
         display_symbols = clean_symbols
 
-    # 5. แสดงผลปุ่มกดเลือกสินทรัพย์ (แสดง 2 บรรทัดเมื่อมีชื่อไทย และคงปุ่ม + Watchlist เดิม)
+    # 5. แสดงผลปุ่มกดเลือกสินทรัพย์ (แถบการ์ดปุ่มเดียว Single Action Card รวมชื่อและปุ่มบวก)
     with st.container(height=380):
         if not display_symbols:
             st.warning(f"ไม่พบรายการสินทรัพย์ในหมวด {current_market_tag}")
@@ -225,26 +225,21 @@ def render_symbol_modal():
                         sym = display_symbols[i + j]
                         in_wl = sym in wl_syms
                         
-                        # สร้างป้ายชื่อ 2 บรรทัด
+                        # รวมไอคอนสถานะ + ชื่อเหรียญ + คำอธิบาย เป็นการ์ดปุ่มเดียว
                         th_name = SYMBOL_NAMES_TH.get(sym)
-                        btn_label = f"**{sym}**  \n:gray[{th_name}]" if th_name else sym
+                        icon = "✓ " if in_wl else "➕ "
+                        btn_label = f"{icon}**{sym}**  \n:gray[{th_name}]" if th_name else f"{icon}**{sym}**"
 
-                        c_sym, c_add = row_cols[j].columns([3.5, 1])
-                        with c_sym:
+                        with row_cols[j]:
                             if st.button(btn_label, key=f"btn_m_{current_market_tag}_{sym}", use_container_width=True):
-                                st.session_state["current_symbol"] = sym
-                                st.session_state["selected_symbol"] = sym
-                                st.rerun()
-                        with c_add:
-                            add_icon = "✓" if in_wl else "➕"
-                            if st.button(add_icon, key=f"btn_wl_add_{current_market_tag}_{sym}", use_container_width=True, help="นำออกจาก Watchlist" if in_wl else "เพิ่มเข้า Watchlist"):
                                 if "custom_watchlist" not in st.session_state:
                                     st.session_state["custom_watchlist"] = []
-                                
-                                if in_wl:
-                                    st.session_state["custom_watchlist"] = [
-                                        item for item in st.session_state["custom_watchlist"] if item[0] != sym
-                                    ]
-                                else:
+                                if not in_wl:
                                     st.session_state["custom_watchlist"].append((sym, "--", "0.00%", True))
+                                
+                                st.session_state["current_symbol"] = sym
+                                st.session_state["selected_symbol"] = sym
+                                for t in st.session_state.get("chart_tabs", []):
+                                    if t.get("id") == st.session_state.get("active_tab_id"):
+                                        t["symbol"] = sym
                                 st.rerun()

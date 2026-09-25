@@ -445,24 +445,14 @@ def render_sidebar():
         selected_sym = active_tab_sym
         clean_selected = standardize_symbol(selected_sym)
 
-        # ── ตรรกะ Slot Replacement: นำเหรียญใหม่ที่เลือกไปแทนที่เหรียญเดิมใน Watchlist ทันที ──
+       # --- เพิ่มเหรียญใหม่ต่อท้ายใน Watchlist ทันที (ไม่เขียนทับเหรียญเดิม) ---
         raw_rows = [_normalize_row(r) for r in st.session_state.get("custom_watchlist", [])]
         wl_syms_clean = [standardize_symbol(r[0]) for r in raw_rows]
 
-        if clean_selected not in wl_syms_clean and raw_rows:
-            last_active = st.session_state.get("last_active_wl_sym")
-            replaced = False
-            if last_active:
-                for idx, r in enumerate(raw_rows):
-                    if standardize_symbol(r[0]) == standardize_symbol(last_active):
-                        st.session_state["custom_watchlist"][idx] = (clean_selected, "-", "-", True)
-                        replaced = True
-                        break
-            if not replaced:
-                st.session_state["custom_watchlist"][0] = (clean_selected, "-", "-", True)
+        if clean_selected not in wl_syms_clean:
+            st.session_state["custom_watchlist"].append((clean_selected, "-", "-", True))
             save_watchlist_data()
             raw_rows = [_normalize_row(r) for r in st.session_state.get("custom_watchlist", [])]
-
         st.session_state["last_active_wl_sym"] = clean_selected
 
         if st.button("🔍 ค้นหาเหรียญ / สัญลักษณ์สินทรัพย์...", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
