@@ -65,9 +65,16 @@
                     pEl.textContent = lastBar.close.toLocaleString('en-US', {minimumFractionDigits: 2});
                     pEl.style.color = color;
                 }
-                if (cEl) {
-                    cEl.textContent = (isUp ? '+' : '') + pct.toFixed(2) + '%';
-                    cEl.style.color = color;
+               if (cEl) {
+                    const dayPct = cEl.getAttribute('data-day-pct');
+                    const dayColor = cEl.getAttribute('data-day-color');
+                    if (dayPct && dayPct !== '{{CHANGE_PCT}}' && dayPct !== '--') {
+                        cEl.textContent = dayPct;
+                        if (dayColor) cEl.style.color = dayColor;
+                    } else {
+                        cEl.textContent = (isUp ? '+' : '') + pct.toFixed(2) + '%';
+                        cEl.style.color = color;
+                    }
                 }
                 
                 const sVal = document.getElementById('qt-sell-val');
@@ -130,8 +137,15 @@
                             pEl.style.color = color;
                         }
                         if (cEl) {
-                            cEl.textContent = (diff >= 0 ? '+' : '') + pct.toFixed(2) + '%';
-                            cEl.style.color = color;
+                            const dayPct = cEl.getAttribute('data-day-pct');
+                            const dayColor = cEl.getAttribute('data-day-color');
+                            if (dayPct && dayPct !== '{{CHANGE_PCT}}' && dayPct !== '--') {
+                                cEl.textContent = dayPct;
+                                if (dayColor) cEl.style.color = dayColor;
+                            } else {
+                                cEl.textContent = (diff >= 0 ? '+' : '') + pct.toFixed(2) + '%';
+                                cEl.style.color = color;
+                            }
                         }
                         const sVal = document.getElementById('qt-sell-val');
                         const bVal = document.getElementById('qt-buy-val');

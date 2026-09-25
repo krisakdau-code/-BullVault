@@ -252,6 +252,48 @@ st.markdown(
         color: #ff8c00 !important;
         box-shadow: 0 0 8px rgba(255, 140, 0, 0.3) !important;
     }
+   /* ปุ่มเครื่องมือวาดรูปบนเดสท็อป (ต่อท้าย Timeframe) */
+    button[key="btn_toggle_draw_desktop"] {
+        background-color: #0e1118 !important;
+        border: 1px solid #1e2433 !important;
+        color: #d1d5db !important;
+        height: 28px !important;
+        min-height: 28px !important;
+        font-size: 13px !important;
+        border-radius: 4px !important;
+        padding: 0 !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        transition: all 0.15s ease-in-out !important;
+    }
+    button[key="btn_toggle_draw_desktop"][kind="primary"],
+    button[key="btn_toggle_draw_desktop"][data-testid="baseButton-primary"] {
+        background: rgba(255, 125, 30, 0.22) !important;
+        border: 1.5px solid #ff7d1e !important;
+        box-shadow: 0 0 8px rgba(255, 125, 30, 0.5) !important;
+    }
+    button[key="btn_toggle_draw_desktop"]:hover {
+        border-color: #ff7d1e !important;
+    }
+    /* สถานะเปิดใช้งาน: เรืองแสงสีส้มสไตล์ TradingView */
+    button[key="btn_toggle_draw"][kind="primary"],
+    button[key="btn_toggle_draw"][data-testid="baseButton-primary"] {
+        background: rgba(255, 125, 30, 0.18) !important;
+        border: 1.5px solid #ff7d1e !important;
+        box-shadow: 0 0 10px rgba(255, 125, 30, 0.45) !important;
+    }
+    /* สถานะปิดใช้งาน: สีเทาเข้มกลืนกับแถบควบคุม */
+    button[key="btn_toggle_draw"][kind="secondary"],
+    button[key="btn_toggle_draw"][data-testid="baseButton-secondary"] {
+        background: #0e1118 !important;
+        border: 1px solid #1e2433 !important;
+        opacity: 0.6 !important;
+    }
+    button[key="btn_toggle_draw"]:hover {
+        border-color: #ff7d1e !important;
+        opacity: 1 !important;
+    }
 
     /* 7. ปลดล็อกกราฟและการปรับขนาดพาเนลด้วย CSS Variables */
     :root {
@@ -785,13 +827,13 @@ def dashboard():
   # แถวที่ 1: แถบแท็บสินทรัพย์ด้านบน (อัปเดตอัตโนมัติทุก 5 วิ)
   render_top_tabs_fragment()
 
-  # แถวที่ 2: Timeframe และ Indicators
-  c_space, c_tf, c_ind, c_right_blank = st.columns(
-      [0.35, 5.2, 2.5, 2.0], gap="small"
+ # แถวที่ 2: Timeframe, ปุ่มวาด ✏️, Indicators และโหมดมือถือ
+  c_space, c_tf, c_draw, c_ind, c_right_blank = st.columns(
+      [0.35, 4.8, 0.45, 2.0, 1.8], gap="small"
   )
   with c_right_blank:
-        is_mobile = st.toggle("📱 มือถือ", value=st.session_state.get("mobile_mode", False), key="toggle_mobile_mode")
-        st.session_state["mobile_mode"] = is_mobile
+    is_mobile = st.toggle("📱 มือถือ", value=st.session_state.get("mobile_mode", False), key="toggle_mobile_mode")
+    st.session_state["mobile_mode"] = is_mobile
 
   with c_space:
     st.markdown(
@@ -834,6 +876,20 @@ def dashboard():
       st.session_state["selected_tf"] = new_tf
       st.rerun()
     st.markdown("</div>", unsafe_allow_html=True)
+
+  # ปุ่ม ✏️ วางต่อท้ายเลข Timeframe บน Desktop
+  with c_draw:
+    draw_active = st.session_state.get("show_draw_toolbar", True)
+    btn_type = "primary" if draw_active else "secondary"
+    if st.button(
+        "✏️",
+        key="btn_toggle_draw_desktop",
+        help="เปิด/ปิด แถบเครื่องมือวาดรูป (Draw Toolbar)",
+        type=btn_type,
+        use_container_width=True,
+    ):
+      st.session_state["show_draw_toolbar"] = not draw_active
+      st.rerun()
 
   with c_ind:
     if st.button(

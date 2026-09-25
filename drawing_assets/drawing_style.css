@@ -52,7 +52,7 @@ html, body {
 .legend-symbol { font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
 .legend-badge { font-size: 10px; background: rgba(0, 255, 163, 0.15); color: #00FFA3; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
 .legend-price { font-weight: 800; font-family: 'Roboto Mono', monospace; font-size: 13px; }
-.legend-change { font-weight: 700; font-size: 11px; }
+.legend-change { font-weight: 900; font-size: 15px; }
 .legend-ohlc { color: #787b86; font-size: 11px; margin-left: 6px; font-family: 'Roboto Mono', monospace; }
 
 /* ปุ่มควบคุมลอยมุมขวาบน */

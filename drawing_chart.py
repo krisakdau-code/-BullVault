@@ -14,10 +14,11 @@ def _load_asset(filename: str) -> str:
         return f.read()
 
 def render_drawing_chart(
-    charts_config: list, 
-    height: int = None, 
+    charts_config: list,
+    height: int = None,
     key: str = "draw_chart",
-    show_toolbar: bool = True
+    show_toolbar: bool = True,
+    change_pct=None
 ):
     if not charts_config:
         return
@@ -26,6 +27,22 @@ def render_drawing_chart(
     meta = resolve_market_info(curr_sym)
     display_title = meta.get("display_name", curr_sym)
     exchange_name = meta.get("exchange", "MARKET")
+    # ดึง % ตัดรอบวัน (00:00 UTC) ให้ตรงกับ TradingView, แท็บบน และเมนูขวา 100%
+    if change_pct is not None:
+      live_pct = float(change_pct)
+    else:
+      from data.fetchers import fetch_ticker_24h
+
+      tk_24h = fetch_ticker_24h(curr_sym)
+      live_pct = (
+          float(tk_24h["price_change_pct"])
+          if tk_24h and "price_change_pct" in tk_24h
+          else 0.0
+      )
+
+    pct_sign = "+" if live_pct >= 0 else ""
+    pct_str = f"{pct_sign}{live_pct:.2f}%"
+    pct_color = "#00e676" if live_pct >= 0 else "#ff3366"
 
     # คำนวณความสูงหน้าต่าง
     if len(charts_config) == 1:
@@ -60,6 +77,8 @@ def render_drawing_chart(
         .replace("{{DISPLAY_TITLE}}", str(display_title))
         .replace("{{EXCHANGE_NAME}}", str(exchange_name))
         .replace("{{CHART_JSON}}", chart_json)
+        .replace("{{CHANGE_PCT}}", pct_str)
+        .replace("{{CHANGE_COLOR}}", pct_color)
     )
 
     components.html(rendered_html, height=real_total_h)
