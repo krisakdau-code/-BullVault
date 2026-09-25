@@ -1626,7 +1626,7 @@
     }
 
     // =========================================================================
-    // ระบบ Dropdown สลับหน่วยราคา (ปุ่ม เดิม ⌵)
+    // ระบบ Dropdown สลับหน่วยราคา (ปุ่ม ราคา ⌵)
     // =========================================================================
     const btnScaleToggle = document.getElementById('btn-scale-toggle');
     const scaleMenu = document.getElementById('price-scale-menu');

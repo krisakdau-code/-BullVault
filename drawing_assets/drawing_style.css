@@ -32,36 +32,68 @@ html, body {
 }
 
 /* ป้ายสถานะราคาและเหรียญมุมซ้ายบน */
+/* ป้ายสถานะมุมซ้ายบน: แยก 2 ชั้นแนวตั้ง โปร่งแสง ไม่บังแท่งเทียน */
 .chart-legend {
     position: absolute;
-    top: 36px !important;
-    left: 8px !important;
+    top: 6px !important;                          /* 1. ดันขึ้นบนสุดตามลูกศรสีแดง */
+    left: 8px !important;                         /* ชิดซ้าย */
     z-index: 12;
+    display: flex !important;
+    flex-direction: column !important;            /* ซ้อน 2 แถว (แถวราคาบน / แถว 24h,SELL,BUY ล่าง) */
+    align-items: flex-start !important;
+    gap: 3px !important;                          /* ระยะห่างระหว่างแถวบนกับแถวล่าง */
+    background: rgba(0, 0, 0, 0.45) !important;   /* พื้นหลังโปร่งแสงมองทะลุกราฟได้ */
+    backdrop-filter: blur(4px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    padding: 3px 8px !important;
+    border-radius: 6px !important;
+    pointer-events: auto !important;
+    user-select: none;
+    max-width: calc(100vw - 16px);
+}
+
+/* แถวที่ 1 (สีแดง): ชุดราคาหลัก ตัดขึ้นบรรทัดใหม่อัตโนมัติถ้าจอแคบ ไม่ทับกัน */
+.legend-row-primary {
     display: flex;
     align-items: center;
-    gap: 8px;
-    font-size: 12px;
-    background: rgba(0 0 0 / 0.75);
-    backdrop-filter: blur(6px);
-    border: 1px solid rgba(0 0 0 / 0.8);
-    padding: 3px 10px;
-    border-radius: 6px;
-    pointer-events: none;
-    user-select: none;
+    flex-wrap: wrap;
+    gap: 6px;
 }
+
+/* แถวที่ 2 (สีเขียว): [24h] [SELL] [BUY] ดีดลงมาอยู่แถวสองชิดซ้าย */
+.legend-row-secondary {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 1px;
+}
+
 .legend-symbol { font-weight: 800; color: #ffffff; letter-spacing: 0.5px; }
 .legend-badge { font-size: 10px; background: rgba(0, 255, 163, 0.15); color: #00FFA3; padding: 1px 5px; border-radius: 3px; font-weight: 700; }
 .legend-price { font-weight: 800; font-family: 'Roboto Mono', monospace; font-size: 13px; }
-.legend-change { font-weight: 900; font-size: 15px; }
+.legend-change { font-weight: 900; font-size: 14px; }
+
+/* ย่อขนาดป้าย 24h ให้เล็กลงพอดีตา + โปร่งแสง */
 .legend-day-change {
-    font-size: 13px !important;
-    font-weight: 800 !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
     font-family: 'JetBrains Mono', monospace !important;
-    margin-left: 8px !important;
-    padding: 2px 7px !important;
+    margin-left: 0px !important;
+    padding: 1px 6px !important;
     background: rgba(255, 255, 255, 0.06) !important;
     border: 1px solid rgba(255, 255, 255, 0.12) !important;
     border-radius: 4px !important;
+}
+
+/* ย่อขนาดปุ่ม SELL และ BUY ในแถวที่ 2 ให้เล็กลงกำลังดี + โปร่งแสง */
+.legend-row-secondary button,
+.legend-row-secondary [class*="btn"],
+.legend-row-secondary [class*="trade"],
+.legend-row-secondary [class*="sell"],
+.legend-row-secondary [class*="buy"] {
+    transform: scale(0.85);
+    transform-origin: left center;
+    opacity: 0.9;
 }
 .legend-ohlc { color: #787b86; font-size: 11px; margin-left: 6px; font-family: 'Roboto Mono', monospace; }
 
@@ -76,7 +108,7 @@ html, body {
 .pane-header {
     position: absolute;
     top: 6px;
-    right: 62px;
+    right: 8px !important;
     height: 24px;
     background: rgba(19, 23, 34, 0.7);
     backdrop-filter: blur(4px);
