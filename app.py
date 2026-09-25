@@ -625,108 +625,71 @@ def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
 
   return df
 
-
-# =========================================================================
-# LIVE FRAGMENTS (อัปเดตอัตโนมัติทุก 5 วินาทีโดยกราฟไม่กระตุก)
-# =========================================================================
-
-
 # 1. Fragment แท็บด้านบน (อัปเดต % ทุก 5 วินาที)
 @st.fragment(run_every=5)
 def render_top_tabs_fragment():
-  tabs = st.session_state["chart_tabs"]
-  active_id = st.session_state["active_tab_id"]
-  active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
-  symbol = active_tab["symbol"]
+    tabs = st.session_state["chart_tabs"]
+    active_id = st.session_state["active_tab_id"]
+    active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
+    symbol = active_tab["symbol"]
 
-  # ดึงราคาและ % จากข้อมูลแท่งเทียนของกราฟโดยตรง (ตรงกับ TradingView)
-  df_chart = st.session_state.get("df_data")
-  live_pct = 0.0
-
-  if df_chart is not None and not df_chart.empty and len(df_chart) >= 2:
-    last_p = float(df_chart["close"].iloc[-1])
-    prev_p = float(df_chart["close"].iloc[-2])
-    if prev_p > 0:
-      live_pct = ((last_p - prev_p) / prev_p) * 100.0
-  else:
+    # ดึง % จาก ticker_24h เพื่อให้ตัดรอบวันตรงกับ TradingView (ตรงตามวงสีแดง)
     ticker_24h = fetch_ticker_24h(symbol)
-    if ticker_24h and "price_change_pct" in ticker_24h:
-      live_pct = float(ticker_24h["price_change_pct"])
+    live_pct = float(ticker_24h["price_change_pct"]) if ticker_24h and "price_change_pct" in ticker_24h else 0.0
+    pct_sign = "+" if live_pct >= 0 else ""
+    pct_str = f"{pct_sign}{live_pct:.2f}%"
 
-  pct_sign = "+" if live_pct >= 0 else ""
-  pct_str = f"{pct_sign}{live_pct:.2f}%"
+    has_close = len(tabs) > 1
+    col_widths = [0.01]
+    for _ in tabs:
+        col_widths.append(1.0)
+        if has_close:
+            col_widths.append(0.18)
+    col_widths.append(0.22)
+    col_widths.append(8.0)
 
-  has_close = len(tabs) > 1
-  col_widths = [0.01]
-  for _ in tabs:
-    col_widths.append(1.0)
-    if has_close:
-      col_widths.append(0.18)
-  col_widths.append(0.22)
-  col_widths.append(8.0)
-
-  t_cols = st.columns(col_widths, gap="small")
-  col_iter = iter(t_cols)
-
-  with next(col_iter):
-    st.markdown('<div id="top-tabs-marker"></div>', unsafe_allow_html=True)
-
-  for t in tabs:
-    is_active = t["id"] == active_id
-    t_meta = resolve_market_info(t["symbol"])
-    t_label = (
-        f"💎 {t_meta['display_name']} {pct_str if is_active else ''}".strip()
-    )
-    btn_type = "primary" if is_active else "secondary"
+    t_cols = st.columns(col_widths, gap="small")
+    col_iter = iter(t_cols)
 
     with next(col_iter):
-      if st.button(
-          t_label,
-          key=f"t_btn_{t['id']}",
-          type=btn_type,
-          use_container_width=True,
-      ):
-        st.session_state["active_tab_id"] = t["id"]
-        st.session_state["current_symbol"] = t["symbol"]
-        st.session_state["selected_tf"] = t["tf"]
-        st.session_state.pop("selected_symbol", None)
-        st.rerun()
+        st.markdown('<div id="top-tabs-marker"></div>', unsafe_allow_html=True)
 
-    if has_close:
-      with next(col_iter):
-        if st.button(
-            "✕",
-            key=f"t_close_{t['id']}",
-            help="ปิดแท็บนี้",
-            use_container_width=True,
-        ):
-          st.session_state["chart_tabs"] = [
-              x for x in tabs if x["id"] != t["id"]
-          ]
-          if t["id"] == active_id:
-            st.session_state["active_tab_id"] = st.session_state["chart_tabs"][
-                0
-            ]["id"]
-            st.session_state["current_symbol"] = st.session_state["chart_tabs"][
-                0
-            ]["symbol"]
-          st.rerun()
+    for t in tabs:
+        is_active = (t["id"] == active_id)
+        t_meta = resolve_market_info(t["symbol"])
+        t_label = f"💎 {t_meta['display_name']} {pct_str if is_active else ''}".strip()
+        btn_type = "primary" if is_active else "secondary"
 
-  with next(col_iter):
-    if st.button(
-        "＋",
-        key="btn_add_tab_global",
-        help="เพิ่มแท็บกราฟใหม่",
-        use_container_width=True,
-    ):
-      new_tab_id = f"tab_{int(time.time() * 1000)}"
-      new_sym = "ETHUSDT" if symbol == "BTCUSDT" else "BTCUSDT"
-      st.session_state["chart_tabs"].append(
-          {"id": new_tab_id, "symbol": new_sym, "tf": active_tab.get("tf", "1h")}
-      )
-      st.session_state["active_tab_id"] = new_tab_id
-      st.session_state["current_symbol"] = new_sym
-      st.rerun()
+        with next(col_iter):
+            if st.button(t_label, key=f"t_btn_{t['id']}", type=btn_type, use_container_width=True):
+                st.session_state["active_tab_id"] = t["id"]
+                st.session_state["current_symbol"] = t["symbol"]
+                st.session_state["selected_tf"] = t["tf"]
+                st.session_state.pop("selected_symbol", None)
+                st.rerun()
+
+        if has_close:
+            with next(col_iter):
+                if st.button("✕", key=f"t_close_{t['id']}", help="ปิดแท็บนี้", use_container_width=True):
+                    st.session_state["chart_tabs"] = [x for x in tabs if x["id"] != t["id"]]
+                    if t["id"] == active_id:
+                        st.session_state["active_tab_id"] = st.session_state["chart_tabs"][0]["id"]
+                        st.session_state["current_symbol"] = st.session_state["chart_tabs"][0]["symbol"]
+                    st.rerun()
+
+    # ปุ่มบวก (+) อยู่นอกลูป for เสมอ เพื่อไม่ให้สร้าง key ซ้ำ
+    with next(col_iter):
+        if st.button("＋", key="btn_add_tab_global", help="เพิ่มแท็บกราฟใหม่", use_container_width=True):
+            new_tab_id = f"tab_{int(time.time() * 1000)}"
+            new_sym = "ETHUSDT" if symbol == "BTCUSDT" else "BTCUSDT"
+            st.session_state["chart_tabs"].append({
+                "id": new_tab_id,
+                "symbol": new_sym,
+                "tf": active_tab.get("tf", "1h")
+            })
+            st.session_state["active_tab_id"] = new_tab_id
+            st.session_state["current_symbol"] = new_sym
+            st.rerun()
 
 # 2. Fragment Watchlist ฝั่งซ้าย (อัปเดตราคาลิสต์ทุก 5 วินาที)
 @st.fragment(run_every=5)
@@ -735,7 +698,6 @@ def render_sidebar_fragment():
 
 
 # 3. Fragment แผงวิเคราะห์ฝั่งขวา (อัปเดตสถิติราคาทุก 5 วินาที)
-@st.fragment(run_every=5)
 def render_right_panel_fragment(df, meta, is_thb_mode, fx_rate):
   render_right_panel(
       df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
