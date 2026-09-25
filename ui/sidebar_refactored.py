@@ -581,7 +581,8 @@ def render_sidebar():
             display_rows.sort(key=lambda x: x["v_num"], reverse=True)
 
         with st.container(height=480):
-            for item in display_rows:
+            # ใหม่ (เพิ่ม idx และครอบด้วย enumerate):
+            for idx, item in enumerate(display_rows):
                 sym = item["sym"]
                 dot = item["dot"]
                 c_val = item["c_val"]
@@ -594,7 +595,7 @@ def render_sidebar():
                     active_badge = "🔶 " if row_active else ""
                     btn_title = f"{active_badge}{dot} {sym}".strip()
                     btn_type = "primary" if row_active else "secondary"
-                    if st.button(btn_title, key=f"wl_btn_{sym}", type=btn_type, use_container_width=True):
+                    if st.button(btn_title, key=f"wl_btn_{sym}_{idx}", type=btn_type, use_container_width=True):
                         set_active_symbol(sym)
                         st.session_state["last_active_wl_sym"] = standardize_symbol(sym)
                         st.rerun()
