@@ -1,30 +1,17 @@
 # app.py — Universal Trading Terminal (Hybrid Ultra Edition)
-import concurrent.futures
-import datetime
-import json
-import os
 import time
-import uuid
-
-from color_store import ensure_color_state
-
-ensure_color_state()
-import numpy as np
 import pandas as pd
 import requests
-from ui.mobile_view import render_mobile_view
 from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 import streamlit as st
 import streamlit.components.v1 as components
-from ui.indicator_modal import (
-    INDICATOR_REGISTRY,
-    init_indicator_state,
-    show_indicators_modal,
-)
-from urllib3.util.retry import Retry
 
+from color_store import ensure_color_state
+ensure_color_state()
+
+from config import BROWSER_HEADERS
 from chart_builders import build_charts
-from config import *
 from data.fetchers import (
     TF_TARGET_BARS,
     fetch_ohlcv as fetch_market_ohlcv,
@@ -33,51 +20,14 @@ from data.fetchers import (
     resolve_market_info,
 )
 from data.rice_ohlcv import generate_rice_ohlcv
-from data.symbols import (
-    get_full_binance_symbols,
-    get_full_bitkub_symbols,
-    get_full_commodities,
-    get_full_forex,
-    get_full_sp500_symbols,
-)
 from drawing_chart import render_drawing_chart
-from streamlit_lightweight_charts_ntf import renderLightweightCharts
-from technicals import (
-    compute_full_technicals,
-    diamond_armor,
-    fetch_market_analytics,
-)
-from ui.chart_settings_modal import init_settings_state, show_chart_settings_dialog
-from ui.floating_toggle import render_floating_sidebar_toggle
-from ui.rice_tab import render_rice_tab, show_rice_dialog_modal
+from technicals import diamond_armor
+from ui.chart_settings_modal import init_settings_state
+from ui.indicator_modal import show_indicators_modal
+from ui.mobile_view import render_mobile_view
 from ui.right_panel import render_right_panel
 from ui.sidebar_refactored import render_sidebar
 from ui.theme import apply_theme
-from ui_components import (
-    build_asset_icon_html,
-    fetch_seasonality_svg,
-    render_3_gauges_html,
-    render_fibonacci_modal_content,
-    render_market_modal_content,
-    render_panel_controls,
-    render_tv_quote_card,
-)
-from utils import _has_data, fmt_chg, fmt_price, fmt_vol
-
-try:
-  import yfinance as yf
-except ImportError:
-  yf = None
-
-try:
-  from fib_tools import (
-      auto_fib_retracement,
-      current_fib_zone,
-      fib_tp_target,
-      trend_based_fib_extension,
-  )
-except ImportError:
-  auto_fib_retracement = None
 
 st.set_page_config(
     page_title="Diamond Armor Universal",
@@ -500,7 +450,6 @@ def inject_workspace_resizers():
                     `;
                     sideCol.after(resizerL);
 
-                    // ผูกคลิกที่ลูกศร ◀ / ▶ เพื่อพับและกางเมนูซ้าย
                     const btnLeft = resizerL.querySelector('#btn-collapse-left');
                     let isCollapsed = false;
                     let lastWidth = '240px';
@@ -561,7 +510,7 @@ def inject_workspace_resizers():
                         if (e.touches[0]) startDragL(e.touches[0].clientX);
                     };
                 }
-                // 2. ขวา
+
                 if (rightCol) {
                     rightCol.style.position = 'relative';
                     let resizerR = doc.getElementById('resizer-right-bar');
@@ -611,7 +560,6 @@ def inject_workspace_resizers():
                     }
                 }
 
-                // 3. พับขวา
                 const btnRight = doc.getElementById('btn-collapse-right');
                 if (btnRight && !btnRight.dataset.bound) {
                     btnRight.dataset.bound = 'true';
@@ -646,7 +594,6 @@ def inject_workspace_resizers():
       width=0,
   )
 
-
 if "chart_tabs" not in st.session_state:
   st.session_state["chart_tabs"] = [
       {"id": "tab_1", "symbol": "BTCUSDT", "tf": "1h"}
@@ -671,7 +618,6 @@ retry_strategy = Retry(
     total=3, backoff_factor=0.8, status_forcelist=[429, 500, 502, 503, 504]
 )
 HTTP_SESSION.mount("https://", HTTPAdapter(max_retries=retry_strategy))
-
 
 def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
   if (
@@ -707,7 +653,6 @@ def render_top_tabs_fragment():
   active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
   symbol = active_tab["symbol"]
 
-  # ดึง % จาก ticker_24h เพื่อให้ตัดรอบวันตรงกับ TradingView (ตรงตามวงสีแดง)
   ticker_24h = fetch_ticker_24h(symbol)
   live_pct = (
       float(ticker_24h["price_change_pct"])
@@ -779,7 +724,6 @@ def render_top_tabs_fragment():
           except TypeError:
             st.rerun()
 
-  # ปุ่มบวก (+) อยู่นอกลูป for เสมอ เพื่อไม่ให้สร้าง key ซ้ำ
   with next(col_iter):
     if st.button(
         "＋",
@@ -799,20 +743,14 @@ def render_top_tabs_fragment():
       except TypeError:
         st.rerun()
 
-
-# 2. Watchlist ฝั่งซ้าย (ไม่ครอบ fragment เพื่อให้แตะเลือกเหรียญแล้วกราฟอัปเดตทันที)
 def render_sidebar_fragment():
   render_sidebar()
 
-
-# 3. แผงวิเคราะห์ฝั่งขวา
 def render_right_panel_fragment(df, meta, is_thb_mode, fx_rate):
   render_right_panel(
       df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
   )
-# =========================================================================
-# MAIN DASHBOARD ENTRY
-# =========================================================================
+
 def dashboard():
   if "clear_cache" in st.query_params:
     st.cache_data.clear()
@@ -854,15 +792,12 @@ def dashboard():
         trend=st.session_state["trend_ema"],
     )
 
-  # เตรียมข้อมูลชาร์ต
   raw_charts = build_charts(df, symbol, tf, 520, 120, 120)
   filtered_charts = raw_charts
 
-  # ตรวจสอบโหมดมือถือ
   is_mobile = st.session_state.get("mobile_mode", False)
 
   if is_mobile:
-    # 📱 โหมดมือถือ: แสดงผลเฉพาะ Mobile View 100% (ไม่มีปุ่มคอมพิวเตอร์มากองด้านบน)
     render_mobile_view(
         df=df,
         meta=meta,
@@ -877,10 +812,8 @@ def dashboard():
         watchlist_renderer=lambda: render_sidebar_fragment(),
     )
   else:
-    # 💻 โหมดคอมพิวเตอร์เดิม 100% (แสดงแท็บบน, แถบเวลา, ปุ่มวาด, และ 3 คอลัมน์)
     render_top_tabs_fragment()
 
-    # แถวที่ 2: Timeframe, ปุ่มวาด ✏️, Indicators และโหมดมือถือ
     c_tf, c_draw, c_ind, c_right_blank = st.columns(
         [5.15, 0.45, 2.0, 1.8], gap="small"
     )
@@ -937,7 +870,6 @@ def dashboard():
       if st.session_state.get("modal_indicators_open", False):
         show_indicators_modal()
 
-    # แถวที่ 3: โหมดคอมพิวเตอร์ 3 คอลัมน์เดิม 100%
     col_side, col_chart, col_quote = st.columns(
         [0.88, 3.87, 1.25], gap="small"
     )
