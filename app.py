@@ -56,10 +56,19 @@ st.markdown(
         margin: 0px !important;
     }
 
-    .stApp, body, [data-testid="stAppViewContainer"] {
+   html, body, .stApp, [data-testid="stAppViewContainer"] {
+        top: 0px !important;
+        position: static !important;
         background-color: #07080a !important;
         color: #d1d5db !important;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    }
+
+    /* ป้องกัน Google Translate ดันหน้าเว็บตกลงมา */
+    .goog-te-banner-frame, #goog-gt-tt, .skiptranslate {
+        display: none !important;
+        visibility: hidden !important;
+        top: 0px !important;
     }
 
     /* ซ่อนกล่องพื้นที่ว่างของ Iframe ด้านบน */
@@ -103,7 +112,7 @@ st.markdown(
     .stApp [data-testid="stMainBlockContainer"],
     section[data-testid="stMain"] .block-container,
     .block-container {
-        padding-top: 8px !important;
+        padding-top: 3px !important;
         margin-top: 0px !important;
         padding-bottom: 0rem !important;
         padding-left: 0.25rem !important;
@@ -205,7 +214,7 @@ st.markdown(
    /* ปุ่มเครื่องมือวาดรูปบนเดสท็อป (ต่อท้าย Timeframe) - Dark Amber Glass */
     div[data-testid="stHorizontalBlock"]:has(div[data-testid="stRadio"]) > div:nth-child(2) button,
     button[key="btn_toggle_draw_desktop"] {
-        height: 10px !important;
+        height: 28px !important;
         min-height: 28px !important;
         font-size: 13px !important;
         border-radius: 4px !important;
@@ -768,7 +777,6 @@ def dashboard():
 
   apply_theme()
   init_settings_state()
-  inject_workspace_resizers()
 
   tabs = st.session_state["chart_tabs"]
   active_id = st.session_state["active_tab_id"]
@@ -915,5 +923,7 @@ def dashboard():
       render_right_panel_fragment(
           df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
       )
+
+      inject_workspace_resizers()
 
 dashboard()

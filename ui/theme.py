@@ -46,7 +46,7 @@ def apply_theme():
         div[data-testid="stMainBlockContainer"],
         section[data-testid="stMain"] .block-container,
         .block-container {
-           padding-top: 2px !important;
+           padding-top: 3px !important;
             margin-top: 0px !important; /* ดึงเนื้อหาขึ้นแตะขอบบนสุดพอดี ไม่ขาด ไม่แหว่ง */
             padding-bottom: 0px !important;
             padding-left: 0.3rem !important;
