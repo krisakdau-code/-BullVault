@@ -1,5 +1,20 @@
+import os
+import json
 import streamlit as st
 from data.symbols import _load_json
+
+# ฟังก์ชันโหลดไฟล์ JSON โดยตรงเพื่อให้ได้ Dictionary ชื่อบริษัทครบถ้วน
+def _load_data_dict_or_list(filename):
+    filepath = os.path.join("data", filename)
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if data:
+                    return data
+        except Exception:
+            pass
+    return _load_json(filename)
 
 # ══════════════════════════════════════════════════════════
 # พจนานุกรมชื่อบริษัทมาตรฐาน (อังกฤษ : ไทย)
@@ -171,19 +186,19 @@ def render_symbol_modal():
         ex_names = list(CRYPTO_EXCHANGE_FILES.keys())
         chosen_ex = st.selectbox("เลือกกระดานเทรด (Exchange)", ex_names, index=0, key="modal_crypto_ex_select")
         current_market_tag = chosen_ex
-        symbol_raw_data = _load_json(CRYPTO_EXCHANGE_FILES[chosen_ex]) or []
+        symbol_raw_data = _load_data_dict_or_list(CRYPTO_EXCHANGE_FILES[chosen_ex]) or []
         if chosen_ex == "Gate.io" and not symbol_raw_data:
-            symbol_raw_data = _load_json("gate_crypto.json") or []
+            symbol_raw_data = _load_data_dict_or_list("gate_crypto.json") or []
 
     elif "ตลาดหุ้น" in market_category:
         st_names = list(STOCK_MARKET_FILES.keys())
         chosen_st = st.selectbox("เลือกตลาดหุ้น (Market)", st_names, index=0, key="modal_stock_market_select")
         current_market_tag = chosen_st
-        symbol_raw_data = _load_json(STOCK_MARKET_FILES[chosen_st]) or []
+        symbol_raw_data = _load_data_dict_or_list(STOCK_MARKET_FILES[chosen_st]) or {}
 
     elif "ฟอเร็กซ์" in market_category:
         current_market_tag = "FOREX"
-        symbol_raw_data = _load_json("forex.json") or DEFAULT_FOREX
+        symbol_raw_data = _load_data_dict_or_list("forex.json") or DEFAULT_FOREX
 
     elif "โภคภัณฑ์" in market_category:
         sub_other = st.selectbox(
@@ -211,7 +226,7 @@ def render_symbol_modal():
             symbol_raw_data = ["ZR=F"]
         else:
             current_market_tag = "COMMODITY"
-            symbol_raw_data = _load_json("commodities.json") or DEFAULT_COMMODITIES
+            symbol_raw_data = _load_data_dict_or_list("commodities.json") or DEFAULT_COMMODITIES
 
     clean_symbols = []
     symbol_name_map = {}
@@ -230,18 +245,23 @@ def render_symbol_modal():
         if raw_val in CHINESE_NAME_MAP:
             return CHINESE_NAME_MAP[raw_val]
         
+        # กรณีมีชื่ออังกฤษและคำอธิบายไทยในวงเล็บ
         if "(" in raw_val and ")" in raw_val:
             en_part = raw_val.split("(")[0].strip()
             th_part = raw_val.split("(")[1].replace(")", "").strip()
             return en_part, th_part
         
+        # กรณีมีชื่อบริษัทภาษาอังกฤษชัดเจน
+        if raw_val:
+            return raw_val, s_code
+        
         num = s_code.split('.')[0]
         if s_code.endswith('.SS'):
-            return f"SSE {num}", f"บมจ. เซี่ยงไฮ้ ({raw_val or num})"
+            return f"SSE {num}", f"บมจ. เซี่ยงไฮ้ ({num})"
         elif s_code.endswith('.SZ'):
-            return f"SZSE {num}", f"บมจ. เซินเจิ้น ({raw_val or num})"
+            return f"SZSE {num}", f"บมจ. เซินเจิ้น ({num})"
         elif s_code.endswith('.HK'):
-            return f"HKEX {num}", f"บมจ. ฮ่องกง ({raw_val or num})"
+            return f"HKEX {num}", f"บมจ. ฮ่องกง ({num})"
         return s_code, raw_val
 
     st.write("---")
@@ -280,7 +300,6 @@ def render_symbol_modal():
 
                         with row_cols[j]:
                             if st.button(btn_label, key=f"btn_m_{current_market_tag}_{sym}", use_container_width=True):
-                                # ย้ายการ Import เข้ามาในปุ่มเพื่อป้องกัน Circular Import
                                 from ui.sidebar_refactored import add_to_watchlist
                                 add_to_watchlist(sym)
                                 
