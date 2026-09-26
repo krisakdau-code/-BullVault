@@ -441,33 +441,55 @@ def inject_workspace_resizers():
                 if (sideCol && !doc.getElementById('resizer-left-bar')) {
                     const resizerL = doc.createElement('div');
                     resizerL.id = 'resizer-left-bar';
-                    resizerL.title = 'คลิกลากเพื่อปรับขนาด หรือคลิกปุ่มเพื่อพับเก็บ';
-                    resizerL.style.cssText = 'position: relative; width: 10px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -5px; touch-action: none;';
+                    resizerL.title = 'คลิกลากเพื่อปรับขนาด หรือคลิกแถบเพื่อพับ/กาง';
+                    resizerL.style.cssText = 'position: relative; width: 6px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -3px; background: transparent; transition: background 0.15s; touch-action: none;';
                     
+                    // แถบพับแนบขอบบางเฉียบสไตล์ TradingView (ยื่นเพียง 8px)
                     resizerL.innerHTML = `
-                        <div style="width:3px; height:60px; background:#ff7d1e; border-radius:2px; box-shadow:0 0 8px rgba(255,125,30,0.9);"></div>
-                        <div id="btn-collapse-left" title="พับ/กาง เมนูซ้าย" style="position: absolute; left: -3px; width: 16px; height: 32px; background: #181b22; border: 1px solid #ff7d1e; border-radius: 4px; color: #ff7d1e; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; font-weight: bold; box-shadow: 0 0 8px rgba(0,0,0,0.7); transition: all 0.15s ease;">◀</div>
+                        <div id="bar-line-left" style="width: 2px; height: 100%; background: #1e2433; transition: background 0.2s;"></div>
+                        <div id="btn-collapse-left" title="พับ/กาง เมนูซ้าย" style="position: absolute; left: 1px; width: 8px; height: 42px; background: #131722; border: 1px solid #2a2e39; border-left: none; border-radius: 0 4px 4px 0; color: #8b949e; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 9px; font-weight: bold; transition: all 0.15s ease; box-shadow: 1px 0 5px rgba(0,0,0,0.5);">‹</div>
                     `;
                     sideCol.after(resizerL);
 
                     const btnLeft = resizerL.querySelector('#btn-collapse-left');
+                    const barLine = resizerL.querySelector('#bar-line-left');
                     let isCollapsed = false;
                     let lastWidth = '240px';
 
+                    // เอฟเฟกต์สีส้มเรืองแสงเมื่อเอาเมาส์ไปชี้
+                    resizerL.onmouseenter = function() {
+                        if (barLine) barLine.style.background = '#ff7d1e';
+                        btnLeft.style.color = '#ff7d1e';
+                        btnLeft.style.borderColor = '#ff7d1e';
+                        btnLeft.style.background = '#1a1f2c';
+                        btnLeft.style.width = '10px';
+                    };
+
+                    resizerL.onmouseleave = function() {
+                        if (barLine) barLine.style.background = '#1e2433';
+                        btnLeft.style.color = '#8b949e';
+                        btnLeft.style.borderColor = '#2a2e39';
+                        btnLeft.style.background = '#131722';
+                        btnLeft.style.width = '8px';
+                    };
+
+                    // คลิกแถบเพื่อพับหรือกางเมนูซ้าย
                     btnLeft.onclick = function(e) {
                         e.stopPropagation();
                         isCollapsed = !isCollapsed;
                         if (isCollapsed) {
                             lastWidth = sideCol.style.width || '240px';
                             sideCol.style.setProperty('display', 'none', 'important');
-                            btnLeft.innerHTML = '▶';
+                            btnLeft.innerHTML = '›';
                             btnLeft.style.left = '0px';
+                            btnLeft.style.borderLeft = 'none';
+                            btnLeft.style.borderRadius = '0 4px 4px 0';
                         } else {
                             sideCol.style.setProperty('display', 'block', 'important');
                             sideCol.style.setProperty('width', lastWidth, 'important');
                             sideCol.style.setProperty('flex', '0 0 ' + lastWidth, 'important');
-                            btnLeft.innerHTML = '◀';
-                            btnLeft.style.left = '-3px';
+                            btnLeft.innerHTML = '‹';
+                            btnLeft.style.left = '1px';
                         }
                         notifyResize();
                     };
@@ -510,7 +532,6 @@ def inject_workspace_resizers():
                         if (e.touches[0]) startDragL(e.touches[0].clientX);
                     };
                 }
-
                 if (rightCol) {
                     rightCol.style.position = 'relative';
                     let resizerR = doc.getElementById('resizer-right-bar');
