@@ -98,13 +98,13 @@ st.markdown(
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* 3. ดึงเนื้อหาขึ้นในระยะที่พอดีสายตา ไม่ชนขอบจอด้านบน */
+    /* 3. จัดระยะขอบบนให้พอดีสายตา ไม่ชนขอบจอ และไม่โดนตัด */
     .stApp [data-testid="stMain"],
     .stApp [data-testid="stMainBlockContainer"],
     section[data-testid="stMain"] .block-container,
     .block-container {
-        padding-top: 0px !important;
-        margin-top: -12px !important;
+        padding-top: 8px !important;
+        margin-top: 0px !important;
         padding-bottom: 0rem !important;
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
@@ -202,12 +202,10 @@ st.markdown(
         color: #ff8c00 !important;
         box-shadow: 0 0 8px rgba(255, 140, 0, 0.3) !important;
     }
-   /* ปุ่มเครื่องมือวาดรูปบนเดสท็อป (ต่อท้าย Timeframe) */
+   /* ปุ่มเครื่องมือวาดรูปบนเดสท็อป (ต่อท้าย Timeframe) - Dark Amber Glass */
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stRadio"]) > div:nth-child(2) button,
     button[key="btn_toggle_draw_desktop"] {
-        background-color: #0e1118 !important;
-        border: 1px solid #1e2433 !important;
-        color: #d1d5db !important;
-        height: 28px !important;
+        height: 10px !important;
         min-height: 28px !important;
         font-size: 13px !important;
         border-radius: 4px !important;
@@ -217,32 +215,24 @@ st.markdown(
         justify-content: center !important;
         transition: all 0.15s ease-in-out !important;
     }
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stRadio"]) > div:nth-child(2) button[kind="primary"],
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stRadio"]) > div:nth-child(2) button[data-testid="baseButton-primary"],
     button[key="btn_toggle_draw_desktop"][kind="primary"],
     button[key="btn_toggle_draw_desktop"][data-testid="baseButton-primary"] {
-        background: rgba(255, 125, 30, 0.22) !important;
-        border: 1.5px solid #ff7d1e !important;
-        box-shadow: 0 0 8px rgba(255, 125, 30, 0.5) !important;
+        background: rgba(255, 125, 30, 0.16) !important;
+        border: 1.5px solid rgba(255, 125, 30, 0.55) !important;
+        box-shadow: 0 0 10px rgba(255, 125, 30, 0.25) !important;
+        backdrop-filter: blur(8px) !important;
+        color: #ff9d42 !important;
     }
-    button[key="btn_toggle_draw_desktop"]:hover {
-        border-color: #ff7d1e !important;
-    }
-    /* สถานะเปิดใช้งาน: เรืองแสงสีส้มสไตล์ TradingView */
-    button[key="btn_toggle_draw"][kind="primary"],
-    button[key="btn_toggle_draw"][data-testid="baseButton-primary"] {
-        background: rgba(255, 125, 30, 0.18) !important;
-        border: 1.5px solid #ff7d1e !important;
-        box-shadow: 0 0 10px rgba(255, 125, 30, 0.45) !important;
-    }
-    /* สถานะปิดใช้งาน: สีเทาเข้มกลืนกับแถบควบคุม */
-    button[key="btn_toggle_draw"][kind="secondary"],
-    button[key="btn_toggle_draw"][data-testid="baseButton-secondary"] {
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stRadio"]) > div:nth-child(2) button[kind="secondary"],
+    div[data-testid="stHorizontalBlock"]:has(div[data-testid="stRadio"]) > div:nth-child(2) button[data-testid="baseButton-secondary"],
+    button[key="btn_toggle_draw_desktop"][kind="secondary"],
+    button[key="btn_toggle_draw_desktop"][data-testid="baseButton-secondary"] {
         background: #0e1118 !important;
         border: 1px solid #1e2433 !important;
-        opacity: 0.6 !important;
-    }
-    button[key="btn_toggle_draw"]:hover {
-        border-color: #ff7d1e !important;
-        opacity: 1 !important;
+        color: #8b949e !important;
+        opacity: 0.7 !important;
     }
 
     /* 7. ปลดล็อกกราฟและการปรับขนาดพาเนลด้วย CSS Variables */
@@ -285,30 +275,26 @@ st.markdown(
         border-left: 1px solid #161a23 !important;
     }
 
-    /* ปุ่มตลาด และปุ่มดาวฝั่งซ้าย */
-    div[data-testid="column"]:has(#custom-left-menu-anchor) button:has(span:contains("ตลาด")),
-    div[data-testid="column"]:has(#custom-left-menu-anchor) button:has(div:contains("ตลาด")) {
-        background: linear-gradient(135deg, #00e676, #00ff88) !important;
-        color: #000000 !important;
-        font-weight: 700 !important;
-        border: 1px solid #00ff88 !important;
-        box-shadow: 0 0 12px rgba(0, 230, 118, 0.5) !important;
-    }
-    div[data-testid="column"]:has(#custom-left-menu-anchor) button:has(span:contains("⭐")),
-    div[data-testid="column"]:has(#custom-left-menu-anchor) .stButton:has(button:contains("⭐")) button {
-        background: rgba(0, 230, 118, 0.15) !important;
-        border: 1.5px solid #00e676 !important;
-        box-shadow: 0 0 8px rgba(0, 230, 118, 0.5) !important;
-    }
-
-    /* Watchlist Active Highlight (กรอบไฟสีส้มเรืองแสงแบบ TradingView แท้) */
-    div[data-testid="column"]:has(#custom-left-menu-anchor) div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) button[kind="primary"],
-    div[data-testid="column"]:has(#custom-left-menu-anchor) div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) button[data-testid="baseButton-primary"] {
-        background: rgba(255, 125, 30, 0.22) !important;
-        border: 1.5px solid #ff7d1e !important;
-        box-shadow: 0 0 12px rgba(255, 125, 30, 0.6) !important;
+    /* Dark Amber Glass: ปุ่ม Active ฝั่งซ้าย (ตลาด, กราฟเปรียบเทียบ, ⭐, เหรียญที่เลือก, บทวิเคราะห์เงินทุนไหล) */
+    div[data-testid="column"]:has(#custom-left-menu-anchor) button[kind="primary"],
+    div[data-testid="column"]:has(#custom-left-menu-anchor) button[data-testid="baseButton-primary"],
+    div[data-testid="stColumn"]:has(#custom-left-menu-anchor) button[kind="primary"],
+    div[data-testid="stColumn"]:has(#custom-left-menu-anchor) button[data-testid="baseButton-primary"] {
+        background: rgba(255, 125, 30, 0.16) !important;
+        border: 1.5px solid rgba(255, 125, 30, 0.55) !important;
+        box-shadow: 0 0 12px rgba(255, 125, 30, 0.25) !important;
+        backdrop-filter: blur(8px) !important;
         color: #ff9d42 !important;
         font-weight: 700 !important;
+    }
+    div[data-testid="column"]:has(#custom-left-menu-anchor) button[kind="primary"]:hover,
+    div[data-testid="column"]:has(#custom-left-menu-anchor) button[data-testid="baseButton-primary"]:hover,
+    div[data-testid="stColumn"]:has(#custom-left-menu-anchor) button[kind="primary"]:hover,
+    div[data-testid="stColumn"]:has(#custom-left-menu-anchor) button[data-testid="baseButton-primary"]:hover {
+        background: rgba(255, 125, 30, 0.26) !important;
+        border-color: #ff7d1e !important;
+        box-shadow: 0 0 14px rgba(255, 125, 30, 0.45) !important;
+        color: #ffa858 !important;
     }
 
     /* 8. สไตล์ตัวเลข % และราคา */

@@ -1,8 +1,8 @@
 # drawing_chart.py — Multi-Pane Anchored Drawing Terminal (Modular Clean Edition)
 import json
 import os
-import streamlit.components.v1 as components
 import streamlit as st
+import streamlit.components.v1 as components
 from data.fetchers import resolve_market_info
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -14,7 +14,7 @@ def _load_asset(filename: str) -> str:
         return f.read()
 
 # =========================================================================
-# 1. CSS รองรับ Touch Dragging และ Fullscreen (iOS Safari + Android + PC)
+# 1. CSS รองรับ Touch Dragging, Fullscreen และปรับขนาดตัวเลขหัวชาร์ต
 # =========================================================================
 EXTRA_TOUCH_CSS = """
 /* ป้องกัน Safari Double-Tap Zoom และล็อกไม่ให้การเลื่อนนิ้วหลุดไปเลื่อนหน้าจอหลัก */
@@ -33,7 +33,6 @@ EXTRA_TOUCH_CSS = """
     position: relative !important;
     cursor: row-resize !important;
 }
-/* เพิ่มพื้นที่แตะเสมือน 28px บน-ล่าง ให้นิ้วแตะลากติดทันที */
 .pane-resizer::after, .resizer::after, .chart-divider::after, [class*="resizer"]::after, [class*="divider"]::after {
     content: '' !important;
     position: absolute !important;
@@ -43,6 +42,21 @@ EXTRA_TOUCH_CSS = """
     right: 0 !important;
     z-index: 9999 !important;
     background: transparent !important;
+}
+
+/* 1. ย่อเปอร์เซ็นต์ติดราคาหลัก (วงแดง) ให้เล็กลง */
+.price-change, .change-pct, .legend-change, .header-change, #header-change, #price-change, [class*="change-pct"], [class*="price-change"] {
+    font-size: 11.5px !important;
+    font-weight: 600 !important;
+    opacity: 0.85 !important;
+}
+
+/* 2. ขยายกล่อง 24h (วงเขียว) ให้ใหญ่เด่นชัด */
+.badge-24h, .stat-24h, .change-24h, #badge-24h, [class*="24h"] {
+    font-size: 14.5px !important;
+    font-weight: 800 !important;
+    padding: 3px 9px !important;
+    letter-spacing: 0.3px !important;
 }
 
 /* สไตล์เมื่ออยู่ในโหมดเต็มหน้าจอ (Fullscreen Overlay) */
@@ -86,7 +100,7 @@ body.chart-fullscreen-active .chart-container {
 """
 
 # =========================================================================
-# 2. JavaScript จัดการ Touch Dragging และ Double-Tap Fullscreen
+# 2. JavaScript จัดการ Touch Dragging, Double-Tap Fullscreen และ Badge Styling
 # =========================================================================
 EXTRA_TOUCH_JS = """
 (function() {
@@ -108,7 +122,6 @@ EXTRA_TOUCH_JS = """
                 const t = e.touches[0];
                 if (!t) return;
 
-                // ยิง synthetic mousedown ไปยังตัวเส้น เพื่อเรียกฟังก์ชันปรับความสูงเดิม
                 const mdEv = new MouseEvent('mousedown', {
                     bubbles: true,
                     cancelable: true,
@@ -201,7 +214,6 @@ EXTRA_TOUCH_JS = """
                     zIndex: frame.style.zIndex || '',
                     background: frame.style.background || ''
                 };
-                // ขยาย iframe ในหน้าต่างหลักให้คลุม 100vw x 100vh
                 frame.style.setProperty('position', 'fixed', 'important');
                 frame.style.setProperty('top', '0', 'important');
                 frame.style.setProperty('left', '0', 'important');
@@ -254,14 +266,12 @@ EXTRA_TOUCH_JS = """
         const chartArea = document.body;
         let lastTap = 0;
 
-        // ดับเบิลคลิกบนคอมพิวเตอร์
         chartArea.addEventListener('dblclick', function(e) {
             if (e.target.closest('button, select, input, [role="button"], .pane-resizer, #btn-exit-fullscreen-float')) return;
             e.preventDefault();
             toggleFullscreen();
         });
 
-        // ดับเบิลแท็บบนมือถือ (iPhone & Android)
         chartArea.addEventListener('touchend', function(e) {
             if (e.target.closest('button, select, input, [role="button"], .pane-resizer, #btn-exit-fullscreen-float')) return;
             const now = Date.now();
@@ -274,9 +284,51 @@ EXTRA_TOUCH_JS = """
         }, { passive: false });
     }
 
+    // ---------------------------------------------------------------------
+    // C. ปรับแต่งขนาดตัวเลขเปอร์เซ็นต์ (วงแดงย่อลง / วงเขียว 24h ขยายใหญ่เด่นขึ้น)
+    // ---------------------------------------------------------------------
+    function adjustHeaderBadges() {
+        // 1. วงเขียว (24h) -> ขยายใหญ่เด่นชัด
+        const allEls = document.querySelectorAll('*');
+        for (let el of allEls) {
+            if (el.children.length === 0 && el.textContent && el.textContent.trim().startsWith('24h')) {
+                el.style.setProperty('font-size', '14.5px', 'important');
+                el.style.setProperty('font-weight', '800', 'important');
+                el.style.setProperty('letter-spacing', '0.3px', 'important');
+                const parent = el.parentElement;
+                if (parent) {
+                    parent.style.setProperty('padding', '2px 8px', 'important');
+                    parent.style.setProperty('border-radius', '5px', 'important');
+                }
+                break;
+            }
+        }
+
+        // 2. วงแดง (% ติดราคาหลักในแถวแรก) -> ย่อให้เล็กลงเป็นตัวรอง
+        const headerEl = document.querySelector('#chart-header, .chart-header, .header-container, #header, .legend, [class*="header"], div[style*="position: absolute"]');
+        if (headerEl) {
+            const spans = headerEl.querySelectorAll('span, div, p, b');
+            for (let s of spans) {
+                if (s.children.length === 0 && s.textContent) {
+                    const txt = s.textContent.trim();
+                    if (txt.includes('%') && !txt.includes('24h') && (txt.startsWith('+') || txt.startsWith('-') || txt.startsWith('0') || txt.endsWith('%'))) {
+                        s.style.setProperty('font-size', '11.5px', 'important');
+                        s.style.setProperty('font-weight', '600', 'important');
+                        s.style.setProperty('opacity', '0.85', 'important');
+                        s.style.setProperty('margin-left', '4px', 'important');
+                    }
+                }
+            }
+        }
+    }
+
     initTouchResizers();
     bindChartEvents();
-    setInterval(initTouchResizers, 600);
+    adjustHeaderBadges();
+    setInterval(() => {
+        initTouchResizers();
+        adjustHeaderBadges();
+    }, 600);
 })();
 """
 
@@ -294,7 +346,6 @@ def render_drawing_chart(
     meta = resolve_market_info(curr_sym)
     display_title = meta.get("display_name", curr_sym)
     exchange_name = meta.get("exchange", "MARKET")
-    # ดึง % ตัดรอบวัน (00:00 UTC) ให้ตรงกับ TradingView, แท็บบน และเมนูขวา 100%
     if change_pct is not None:
       live_pct = float(change_pct)
     else:
@@ -311,7 +362,6 @@ def render_drawing_chart(
     pct_str = f"{pct_sign}{live_pct:.2f}%"
     pct_color = "#00e676" if live_pct >= 0 else "#ff3366"
 
-    # คำนวณความสูงหน้าต่าง
     if len(charts_config) == 1:
         charts_config[0]["chart"]["height"] = 650
         real_total_h = 660
@@ -328,7 +378,6 @@ def render_drawing_chart(
     chart_json = json.dumps(charts_config)
     toolbar_display = "flex" if show_toolbar else "none"
 
-    # โหลดไฟล์แยกส่วนแล้วนำมาประกอบกัน พร้อมฉีดโค้ด Touch & Fullscreen
     html_template = _load_asset("drawing_template.html")
     css_content = _load_asset("drawing_style.css") + "\n" + EXTRA_TOUCH_CSS
     js_fib = _load_asset("fibonacci_tool.js")

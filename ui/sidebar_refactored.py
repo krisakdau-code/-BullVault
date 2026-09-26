@@ -328,12 +328,13 @@ def render_sidebar():
         padding: 0 !important;
     }
 
-    /* สไตล์ปุ่มเหรียญ Watchlist ที่เปิดกราฟอยู่ (Active Highlight เรืองแสงสีส้ม TradingView) */
+   /* สไตล์ปุ่มเหรียญ Watchlist ที่เปิดกราฟอยู่ - Dark Amber Glass */
     div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) div[data-testid="column"]:first-child button[kind="primary"],
     div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) div[data-testid="column"]:first-child button[data-testid="baseButton-primary"] {
-        border: 1.5px solid #ff7d1e !important;
-        background: rgba(255, 125, 30, 0.22) !important;
-        box-shadow: 0 0 12px rgba(255, 125, 30, 0.7) !important;
+        border: 1.5px solid rgba(255, 125, 30, 0.55) !important;
+        background: rgba(255, 125, 30, 0.16) !important;
+        box-shadow: 0 0 10px rgba(255, 125, 30, 0.25) !important;
+        backdrop-filter: blur(8px) !important;
         color: #ff9d42 !important;
         font-weight: 700 !important;
     }
