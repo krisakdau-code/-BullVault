@@ -102,9 +102,20 @@ CRYPTO_EXCHANGE_FILES = {
     "Gate.io": "gateio_crypto.json", "Coinbase": "coinbase_crypto.json", "Kraken": "kraken_crypto.json",
 }
 
+# รายชื่อไฟล์หุ้นรายประเทศทั้งหมดในโฟลเดอร์ data/
 STOCK_MARKET_FILES = {
-    "หุ้นไทย (SET)": "thai_stocks.json", "หุ้นสหรัฐฯ (US)": "us_stocks.json",
-    "หุ้นจีน (China)": "china_stocks.json", "หุ้นเวียดนาม (VN)": "vietnam_stocks.json",
+    "หุ้นไทย (SET)": "thai_stocks.json", 
+    "หุ้นสหรัฐฯ (US)": "us_stocks.json",
+    "หุ้นจีน (China)": "china_stocks.json", 
+    "หุ้นเวียดนาม (VN)": "vietnam_stocks.json",
+    "🇯🇵 หุ้นญี่ปุ่น (TSE)": "japan_stocks.json",
+    "🇰🇷 หุ้นเกาหลีใต้ (KRX)": "korea_stocks.json",
+    "🇮🇳 หุ้นอินเดีย (NSE)": "india_stocks.json",
+    "🇩🇪 หุ้นเยอรมนี (XETRA)": "germany_stocks.json",
+    "🇬🇧 หุ้นสหราชอาณาจักร (LSE)": "uk_stocks.json",
+    "🇫🇷 หุ้นฝรั่งเศส (Euronext)": "france_stocks.json",
+    "🇮🇹 หุ้นอิตาลี (Borsa Italiana)": "italy_stocks.json",
+    "🇪🇸 หุ้นสเปน (BME Madrid)": "spain_stocks.json"
 }
 
 DEFAULT_FOREX = ["USDTHB=X", "EURUSD=X", "USDJPY=X", "GBPUSD=X", "AUDUSD=X", "USDCHF=X", "USDCAD=X", "EURGBP=X"]
@@ -112,7 +123,6 @@ DEFAULT_COMMODITIES = ["GC=F", "SI=F", "CL=F", "BZ=F", "NG=F", "HG=F"]
 
 @st.dialog("ค้นหาและเลือกสินทรัพย์ (Symbol Search)", width="large")
 def render_symbol_modal():
-    # CSS: ปรับปุ่มให้ตัดบรรทัดได้ ไม่บีบตัวหนังสือ ไม่ขึ้นจุดไข่ปลา (...)
     st.markdown("""
     <style>
         div[data-testid="stDialog"] div[role="radiogroup"],
@@ -127,7 +137,6 @@ def render_symbol_modal():
             background: rgba(255, 255, 255, 0.05) !important; padding: 4px 10px !important;
             border-radius: 16px !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;
         }
-        /* แก้ไขปัญหาปุ่มมือถือโดนตัดข้อความ */
         div[data-testid="stDialog"] button,
         div[data-testid="stModal"] button {
             white-space: normal !important;
@@ -213,7 +222,6 @@ def render_symbol_modal():
     elif isinstance(symbol_raw_data, list):
         clean_symbols = [str(s) for s in symbol_raw_data if s]
 
-    # ฟังก์ชันแยกชื่ออังกฤษและไทยแบบชัดเจน
     def _get_display_names(s_code):
         if s_code in COMPANY_EN_TH:
             return COMPANY_EN_TH[s_code]
@@ -222,14 +230,12 @@ def render_symbol_modal():
         if raw_val in CHINESE_NAME_MAP:
             return CHINESE_NAME_MAP[raw_val]
         
-        # ถ้าระบุชื่อแบบมีวงเล็บไว้อยู่แล้ว
         if "(" in raw_val and ")" in raw_val:
             en_part = raw_val.split("(")[0].strip()
             th_part = raw_val.split("(")[1].replace(")", "").strip()
             return en_part, th_part
         
         num = s_code.split('.')[0]
-        # กรณีตัวที่เหลือ ให้ระบุรหัสตัวเลขนำหน้าชัดเจน ไม่มีคำว่า SSE Corporation บัง
         if s_code.endswith('.SS'):
             return f"SSE {num}", f"บมจ. เซี่ยงไฮ้ ({raw_val or num})"
         elif s_code.endswith('.SZ'):
@@ -241,7 +247,7 @@ def render_symbol_modal():
     st.write("---")
     col_search, col_count = st.columns([3, 1])
     with col_search:
-        search_kw = st.text_input("พิมพ์ชื่อบริษัทหรือรหัสเพื่อค้นหา...", placeholder="เช่น ICBC, Tencent, BYD, 600519, เหมาไถ", key="modal_filter_input")
+        search_kw = st.text_input("พิมพ์ชื่อบริษัทหรือรหัสเพื่อค้นหา...", placeholder="เช่น ICBC, Tencent, BYD, Toyota, SAP, 7203", key="modal_filter_input")
     with col_count:
         st.write("")
         st.caption(f"ทั้งหมด: **{len(clean_symbols):,}** รายการ")
@@ -270,15 +276,13 @@ def render_symbol_modal():
                         en_name, th_name = _get_display_names(sym)
                         icon = "✓ " if in_wl else "➕ "
 
-                        # แสดงผล 2 บรรทัดชัดเจน: บรรทัดบนชื่ออังกฤษ บรรทัดล่างชื่อไทย ไม่โดนตัด ...
                         btn_label = f"{icon}**{en_name}**\n:gray[{th_name}]"
 
                         with row_cols[j]:
                             if st.button(btn_label, key=f"btn_m_{current_market_tag}_{sym}", use_container_width=True):
-                                if "custom_watchlist" not in st.session_state:
-                                    st.session_state["custom_watchlist"] = []
-                                if not in_wl:
-                                    st.session_state["custom_watchlist"].append((sym, "--", "0.00%", True))
+                                # ย้ายการ Import เข้ามาในปุ่มเพื่อป้องกัน Circular Import
+                                from ui.sidebar_refactored import add_to_watchlist
+                                add_to_watchlist(sym)
                                 
                                 st.session_state["current_symbol"] = sym
                                 st.session_state["selected_symbol"] = sym

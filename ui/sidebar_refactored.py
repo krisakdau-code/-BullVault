@@ -1,5 +1,6 @@
 # ui/sidebar_refactored.py — Streamlined Terminal Sidebar (Slot Replacement & TradingView Standard)
 import streamlit as st
+import streamlit.components.v1 as components
 import datetime
 import json
 import os
@@ -16,6 +17,59 @@ WATCHLIST_STORE_FILE = "watchlist_store.json"
 
 PREFERRED_COLOR_ORDER = ["red", "orange", "green", "blue", "gray"]
 SORTED_COLOR_KEYS = [k for k in PREFERRED_COLOR_ORDER if k in COLOR_KEYS] + [k for k in COLOR_KEYS if k not in PREFERRED_COLOR_ORDER]
+
+
+# ==============================================================================
+# LOCALSTORAGE WATCHLIST ENGINE (BROWSER PERSISTENCE)
+# ==============================================================================
+def _sync_localstorage_to_watchlist():
+    """อ่านค่าจาก URL Query Params (ที่ดึงมาจาก LocalStorage) เข้าสู่ custom_watchlist"""
+    url_intl = st.query_params.get("intl_wl", "")
+    if url_intl:
+        saved_list = [s.strip().upper() for s in url_intl.split(",") if s.strip()]
+        if "custom_watchlist" in st.session_state:
+            existing = set(norm_sym(r[0] if isinstance(r, (list, tuple)) else r).upper() for r in st.session_state["custom_watchlist"])
+            for sym in saved_list:
+                sym_norm = norm_sym(sym).upper()
+                if sym_norm not in existing:
+                    st.session_state["custom_watchlist"].append((sym, "-", "-", True))
+                    existing.add(sym_norm)
+
+def _sync_watchlist_to_url():
+    """อัปเดต Query Params เพื่อส่งสัญญาณให้ LocalStorage บันทึกข้อมูลลงเครื่อง"""
+    if "custom_watchlist" in st.session_state:
+        syms = [norm_sym(r[0] if isinstance(r, (list, tuple)) else r).upper() for r in st.session_state["custom_watchlist"]]
+        st.query_params["intl_wl"] = ",".join(syms)
+
+def inject_localstorage_sync_bridge():
+    """ซิงก์รายการ Watchlist ระหว่าง Browser LocalStorage กับ Python Session"""
+    components.html(
+        """
+        <script>
+        (function() {
+            try {
+                const win = window.parent;
+                const STORAGE_KEY = 'bullvault_intl_watchlist';
+                
+                const saved = localStorage.getItem(STORAGE_KEY) || '';
+                const urlParams = new URLSearchParams(win.location.search);
+                const currentUrlVal = urlParams.get('intl_wl') || '';
+                
+                if (saved && !currentUrlVal) {
+                    urlParams.set('intl_wl', saved);
+                    win.location.search = urlParams.toString();
+                } else if (currentUrlVal && currentUrlVal !== saved) {
+                    localStorage.setItem(STORAGE_KEY, currentUrlVal);
+                }
+            } catch(e) {
+                console.error("LocalStorage Bridge Error:", e);
+            }
+        })();
+        </script>
+        """,
+        height=0,
+        width=0,
+    )
 
 
 def _format_vol(v: float) -> str:
@@ -116,7 +170,7 @@ def save_watchlist_data():
 
 
 def add_to_watchlist(sym_code: str):
-    """เพิ่มเหรียญเข้า Watchlist โดยตรง (ไม่เพิ่มซ้ำ)"""
+    """เพิ่มเหรียญเข้า Watchlist โดยตรง (ไม่เพิ่มซ้ำ) พร้อมซิงก์ลง LocalStorage"""
     if not sym_code:
         return
     clean = standardize_symbol(sym_code)
@@ -128,10 +182,11 @@ def add_to_watchlist(sym_code: str):
             st.session_state["custom_watchlist"] = []
         st.session_state["custom_watchlist"].insert(0, (raw, "-", "-", True))
         save_watchlist_data()
+        _sync_watchlist_to_url()
 
 
 def remove_from_watchlist(target_sym: str):
-    """ลบเหรียญออกจาก Watchlist ทันทีแบบ 1-Click และสลับเหรียญหากเหรียญที่ลบกำลังเปิดดูอยู่"""
+    """ลบเหรียญออกจาก Watchlist ทันทีแบบ 1-Click และซิงก์อัปเดต LocalStorage"""
     t_clean = standardize_symbol(target_sym)
     target_norm = norm_sym(target_sym).upper()
 
@@ -143,8 +198,8 @@ def remove_from_watchlist(target_sym: str):
     assign_color(target_sym, None)
     assign_color(t_clean, None)
     save_watchlist_data()
+    _sync_watchlist_to_url()
 
-    # หากเหรียญที่ลบเป็นเหรียญที่กำลังเปิดกราฟอยู่ ให้สลับไปที่เหรียญถัดไป
     cur_sel = st.session_state.get("current_symbol", "BTCUSDT")
     if standardize_symbol(cur_sel) == t_clean or norm_sym(cur_sel).upper() == target_norm:
         rem = st.session_state.get("custom_watchlist", [])
@@ -253,12 +308,26 @@ def _normalize_row(row):
 def render_sidebar():
     st.markdown('<div id="custom-left-menu-anchor" style="display:none;"></div>', unsafe_allow_html=True)
     ensure_color_state()
+    inject_localstorage_sync_bridge()
 
     if "custom_watchlist" not in st.session_state:
         saved_wl, saved_colors = load_saved_data()
         st.session_state["custom_watchlist"] = saved_wl
         for s, ckey in saved_colors.items():
             assign_color(s, ckey)
+
+    _sync_localstorage_to_watchlist()
+
+    # --- กรองรายการซ้ำใน Watchlist ออกทันที (ป้องกันปัญหา Duplicate Key) ---
+    seen_syms = set()
+    deduped_wl = []
+    for r in st.session_state.get("custom_watchlist", []):
+        sym_name = r[0] if isinstance(r, (list, tuple)) else (r.get("symbol") if isinstance(r, dict) else r)
+        s_norm = norm_sym(sym_name).upper()
+        if s_norm not in seen_syms:
+            seen_syms.add(s_norm)
+            deduped_wl.append(r)
+    st.session_state["custom_watchlist"] = deduped_wl
 
     if "sidebar_active_tab" not in st.session_state:
         st.session_state["sidebar_active_tab"] = "market"
@@ -328,7 +397,6 @@ def render_sidebar():
         padding: 0 !important;
     }
 
-   /* สไตล์ปุ่มเหรียญ Watchlist ที่เปิดกราฟอยู่ - Dark Amber Glass */
     div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) div[data-testid="column"]:first-child button[kind="primary"],
     div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) div[data-testid="column"]:first-child button[data-testid="baseButton-primary"] {
         border: 1.5px solid rgba(255, 125, 30, 0.55) !important;
@@ -339,7 +407,6 @@ def render_sidebar():
         font-weight: 700 !important;
     }
 
-    /* ปุ่มเหรียญปกติ */
     div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) div[data-testid="column"]:first-child button[kind="secondary"],
     div[data-testid="stHorizontalBlock"]:has(.tv-neon-wrap) div[data-testid="column"]:first-child button[data-testid="baseButton-secondary"] {
         border: 1px solid #1e222d !important;
@@ -353,7 +420,6 @@ def render_sidebar():
         color: #ff7d1e !important;
     }
 
-    /* ปุ่มจุดสีจัดการกลุ่มสี */
     .tv-neon-wrap div[data-testid="stPopover"] button {
         background: rgba(255, 107, 0, 0.14) !important;
         border: 1px solid rgba(255, 125, 30, 0.4) !important;
@@ -371,7 +437,6 @@ def render_sidebar():
         box-shadow: 0 0 8px #FF7D1E !important;
     }
 
-    /* ปุ่มลบ ✕ สไตล์ TradingView คมชัด */
     .tv-del-btn button {
         background: transparent !important;
         border: 1px solid transparent !important;
@@ -417,7 +482,6 @@ def render_sidebar():
     </style>
     """, unsafe_allow_html=True)
 
-    # ปุ่มสลับแท็บหลัก: ตลาด | กราฟเปรียบเทียบ
     t_c1, t_c2 = st.columns(2)
     with t_c1:
         if st.button("ตลาด", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "market" else "secondary"):
@@ -432,7 +496,6 @@ def render_sidebar():
     # TAB 1: ตลาด (Watchlist สไตล์ TradingView)
     # ──────────────────────────────────────────────────────────
     if st.session_state["sidebar_active_tab"] == "market":
-        # ดึงเหรียญของแท็บกราฟปัจจุบันโดยตรง
         active_tab_sym = "BTCUSDT"
         if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
             active_id = st.session_state.get("active_tab_id")
@@ -446,13 +509,13 @@ def render_sidebar():
         selected_sym = active_tab_sym
         clean_selected = standardize_symbol(selected_sym)
 
-       # --- เพิ่มเหรียญใหม่ต่อท้ายใน Watchlist ทันที (ไม่เขียนทับเหรียญเดิม) ---
         raw_rows = [_normalize_row(r) for r in st.session_state.get("custom_watchlist", [])]
         wl_syms_clean = [standardize_symbol(r[0]) for r in raw_rows]
 
         if clean_selected not in wl_syms_clean:
             st.session_state["custom_watchlist"].append((clean_selected, "-", "-", True))
             save_watchlist_data()
+            _sync_watchlist_to_url()
             raw_rows = [_normalize_row(r) for r in st.session_state.get("custom_watchlist", [])]
         st.session_state["last_active_wl_sym"] = clean_selected
 
@@ -532,15 +595,6 @@ def render_sidebar():
         if not rows:
             st.caption("ไม่มีเหรียญในกลุ่มนี้ กดปุ่ม ➕ ด้านบนเพื่อเพิ่มเหรียญ")
 
-        active_tf = (
-            st.session_state.get("timeframe") or 
-            st.session_state.get("selected_timeframe") or 
-            st.session_state.get("current_timeframe") or 
-            st.session_state.get("selected_tf") or
-            st.session_state.get("tf") or 
-            "1h"
-        )
-
         display_rows = []
         for sym, p_val, c_val, is_up in rows:
             dot = get_sym_color_dot(sym)
@@ -582,7 +636,6 @@ def render_sidebar():
             display_rows.sort(key=lambda x: x["v_num"], reverse=True)
 
         with st.container(height=480):
-            # ใหม่ (เพิ่ม idx และครอบด้วย enumerate):
             for idx, item in enumerate(display_rows):
                 sym = item["sym"]
                 dot = item["dot"]
@@ -604,7 +657,7 @@ def render_sidebar():
                 with c_tag:
                     st.markdown('<div class="tv-neon-wrap">', unsafe_allow_html=True)
                     with st.popover("●", use_container_width=True, help=f"จัดกลุ่มสี {sym}"):
-                        _color_menu(sym, prefix="wl")
+                        _color_menu(sym, prefix=f"wl_{idx}")
                     st.markdown('</div>', unsafe_allow_html=True)
 
                 with c_pct:
@@ -616,7 +669,7 @@ def render_sidebar():
 
                 with c_del:
                     st.markdown('<div class="tv-del-btn">', unsafe_allow_html=True)
-                    if st.button("✕", key=f"wl_del_{sym}", help=f"ลบ {sym} ออกจาก Watchlist"):
+                    if st.button("✕", key=f"wl_del_{sym}_{idx}", help=f"ลบ {sym} ออกจาก Watchlist"):
                         remove_from_watchlist(sym)
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
