@@ -1,32 +1,50 @@
 # ui/mobile_view.py — TradingView Mobile Standard
-import os, json
+import json
+import os
+from ui.indicator_modal import show_indicators_modal
+from ui.symbol_modal import render_symbol_modal
 import streamlit as st
 import streamlit.components.v1 as components
-from ui.symbol_modal import render_symbol_modal
-from ui.indicator_modal import show_indicators_modal
 
-PRIMARY_TFS = ["5m", "15m", "30m", "1h", "2h", "3h", "4h", "D", "2D", "3D", "W", "M"]
+PRIMARY_TFS = [
+    "5m",
+    "15m",
+    "30m",
+    "1h",
+    "2h",
+    "3h",
+    "4h",
+    "D",
+    "2D",
+    "3D",
+    "W",
+    "M",
+]
 COLOR_TABS = [
     ("⭐", "star", ["star", "yellow", "fav"]),
     ("🔴", "red", ["red"]),
     ("🟠", "orange", ["orange"]),
     ("🟢", "green", ["green"]),
     ("🔵", "blue", ["blue"]),
-    ("⚪", "white", ["white", "gray"])
+    ("⚪", "white", ["white", "gray"]),
 ]
 
-def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist_renderer):
-    if "mobile_tab" not in st.session_state:
-        st.session_state["mobile_tab"] = "chart"
 
-    cur_tab = st.session_state["mobile_tab"]
-    cur_sym = st.session_state.get("current_symbol", "BTCUSDT")
-    cur_tf = st.session_state.get("selected_tf", "1h")
+def render_mobile_view(
+    df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist_renderer
+):
+  if "mobile_tab" not in st.session_state:
+    st.session_state["mobile_tab"] = "chart"
 
-    # =========================================================================
-    # 1. CSS จัดระเบียบโครงสร้าง Mobile
-    # =========================================================================
-    st.markdown("""
+  cur_tab = st.session_state["mobile_tab"]
+  cur_sym = st.session_state.get("current_symbol", "BTCUSDT")
+  cur_tf = st.session_state.get("selected_tf", "1h")
+
+  # =========================================================================
+  # 1. CSS จัดระเบียบโครงสร้าง Mobile
+  # =========================================================================
+  st.markdown(
+      """
     <style>
         .block-container {
             padding-top: 2px !important;
@@ -190,15 +208,19 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
             font-weight: 700 !important;
         }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+      unsafe_allow_html=True,
+  )
 
-    components.html("""
+  components.html(
+      """
     <script>
     (function() {
         const d = window.parent.document;
         setInterval(() => {
             d.querySelectorAll('#toggle-btn-anchor, #floating-toggle-btn').forEach(e => e.style.setProperty('display', 'none', 'important'));
 
+            // จัดแต่งปุ่ม ตั้งค่า
             d.querySelectorAll('button').forEach(btn => {
                 if (btn.innerText && btn.innerText.includes('ตั้งค่า')) {
                     btn.style.setProperty('background', 'rgba(255, 255, 255, 0.08)', 'important');
@@ -238,162 +260,232 @@ def render_mobile_view(df, meta, is_thb_mode, fx_rate, chart_renderer, watchlist
                     }
                 }
             });
+
+            // ดักจับการกดปุ่มเต็มจอ (⛶) เพื่อสั่งงานฝั่ง Client โดยตรง ไม่โดนเบราว์เซอร์บล็อก
+            const fsBtn = Array.from(d.querySelectorAll('button')).find(b => b.innerText && b.innerText.trim() === '⛶');
+            if (fsBtn && !fsBtn.dataset.fsBound) {
+                fsBtn.dataset.fsBound = 'true';
+                const toggleFS = function(e) {
+                    if (e) { e.preventDefault(); e.stopPropagation(); }
+                    const doc = d;
+                    const de = doc.documentElement;
+                    if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
+                        if (de.requestFullscreen) {
+                            de.requestFullscreen().catch(() => {});
+                        } else if (de.webkitRequestFullscreen) {
+                            de.webkitRequestFullscreen().catch(() => {});
+                        }
+                    } else {
+                        if (doc.exitFullscreen) {
+                            doc.exitFullscreen().catch(() => {});
+                        } else if (doc.webkitExitFullscreen) {
+                            doc.webkitExitFullscreen().catch(() => {});
+                        }
+                    }
+                };
+                fsBtn.onclick = toggleFS;
+                fsBtn.ontouchend = toggleFS;
+            }
         }, 150);
     })();
     </script>
-    """, height=0, width=0)
+    """,
+      height=0,
+      width=0,
+  )
 
-    # =========================================================================
-    # 2. พื้นที่แสดงผลหลัก
-    # =========================================================================
-    if cur_tab == "list":
-        watchlist_renderer()
+  # =========================================================================
+  # 2. พื้นที่แสดงผลหลัก
+  # =========================================================================
+  if cur_tab == "list":
+    watchlist_renderer()
 
-    elif cur_tab == "summary":
-        from ui.right_panel import render_right_panel
-        render_right_panel(df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate)
+  elif cur_tab == "summary":
+    from ui.right_panel import render_right_panel
 
-    else:
-        chart_renderer()
+    render_right_panel(
+        df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
+    )
 
-        c_sym, c_tf, c_clr, c_fs = st.columns([1.3, 1.1, 0.9, 0.5], gap="small")
+  else:
+    chart_renderer()
 
-        with c_sym:
-            st.markdown('<div class="subchart-marker" style="display:none;"></div>', unsafe_allow_html=True)
-            with st.popover(f"🔍 {cur_sym} ▾", use_container_width=True):
-                # ขยับตัวหนังสือขึ้นและเพิ่มระยะห่างด้านล่าง ไม่ให้ทับซ้อนปุ่มสี
-                st.markdown(
-                    "<div style='font-size:12px; font-weight:700; color:#ff7d1e; margin-top:2px; margin-bottom:12px; line-height:1.4;'>⚡ เลือกกลุ่มดาว / สี</div>",
-                    unsafe_allow_html=True
-                )
+    c_sym, c_tf, c_clr, c_fs = st.columns([1.3, 1.1, 0.9, 0.5], gap="small")
 
-                cur_col = st.session_state.get("mobile_quick_col", "star")
-                c_cols = st.columns(6)
-                for idx, (emoji, key, _) in enumerate(COLOR_TABS):
-                    with c_cols[idx]:
-                        if st.button(emoji, key=f"mq_col_{key}"):
-                            st.session_state["mobile_quick_col"] = key
-                            st.rerun()
+    with c_sym:
+      st.markdown(
+          '<div class="subchart-marker" style="display:none;"></div>',
+          unsafe_allow_html=True,
+      )
+      with st.popover(f"🔍 {cur_sym} ▾", use_container_width=True):
+        st.markdown(
+            "<div style='font-size:12px; font-weight:700; color:#ff7d1e;"
+            " margin-top:2px; margin-bottom:12px; line-height:1.4;'>⚡"
+            " เลือกกลุ่มดาว / สี</div>",
+            unsafe_allow_html=True,
+        )
 
-                def _load_wlists():
-                    for p in [".color_watchlists.json", "data/.color_watchlists.json"]:
-                        if os.path.exists(p):
-                            try:
-                                with open(p, "r", encoding="utf-8") as f:
-                                    return json.load(f)
-                            except Exception:
-                                pass
-                    return {}
+        cur_col = st.session_state.get("mobile_quick_col", "star")
+        c_cols = st.columns(6)
+        for idx, (emoji, key, _) in enumerate(COLOR_TABS):
+          with c_cols[idx]:
+            if st.button(emoji, key=f"mq_col_{key}"):
+              st.session_state["mobile_quick_col"] = key
+              st.rerun()
 
-                matched_symbols = []
-                if cur_col == "star":
-                    cw = st.session_state.get("custom_watchlist", [])
-                    for item in cw:
-                        if isinstance(item, (list, tuple)) and len(item) > 0:
-                            matched_symbols.append(str(item[0]))
-                        elif isinstance(item, dict) and "symbol" in item:
-                            matched_symbols.append(str(item["symbol"]))
-                        elif isinstance(item, str) and item.strip():
-                            matched_symbols.append(item.strip())
-                    
-                    if not matched_symbols:
-                        wlists = _load_wlists()
-                        for k in ["star", "yellow", "fav"]:
-                            if k in wlists and wlists[k]:
-                                matched_symbols = wlists[k]
-                                break
-                else:
-                    wlists = _load_wlists()
-                    active_aliases = next((a for _, k, a in COLOR_TABS if k == cur_col), [cur_col])
-                    for k, v in wlists.items():
-                        if k.lower() in active_aliases:
-                            matched_symbols = v
-                            break
+        def _load_wlists():
+          for p in [".color_watchlists.json", "data/.color_watchlists.json"]:
+            if os.path.exists(p):
+              try:
+                with open(p, "r", encoding="utf-8") as f:
+                  return json.load(f)
+              except Exception:
+                pass
+          return {}
 
-                if matched_symbols:
-                    st.markdown("<div style='max-height: 220px; overflow-y: auto; margin: 6px 0; display: flex; flex-direction: column; gap: 4px;'>", unsafe_allow_html=True)
-                    for idx_s, item in enumerate(matched_symbols):
-                        s_code = item.get("symbol", item) if isinstance(item, dict) else str(item)
-                        if st.button(f"🪙 {s_code}", key=f"qpick_{s_code}_{idx_s}", use_container_width=True):
-                            st.session_state["current_symbol"] = s_code
-                            st.session_state.pop("selected_symbol", None)
-                            for t in st.session_state.get("chart_tabs", []):
-                                if t.get("id") == st.session_state.get("active_tab_id"):
-                                    t["symbol"] = s_code
-                            st.rerun()
-                    st.markdown("</div>", unsafe_allow_html=True)
-                else:
-                    st.caption("ไม่มีเหรียญในกลุ่มนี้")
+        matched_symbols = []
+        if cur_col == "star":
+          cw = st.session_state.get("custom_watchlist", [])
+          for item in cw:
+            if isinstance(item, (list, tuple)) and len(item) > 0:
+              matched_symbols.append(str(item[0]))
+            elif isinstance(item, dict) and "symbol" in item:
+              matched_symbols.append(str(item["symbol"]))
+            elif isinstance(item, str) and item.strip():
+              matched_symbols.append(item.strip())
 
-                st.divider()
+          if not matched_symbols:
+            wlists = _load_wlists()
+            for k in ["star", "yellow", "fav"]:
+              if k in wlists and wlists[k]:
+                matched_symbols = wlists[k]
+                break
+        else:
+          wlists = _load_wlists()
+          active_aliases = next(
+              (a for _, k, a in COLOR_TABS if k == cur_col), [cur_col]
+          )
+          for k, v in wlists.items():
+            if k.lower() in active_aliases:
+              matched_symbols = v
+              break
 
-                if st.button("🔎 ค้นหาสินทรัพย์ทั้งหมด...", key="mob_open_sym_search", use_container_width=True):
-                    render_symbol_modal()
+        if matched_symbols:
+          st.markdown(
+              "<div style='max-height: 220px; overflow-y: auto; margin: 6px 0;"
+              " display: flex; flex-direction: column; gap: 4px;'>",
+              unsafe_allow_html=True,
+          )
+          for idx_s, item in enumerate(matched_symbols):
+            s_code = (
+                item.get("symbol", item) if isinstance(item, dict) else str(item)
+            )
+            if st.button(
+                f"🪙 {s_code}",
+                key=f"qpick_{s_code}_{idx_s}",
+                use_container_width=True,
+            ):
+              st.session_state["current_symbol"] = s_code
+              st.session_state.pop("selected_symbol", None)
+              for t in st.session_state.get("chart_tabs", []):
+                if t.get("id") == st.session_state.get("active_tab_id"):
+                  t["symbol"] = s_code
+              st.rerun()
+          st.markdown("</div>", unsafe_allow_html=True)
+        else:
+          st.caption("ไม่มีเหรียญในกลุ่มนี้")
 
-        with c_tf:
-            with st.popover(f"⏱️ {cur_tf} ▾", use_container_width=True):
-                st.caption("เลือกไทม์เฟรม")
-                for tf_item in PRIMARY_TFS:
-                    t_type = "primary" if tf_item == cur_tf else "secondary"
-                    if st.button(tf_item, key=f"mob_qtf_{tf_item}", type=t_type, use_container_width=True):
-                        st.session_state["selected_tf"] = tf_item
-                        for t in st.session_state.get("chart_tabs", []):
-                            if t.get("id") == st.session_state.get("active_tab_id"):
-                                t["tf"] = tf_item
-                        st.rerun()
+        st.divider()
 
-        with c_clr:
-            if st.button("🧹 ล้าง", key="mob_btn_clear_ind", help="ล้างอินดิเคเตอร์ทั้งหมด", use_container_width=True):
-                st.session_state["active_indicators"] = []
-                st.session_state["rsi_enabled"] = False
-                st.session_state["macd_enabled"] = False
-                st.session_state["bb_enabled"] = False
-                st.toast("ล้างอินดิเคเตอร์เรียบร้อย")
-                st.rerun()
+        if st.button(
+            "🔎 ค้นหาสินทรัพย์ทั้งหมด...",
+            key="mob_open_sym_search",
+            use_container_width=True,
+        ):
+          render_symbol_modal()
 
-        with c_fs:
-            if st.button("⛶", key="mob_btn_fullscreen", help="เปิดเต็มจอ", use_container_width=True):
-                components.html("""
-                <script>
-                    const doc = window.parent.document;
-                    if (!doc.fullscreenElement) {
-                        doc.documentElement.requestFullscreen().catch(err => {});
-                    } else {
-                        doc.exitFullscreen().catch(err => {});
-                    }
-                </script>
-                """, height=0, width=0)
+    with c_tf:
+      with st.popover(f"⏱️ {cur_tf} ▾", use_container_width=True):
+        st.caption("เลือกไทม์เฟรม")
+        for tf_item in PRIMARY_TFS:
+          t_type = "primary" if tf_item == cur_tf else "secondary"
+          if st.button(
+              tf_item,
+              key=f"mob_qtf_{tf_item}",
+              type=t_type,
+              use_container_width=True,
+          ):
+            st.session_state["selected_tf"] = tf_item
+            for t in st.session_state.get("chart_tabs", []):
+              if t.get("id") == st.session_state.get("active_tab_id"):
+                t["tf"] = tf_item
+            st.rerun()
 
-    if st.session_state.get("modal_indicators_open", False):
-        show_indicators_modal()
+    with c_clr:
+      if st.button(
+          "🧹 ล้าง",
+          key="mob_btn_clear_ind",
+          help="ล้างอินดิเคเตอร์ทั้งหมด",
+          use_container_width=True,
+      ):
+        st.session_state["active_indicators"] = []
+        st.session_state["rsi_enabled"] = False
+        st.session_state["macd_enabled"] = False
+        st.session_state["bb_enabled"] = False
+        st.toast("ล้างอินดิเคเตอร์เรียบร้อย")
+        st.rerun()
 
-    # =========================================================================
-    # 3. แถบนำทางด้านล่าง 6 ปุ่ม
-    # =========================================================================
-    NAV_ITEMS = [
-        ("📋\nรายการ", "list", "mob_nav_list"),
-        ("📈\nชาร์ต", "chart", "mob_nav_chart"),
-        ("📊\nสรุป", "summary", "mob_nav_summary"),
-        ("✏️\nวาด", "draw", "mob_nav_draw"),
-        ("⚙️\nอินดิ", "ind", "mob_nav_ind"),
-        ("💻\nคอม", "desktop", "mob_nav_desktop")
-    ]
+    with c_fs:
+      # ส่งมอบการคลิกขยายจอให้ฝั่ง Client ดำเนินการผ่าน JavaScript โดยตรง
+      st.button(
+          "⛶",
+          key="mob_btn_fullscreen",
+          help="เปิดเต็มจอ",
+          use_container_width=True,
+      )
 
-    b_cols = st.columns(6, gap="small")
-    with b_cols[0]:
-        st.markdown('<div class="bottom-nav-marker" style="display:none;"></div>', unsafe_allow_html=True)
-    
-    for col, (label, act, k) in zip(b_cols, NAV_ITEMS):
-        with col:
-            is_act = (act == cur_tab) or (act == "draw" and st.session_state.get("show_draw_toolbar", True))
-            if st.button(label, key=k, type="primary" if is_act else "secondary", use_container_width=True):
-                if act in ["list", "chart", "summary"]:
-                    st.session_state["mobile_tab"] = act
-                elif act == "draw":
-                    st.session_state["show_draw_toolbar"] = not st.session_state.get("show_draw_toolbar", True)
-                    st.session_state["mobile_tab"] = "chart"
-                elif act == "ind":
-                    st.session_state["modal_indicators_open"] = True
-                elif act == "desktop":
-                    st.session_state["mobile_mode"] = False
-                st.rerun()
+  if st.session_state.get("modal_indicators_open", False):
+    show_indicators_modal()
+
+  # =========================================================================
+  # 3. แถบนำทางด้านล่าง 6 ปุ่ม
+  # =========================================================================
+  NAV_ITEMS = [
+      ("📋\nรายการ", "list", "mob_nav_list"),
+      ("📈\nชาร์ต", "chart", "mob_nav_chart"),
+      ("📊\nสรุป", "summary", "mob_nav_summary"),
+      ("✏️\nวาด", "draw", "mob_nav_draw"),
+      ("⚙️\nอินดิ", "ind", "mob_nav_ind"),
+      ("💻\nคอม", "desktop", "mob_nav_desktop"),
+  ]
+
+  b_cols = st.columns(6, gap="small")
+  with b_cols[0]:
+    st.markdown(
+        '<div class="bottom-nav-marker" style="display:none;"></div>',
+        unsafe_allow_html=True,
+    )
+
+  for col, (label, act, k) in zip(b_cols, NAV_ITEMS):
+    with col:
+      is_act = (act == cur_tab) or (
+          act == "draw" and st.session_state.get("show_draw_toolbar", True)
+      )
+      if st.button(
+          label,
+          key=k,
+          type="primary" if is_act else "secondary",
+          use_container_width=True,
+      ):
+        if act in ["list", "chart", "summary"]:
+          st.session_state["mobile_tab"] = act
+        elif act == "draw":
+          st.session_state["show_draw_toolbar"] = not st.session_state.get(
+              "show_draw_toolbar", True
+          )
+          st.session_state["mobile_tab"] = "chart"
+        elif act == "ind":
+          st.session_state["modal_indicators_open"] = True
+        elif act == "desktop":
+          st.session_state["mobile_mode"] = False
+        st.rerun()

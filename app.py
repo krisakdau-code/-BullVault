@@ -115,11 +115,20 @@ st.markdown(
         box-shadow: 0 0 8px rgba(0, 230, 118, 0.4) !important;
     }
 
-    [data-testid="stSidebar"] { top: 0 !important; background-color: #090b10 !important; }
+   [data-testid="stSidebar"] { top: 0 !important; background-color: #090b10 !important; }
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* ซ่อนกล่องใส่โค้ดสไตล์ไม่ให้กินพื้นที่ว่างด้านบน */
+    /* 1. ซ่อนและปิดการรับคลิกของ Header Streamlit เพื่อไม่ให้บังปุ่มแท็บด้านบน */
+    header[data-testid="stHeader"],
+    [data-testid="stHeader"] {
+        display: none !important;
+        pointer-events: none !important;
+        height: 0px !important;
+        z-index: -1 !important;
+    }
+
+    /* 2. ซ่อนกล่องใส่โค้ดสไตล์ไม่ให้กินพื้นที่ว่างด้านบน */
     div[data-testid="stElementContainer"]:has(style) {
         display: none !important;
     }
@@ -130,12 +139,23 @@ st.markdown(
     section[data-testid="stMain"] .block-container,
     .block-container {
         padding-top: 0px !important;
-        margin-top: 0px !important; /* ดึงเนื้อหาขึ้นชนขอบบนสุด */
+        margin-top: -70px !important;
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
         max-width: 100% !important;
     }
 
+    /* 4. ยกเลเยอร์แถบปุ่มเขียวด้านบนขึ้นมาหน้าสุด เพื่อให้คลิกได้ 100% */
+    div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) {
+        position: relative !important;
+        z-index: 99999 !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button {
+        position: relative !important;
+        z-index: 99999 !important;
+        pointer-events: auto !important;
+        cursor: pointer !important;
+    }
     /* 4. สไตล์ปุ่มแท็บด้านบนสุด: เขียวสะท้อนแสง Neon Glow */
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[kind="primary"],
     div[data-testid="stHorizontalBlock"]:has(#top-tabs-marker) button[data-testid="baseButton-primary"] {
