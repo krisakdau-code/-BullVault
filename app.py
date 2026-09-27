@@ -139,7 +139,7 @@ st.markdown(
     section[data-testid="stMain"] .block-container,
     .block-container {
         padding-top: 0px !important;
-        margin-top: -70px !important;
+        margin-top: 0px !important;
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
         max-width: 100% !important;
