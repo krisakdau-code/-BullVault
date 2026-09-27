@@ -119,14 +119,18 @@ st.markdown(
     section[data-testid="stMain"] { padding-top: 0 !important; top: 0 !important; }
     [data-testid="stAppViewContainer"] { padding-top: 0 !important; top: 0 !important; }
 
-    /* 3. จัดระยะขอบบนให้พอดีสายตา ไม่ชนขอบจอ และไม่โดนตัด */
+    /* ซ่อนกล่องใส่โค้ดสไตล์ไม่ให้กินพื้นที่ว่างด้านบน */
+    div[data-testid="stElementContainer"]:has(style) {
+        display: none !important;
+    }
+
+    /* 3. ดึงเนื้อหาขึ้นไปให้เต็มชิดขอบจอด้านบนสุด */
     .stApp [data-testid="stMain"],
     .stApp [data-testid="stMainBlockContainer"],
     section[data-testid="stMain"] .block-container,
     .block-container {
-        padding-top: 3px !important;
-        margin-top: 0px !important;
-        padding-bottom: 0rem !important;
+        padding-top: 0px !important;
+        margin-top: -70px !important; /* ดึงเนื้อหาขึ้นชนขอบบนสุด */
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
         max-width: 100% !important;
@@ -407,6 +411,19 @@ def inject_workspace_resizers():
             right: -24px;
             z-index: 10;
         }
+
+            /* ซ่อนแถบสถานะ, ปุ่ม Manage App และ Viewer Badge ที่มุมขวาล่าง */
+        footer,
+        [data-testid="manage-app-button"],
+        [class*="viewerBadge"],
+        [class*="manageApp"] {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0px !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
     </style>
     <script>
     (function() {
