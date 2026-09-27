@@ -79,6 +79,18 @@ st.markdown(
         height: 0px !important;
     }
 
+    /* ดึงเนื้อหาด้านบนให้ชิดขอบจอ */
+    .stApp [data-testid="stMain"],
+    .stApp [data-testid="stMainBlockContainer"],
+    section[data-testid="stMain"] .block-container,
+    .block-container {
+        padding-top: 0px !important;
+        margin-top: -15px !important;
+        padding-left: 0.25rem !important;
+        padding-right: 0.25rem !important;
+        max-width: 100% !important;
+    }
+
     /* 2. สั่งย้ายตัว ☰ (#toggle-btn-anchor) ลงมาอยู่หน้าแถวไทม์เฟรม */
     #toggle-btn-anchor {
         position: fixed !important;
@@ -323,6 +335,8 @@ st.markdown(
     ::-webkit-scrollbar-track { background: #07080a; }
     ::-webkit-scrollbar-thumb { background: #1a202e; border-radius: 2px; }
     ::-webkit-scrollbar-thumb:hover { background: #ff8c00; }
+
+    
 </style>
 """,
     unsafe_allow_html=True,
@@ -383,8 +397,8 @@ def inject_workspace_resizers():
             color: #ff4d5a;
         }
 
-        /* ขยายพื้นที่แตะ (Touch Target) ของปุ่มพับเมนูซ้ายให้กดติดง่ายแม้นิ้วใหญ่ */
-        #btn-collapse-left::after {
+        /* ขยายพื้นที่แตะ (Touch Target) ของปุ่มพับเมนูซ้ายและขวา */
+        #btn-collapse-left::after, #btn-collapse-right-bar::after {
             content: '';
             position: absolute;
             top: -12px;
@@ -443,7 +457,7 @@ def inject_workspace_resizers():
                     
                     resizerL.innerHTML = `
                         <div id="bar-line-left" style="width: 2px; height: 100%; background: #1e2433; transition: background 0.2s;"></div>
-                        <div id="btn-collapse-left" title="พับ/กาง เมนูซ้าย" style="position: absolute; left: 4px; width: 10px; height: 44px; background: #131722; border: 1px solid #2a2e39; border-left: none; border-radius: 0 4px 4px 0; color: #8b949e; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; font-weight: bold; transition: all 0.15s ease; box-shadow: 1px 0 5px rgba(0,0,0,0.5);">‹</div>
+                        <div id="btn-collapse-left" title="พับ/กาง เมนูซ้าย" style="position: absolute; top: 15px; left: 4px; width: 10px; height: 44px; background: #131722; border: 1px solid #2a2e39; border-left: none; border-radius: 0 4px 4px 0; color: #8b949e; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; font-weight: bold; transition: all 0.15s ease; box-shadow: 1px 0 5px rgba(0,0,0,0.5);">‹</div>
                     `;
                     sideCol.after(resizerL);
 
@@ -452,7 +466,6 @@ def inject_workspace_resizers():
                     let isCollapsed = false;
                     let lastWidth = '240px';
 
-                    // ตรวจสอบขนาดจอเริ่มต้น: หากเป็นหน้าจอมือถือขนาดแคบ (< 640px) ให้พับเมนูซ้ายเก็บก่อนอัตโนมัติเพื่อให้เห็นกราฟเต็มตา
                     if (window.parent.innerWidth < 640 && !resizerL.dataset.autoCollapsed) {
                         resizerL.dataset.autoCollapsed = 'true';
                         isCollapsed = true;
@@ -478,7 +491,6 @@ def inject_workspace_resizers():
                         btnLeft.style.width = '10px';
                     };
 
-                    // ฟังก์ชันกดปุ่มพับ / กางเมนูซ้าย
                     const toggleCollapse = function(e) {
                         if (e) { e.stopPropagation(); e.preventDefault(); }
                         isCollapsed = !isCollapsed;
@@ -502,7 +514,6 @@ def inject_workspace_resizers():
                     btnLeft.onclick = toggleCollapse;
                     btnLeft.ontouchend = toggleCollapse;
 
-                    // การลากปรับขนาดเมนูซ้าย (รองรับทั้งเมาส์และนิ้วสัมผัส)
                     const startDragL = (clientX) => {
                         shield.style.display = 'block';
                         const startX = clientX;
@@ -524,7 +535,7 @@ def inject_workspace_resizers():
                         const onMouseMove = (ev) => onMove(ev.clientX);
                         const onMouseUp = () => onEnd();
                         const onTouchMove = (ev) => {
-                            if (ev.cancelable) ev.preventDefault(); // บล็อกหน้าจอเลื่อนหลุดมือถือ
+                            if (ev.cancelable) ev.preventDefault();
                             if (ev.touches && ev.touches[0]) onMove(ev.touches[0].clientX);
                         };
                         const onTouchEnd = () => onEnd();
@@ -547,75 +558,113 @@ def inject_workspace_resizers():
                 }
 
                 // ---------------- เมนูขวา (Right Panel & Resizer) ----------------
-                if (rightCol) {
-                    rightCol.style.position = 'relative';
-                    let resizerR = doc.getElementById('resizer-right-bar');
-                    if (!resizerR || resizerR.parentElement !== rightCol) {
-                        if (resizerR) resizerR.remove();
-                        resizerR = doc.createElement('div');
-                        resizerR.id = 'resizer-right-bar';
-                        resizerR.title = 'คลิกลากเพื่อปรับขนาดเมนูขวา';
-                        resizerR.innerHTML = '<div style="width:3px; height:50px; background:#ff7d1e; border-radius:2px; margin:auto; box-shadow:0 0 10px rgba(255,125,30,0.9);"></div>';
-                        resizerR.style.cssText = 'position: absolute; left: -10px; top: 0; bottom: 0; width: 20px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 999999; user-select: none; transition: background 0.15s; touch-action: none;';
-                        resizerR.onmouseenter = () => { resizerR.style.background = 'rgba(255,125,30,0.2)'; };
-                        resizerR.onmouseleave = () => { resizerR.style.background = 'transparent'; };
-                        rightCol.prepend(resizerR);
+                if (rightCol && !doc.getElementById('resizer-right-bar')) {
+                    const resizerR = doc.createElement('div');
+                    resizerR.id = 'resizer-right-bar';
+                    resizerR.title = 'คลิกลากเพื่อปรับขนาด หรือคลิกแถบเพื่อพับ/กาง';
+                    resizerR.style.cssText = 'position: relative; width: 14px; cursor: col-resize; display: flex; align-items: center; justify-content: center; z-index: 99999; flex-shrink: 0; user-select: none; margin: 0 -7px; background: transparent; transition: background 0.15s; touch-action: none;';
+                    
+                    resizerR.innerHTML = `
+                        <div id="bar-line-right" style="width: 2px; height: 100%; background: #1e2433; transition: background 0.2s;"></div>
+                        <div id="btn-collapse-right-bar" title="พับ/กาง เมนูขวา" style="position: absolute; top: 15px; right: 4px; width: 10px; height: 44px; background: #131722; border: 1px solid #2a2e39; border-right: none; border-radius: 4px 0 0 4px; color: #8b949e; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 10px; font-weight: bold; transition: all 0.15s ease; box-shadow: -1px 0 5px rgba(0,0,0,0.5);">›</div>
+                    `;
+                    rightCol.before(resizerR);
 
-                        const startDragR = (clientX) => {
-                            shield.style.display = 'block';
-                            const startX = clientX;
-                            const startW = rightCol.getBoundingClientRect().width;
-                            const onMove = (x) => {
-                                const nw = Math.max(160, Math.min(window.parent.innerWidth - 100, startW + (startX - x)));
-                                rightCol.style.setProperty('width', nw + 'px', 'important');
-                                rightCol.style.setProperty('min-width', nw + 'px', 'important');
-                                rightCol.style.setProperty('max-width', nw + 'px', 'important');
-                                rightCol.style.setProperty('flex', '0 0 ' + nw + 'px', 'important');
-                                notifyResize();
-                            };
-                            const onEnd = () => {
-                                shield.style.display = 'none';
-                                doc.removeEventListener('mousemove', onMouseMove);
-                                doc.removeEventListener('mouseup', onMouseUp);
-                                doc.removeEventListener('touchmove', onTouchMove);
-                                doc.removeEventListener('touchend', onTouchEnd);
-                                notifyResize();
-                            };
-                            const onMouseMove = (ev) => onMove(ev.clientX);
-                            const onMouseUp = () => onEnd();
-                            const onTouchMove = (ev) => {
-                                if (ev.cancelable) ev.preventDefault(); // บล็อกหน้าจอเลื่อนหลุดมือถือ
-                                if (ev.touches && ev.touches[0]) onMove(ev.touches[0].clientX);
-                            };
-                            const onTouchEnd = () => onEnd();
+                    const btnRightBar = resizerR.querySelector('#btn-collapse-right-bar');
+                    const barLineR = resizerR.querySelector('#bar-line-right');
+                    let isCollapsedR = false;
+                    let lastWidthR = '320px';
 
-                            doc.addEventListener('mousemove', onMouseMove);
-                            doc.addEventListener('mouseup', onMouseUp);
-                            doc.addEventListener('touchmove', onTouchMove, { passive: false });
-                            doc.addEventListener('touchend', onTouchEnd);
-                        };
+                    resizerR.onmouseenter = function() {
+                        if (barLineR) barLineR.style.background = '#ff7d1e';
+                        btnRightBar.style.color = '#ff7d1e';
+                        btnRightBar.style.borderColor = '#ff7d1e';
+                        btnRightBar.style.background = '#1a1f2c';
+                        btnRightBar.style.width = '12px';
+                    };
 
-                        resizerR.onmousedown = (e) => { e.preventDefault(); startDragR(e.clientX); };
-                        resizerR.ontouchstart = (e) => { if (e.touches && e.touches[0]) startDragR(e.touches[0].clientX); };
-                    }
-                }
+                    resizerR.onmouseleave = function() {
+                        if (barLineR) barLineR.style.background = '#1e2433';
+                        btnRightBar.style.color = '#8b949e';
+                        btnRightBar.style.borderColor = '#2a2e39';
+                        btnRightBar.style.background = '#131722';
+                        btnRightBar.style.width = '10px';
+                    };
 
-                // ปุ่มพับเมนูขวา (รองรับทั้ง Click และ Touch)
-                const btnRight = doc.getElementById('btn-collapse-right');
-                if (btnRight && !btnRight.dataset.bound) {
-                    btnRight.dataset.bound = 'true';
                     const toggleRight = function(e) {
                         if (e) { e.stopPropagation(); e.preventDefault(); }
-                        if (rightCol) {
-                            const isHidden = (rightCol.style.display === 'none');
-                            rightCol.style.display = isHidden ? 'block' : 'none';
-                            const barR = doc.getElementById('resizer-right-bar');
-                            if (barR) barR.style.display = isHidden ? 'none' : 'flex';
-                            notifyResize();
+                        isCollapsedR = !isCollapsedR;
+                        if (isCollapsedR) {
+                            lastWidthR = rightCol.style.width || '320px';
+                            rightCol.style.setProperty('display', 'none', 'important');
+                            btnRightBar.innerHTML = '‹';
+                            btnRightBar.style.right = '0px';
+                            btnRightBar.style.borderRight = 'none';
+                            btnRightBar.style.borderRadius = '4px 0 0 4px';
+                        } else {
+                            rightCol.style.setProperty('display', 'block', 'important');
+                            rightCol.style.setProperty('width', lastWidthR, 'important');
+                            rightCol.style.setProperty('flex', '0 0 ' + lastWidthR, 'important');
+                            btnRightBar.innerHTML = '›';
+                            btnRightBar.style.right = '4px';
                         }
+                        notifyResize();
                     };
-                    btnRight.onclick = toggleRight;
-                    btnRight.ontouchend = toggleRight;
+
+                    btnRightBar.onclick = toggleRight;
+                    btnRightBar.ontouchend = toggleRight;
+
+                    // จุดสีแดงเดิมในหัวข้อเมนูขวา
+                    const btnRightHeader = doc.getElementById('btn-collapse-right');
+                    if (btnRightHeader && !btnRightHeader.dataset.bound) {
+                        btnRightHeader.dataset.bound = 'true';
+                        btnRightHeader.onclick = toggleRight;
+                        btnRightHeader.ontouchend = toggleRight;
+                    }
+
+                    const startDragR = (clientX) => {
+                        shield.style.display = 'block';
+                        const startX = clientX;
+                        const startW = rightCol.getBoundingClientRect().width;
+                        const onMove = (x) => {
+                            const nw = Math.max(160, Math.min(window.parent.innerWidth - 100, startW + (startX - x)));
+                            rightCol.style.setProperty('width', nw + 'px', 'important');
+                            rightCol.style.setProperty('min-width', nw + 'px', 'important');
+                            rightCol.style.setProperty('max-width', nw + 'px', 'important');
+                            rightCol.style.setProperty('flex', '0 0 ' + nw + 'px', 'important');
+                            notifyResize();
+                        };
+                        const onEnd = () => {
+                            shield.style.display = 'none';
+                            doc.removeEventListener('mousemove', onMouseMove);
+                            doc.removeEventListener('mouseup', onMouseUp);
+                            doc.removeEventListener('touchmove', onTouchMove);
+                            doc.removeEventListener('touchend', onTouchEnd);
+                            notifyResize();
+                        };
+                        const onMouseMove = (ev) => onMove(ev.clientX);
+                        const onMouseUp = () => onEnd();
+                        const onTouchMove = (ev) => {
+                            if (ev.cancelable) ev.preventDefault();
+                            if (ev.touches && ev.touches[0]) onMove(ev.touches[0].clientX);
+                        };
+                        const onTouchEnd = () => onEnd();
+
+                        doc.addEventListener('mousemove', onMouseMove);
+                        doc.addEventListener('mouseup', onMouseUp);
+                        doc.addEventListener('touchmove', onTouchMove, { passive: false });
+                        doc.addEventListener('touchend', onTouchEnd);
+                    };
+
+                    resizerR.onmousedown = (e) => {
+                        if (e.target.id === 'btn-collapse-right-bar') return;
+                        e.preventDefault();
+                        startDragR(e.clientX);
+                    };
+                    resizerR.ontouchstart = (e) => {
+                        if (e.target.id === 'btn-collapse-right-bar') return;
+                        if (e.touches && e.touches[0]) startDragR(e.touches[0].clientX);
+                    };
                 }
             }
 
