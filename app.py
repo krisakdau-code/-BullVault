@@ -130,7 +130,7 @@ st.markdown(
     section[data-testid="stMain"] .block-container,
     .block-container {
         padding-top: 0px !important;
-        margin-top: -45px !important; /* ดึงเนื้อหาขึ้นชนขอบบนสุด */
+        margin-top: 0px !important; /* ดึงเนื้อหาขึ้นชนขอบบนสุด */
         padding-left: 0.25rem !important;
         padding-right: 0.25rem !important;
         max-width: 100% !important;
