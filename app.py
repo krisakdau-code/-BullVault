@@ -421,7 +421,6 @@ def inject_workspace_resizers():
             color: #ff4d5a;
         }
 
-        /* ขยายพื้นที่แตะ (Touch Target) ของปุ่มพับเมนูซ้ายและขวา */
         #btn-collapse-left::after, #btn-collapse-right-bar::after {
             content: '';
             position: absolute;
@@ -431,19 +430,6 @@ def inject_workspace_resizers():
             right: -24px;
             z-index: 10;
         }
-
-            /* ซ่อนแถบสถานะ, ปุ่ม Manage App และ Viewer Badge ที่มุมขวาล่าง */
-        footer,
-        [data-testid="manage-app-button"],
-        [class*="viewerBadge"],
-        [class*="manageApp"] {
-            display: none !important;
-            visibility: hidden !important;
-            height: 0px !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-        }
-
     </style>
     <script>
     (function() {
@@ -471,6 +457,60 @@ def inject_workspace_resizers():
             function getCol(anchorId) {
                 const el = doc.getElementById(anchorId);
                 return el ? el.closest('[data-testid="stColumn"], [data-testid="column"], .stColumn') : null;
+            }
+
+            // คำสั่งโหมดเต็มจอ Fullscreen (เสมือนกด F11)
+            function toggleFullScreen(e) {
+                if (e) { e.stopPropagation(); e.preventDefault(); }
+                const de = doc.documentElement;
+                if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
+                    if (de.requestFullscreen) {
+                        de.requestFullscreen().catch(() => {});
+                    } else if (de.webkitRequestFullscreen) {
+                        de.webkitRequestFullscreen().catch(() => {});
+                    }
+                } else {
+                    if (doc.exitFullscreen) {
+                        doc.exitFullscreen().catch(() => {});
+                    } else if (doc.webkitExitFullscreen) {
+                        doc.webkitExitFullscreen().catch(() => {});
+                    }
+                }
+            }
+
+            // คำสั่งพับ/กางเมนูขวา (เฉพาะปุ่มแถบ Resizer)
+            function toggleRightPanel(e) {
+                if (e) { e.stopPropagation(); e.preventDefault(); }
+                const rCol = getCol('custom-right-menu-anchor');
+                if (!rCol) return;
+
+                const isHidden = (rCol.style.display === 'none');
+                if (isHidden) {
+                    const lastW = rCol.dataset.lastWidth || '320px';
+                    rCol.style.setProperty('display', 'block', 'important');
+                    rCol.style.setProperty('width', lastW, 'important');
+                    rCol.style.setProperty('min-width', lastW, 'important');
+                    rCol.style.setProperty('max-width', lastW, 'important');
+                    rCol.style.setProperty('flex', '0 0 ' + lastW, 'important');
+                    
+                    const btnBar = doc.getElementById('btn-collapse-right-bar');
+                    if (btnBar) {
+                        btnBar.innerHTML = '›';
+                        btnBar.style.right = '4px';
+                    }
+                } else {
+                    rCol.dataset.lastWidth = rCol.style.width || '320px';
+                    rCol.style.setProperty('display', 'none', 'important');
+                    
+                    const btnBar = doc.getElementById('btn-collapse-right-bar');
+                    if (btnBar) {
+                        btnBar.innerHTML = '‹';
+                        btnBar.style.right = '0px';
+                        btnBar.style.borderRight = 'none';
+                        btnBar.style.borderRadius = '4px 0 0 4px';
+                    }
+                }
+                notifyResize();
             }
 
             function attachResizers() {
@@ -609,54 +649,30 @@ def inject_workspace_resizers():
 
                     const btnRightBar = resizerR.querySelector('#btn-collapse-right-bar');
                     const barLineR = resizerR.querySelector('#bar-line-right');
-                    let isCollapsedR = false;
-                    let lastWidthR = '320px';
 
                     resizerR.onmouseenter = function() {
                         if (barLineR) barLineR.style.background = '#ff7d1e';
-                        btnRightBar.style.color = '#ff7d1e';
-                        btnRightBar.style.borderColor = '#ff7d1e';
-                        btnRightBar.style.background = '#1a1f2c';
-                        btnRightBar.style.width = '12px';
+                        if (btnRightBar) {
+                            btnRightBar.style.color = '#ff7d1e';
+                            btnRightBar.style.borderColor = '#ff7d1e';
+                            btnRightBar.style.background = '#1a1f2c';
+                            btnRightBar.style.width = '12px';
+                        }
                     };
 
                     resizerR.onmouseleave = function() {
                         if (barLineR) barLineR.style.background = '#1e2433';
-                        btnRightBar.style.color = '#8b949e';
-                        btnRightBar.style.borderColor = '#2a2e39';
-                        btnRightBar.style.background = '#131722';
-                        btnRightBar.style.width = '10px';
-                    };
-
-                    const toggleRight = function(e) {
-                        if (e) { e.stopPropagation(); e.preventDefault(); }
-                        isCollapsedR = !isCollapsedR;
-                        if (isCollapsedR) {
-                            lastWidthR = rightCol.style.width || '320px';
-                            rightCol.style.setProperty('display', 'none', 'important');
-                            btnRightBar.innerHTML = '‹';
-                            btnRightBar.style.right = '0px';
-                            btnRightBar.style.borderRight = 'none';
-                            btnRightBar.style.borderRadius = '4px 0 0 4px';
-                        } else {
-                            rightCol.style.setProperty('display', 'block', 'important');
-                            rightCol.style.setProperty('width', lastWidthR, 'important');
-                            rightCol.style.setProperty('flex', '0 0 ' + lastWidthR, 'important');
-                            btnRightBar.innerHTML = '›';
-                            btnRightBar.style.right = '4px';
+                        if (btnRightBar) {
+                            btnRightBar.style.color = '#8b949e';
+                            btnRightBar.style.borderColor = '#2a2e39';
+                            btnRightBar.style.background = '#131722';
+                            btnRightBar.style.width = '10px';
                         }
-                        notifyResize();
                     };
 
-                    btnRightBar.onclick = toggleRight;
-                    btnRightBar.ontouchend = toggleRight;
-
-                    // จุดสีแดงเดิมในหัวข้อเมนูขวา
-                    const btnRightHeader = doc.getElementById('btn-collapse-right');
-                    if (btnRightHeader && !btnRightHeader.dataset.bound) {
-                        btnRightHeader.dataset.bound = 'true';
-                        btnRightHeader.onclick = toggleRight;
-                        btnRightHeader.ontouchend = toggleRight;
+                    if (btnRightBar) {
+                        btnRightBar.onclick = toggleRightPanel;
+                        btnRightBar.ontouchend = toggleRightPanel;
                     }
 
                     const startDragR = (clientX) => {
@@ -702,6 +718,17 @@ def inject_workspace_resizers():
                         if (e.target.id === 'btn-collapse-right-bar') return;
                         if (e.touches && e.touches[0]) startDragR(e.touches[0].clientX);
                     };
+                }
+
+                // ปุ่มเขียวในหัวข้อ (btn-collapse-right) ทำหน้าที่สั่ง Fullscreen (F11) โดยตรง
+                const btnGreenHeader = doc.getElementById('btn-collapse-right');
+                if (btnGreenHeader && !btnGreenHeader.dataset.boundFs) {
+                    btnGreenHeader.dataset.boundFs = 'true';
+                    btnGreenHeader.style.cursor = 'pointer';
+                    btnGreenHeader.style.pointerEvents = 'auto';
+                    btnGreenHeader.title = 'เต็มหน้าจอ (Fullscreen / F11)';
+                    btnGreenHeader.onclick = toggleFullScreen;
+                    btnGreenHeader.ontouchend = toggleFullScreen;
                 }
             }
 
