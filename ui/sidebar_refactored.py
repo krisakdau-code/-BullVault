@@ -1,50 +1,72 @@
 # ui/sidebar_refactored.py — Streamlined Terminal Sidebar (Slot Replacement & TradingView Standard)
-import streamlit as st
-import streamlit.components.v1 as components
 import datetime
 import json
 import os
-import requests
-from ui.symbol_modal import render_symbol_modal
-from data.fetchers import resolve_market_info, fetch_ticker_24h, fetch_ohlcv, standardize_symbol
-from ui.rice_seasonality_modal import show_rice_market_modal
 from color_store import (
-    COLOR_TAGS, COLOR_KEYS, norm_sym,
-    ensure_color_state, assign_color, get_sym_color_key, get_sym_color_dot
+    COLOR_KEYS,
+    COLOR_TAGS,
+    assign_color,
+    ensure_color_state,
+    get_sym_color_dot,
+    get_sym_color_key,
+    norm_sym,
 )
+from data.fetchers import (
+    fetch_ohlcv,
+    fetch_ticker_24h,
+    resolve_market_info,
+    standardize_symbol,
+)
+import requests
+import streamlit as st
+import streamlit.components.v1 as components
+from ui.rice_seasonality_modal import show_rice_market_modal
+from ui.symbol_modal import render_symbol_modal
 
 WATCHLIST_STORE_FILE = "watchlist_store.json"
 
 PREFERRED_COLOR_ORDER = ["red", "orange", "green", "blue", "gray"]
-SORTED_COLOR_KEYS = [k for k in PREFERRED_COLOR_ORDER if k in COLOR_KEYS] + [k for k in COLOR_KEYS if k not in PREFERRED_COLOR_ORDER]
+SORTED_COLOR_KEYS = [
+    k for k in PREFERRED_COLOR_ORDER if k in COLOR_KEYS
+] + [k for k in COLOR_KEYS if k not in PREFERRED_COLOR_ORDER]
 
 
 # ==============================================================================
 # LOCALSTORAGE WATCHLIST ENGINE (BROWSER PERSISTENCE)
 # ==============================================================================
 def _sync_localstorage_to_watchlist():
-    """อ่านค่าจาก URL Query Params (ที่ดึงมาจาก LocalStorage) เข้าสู่ custom_watchlist"""
-    url_intl = st.query_params.get("intl_wl", "")
-    if url_intl:
-        saved_list = [s.strip().upper() for s in url_intl.split(",") if s.strip()]
-        if "custom_watchlist" in st.session_state:
-            existing = set(norm_sym(r[0] if isinstance(r, (list, tuple)) else r).upper() for r in st.session_state["custom_watchlist"])
-            for sym in saved_list:
-                sym_norm = norm_sym(sym).upper()
-                if sym_norm not in existing:
-                    st.session_state["custom_watchlist"].append((sym, "-", "-", True))
-                    existing.add(sym_norm)
+  """อ่านค่าจาก URL Query Params (ที่ดึงมาจาก LocalStorage) เข้าสู่ custom_watchlist"""
+  url_intl = st.query_params.get("intl_wl", "")
+  if url_intl:
+    saved_list = [s.strip().upper() for s in url_intl.split(",") if s.strip()]
+    if "custom_watchlist" in st.session_state:
+      existing = set(
+          norm_sym(
+              r[0] if isinstance(r, (list, tuple)) else r
+          ).upper()
+          for r in st.session_state["custom_watchlist"]
+      )
+      for sym in saved_list:
+        sym_norm = norm_sym(sym).upper()
+        if sym_norm not in existing:
+          st.session_state["custom_watchlist"].append((sym, "-", "-", True))
+          existing.add(sym_norm)
+
 
 def _sync_watchlist_to_url():
-    """อัปเดต Query Params เพื่อส่งสัญญาณให้ LocalStorage บันทึกข้อมูลลงเครื่อง"""
-    if "custom_watchlist" in st.session_state:
-        syms = [norm_sym(r[0] if isinstance(r, (list, tuple)) else r).upper() for r in st.session_state["custom_watchlist"]]
-        st.query_params["intl_wl"] = ",".join(syms)
+  """อัปเดต Query Params เพื่อส่งสัญญาณให้ LocalStorage บันทึกข้อมูลลงเครื่อง"""
+  if "custom_watchlist" in st.session_state:
+    syms = [
+        norm_sym(r[0] if isinstance(r, (list, tuple)) else r).upper()
+        for r in st.session_state["custom_watchlist"]
+    ]
+    st.query_params["intl_wl"] = ",".join(syms)
+
 
 def inject_localstorage_sync_bridge():
-    """ซิงก์รายการ Watchlist ระหว่าง Browser LocalStorage กับ Python Session"""
-    components.html(
-        """
+  """ซิงก์รายการ Watchlist ระหว่าง Browser LocalStorage กับ Python Session"""
+  components.html(
+      """
         <script>
         (function() {
             try {
@@ -67,276 +89,387 @@ def inject_localstorage_sync_bridge():
         })();
         </script>
         """,
-        height=0,
-        width=0,
-    )
+      height=0,
+      width=0,
+  )
 
 
 def _format_vol(v: float) -> str:
-    """แปลงตัวเลข Volume เป็นหน่วย K, M, B แบบสากล"""
-    if v >= 1e9:
-        return f"{v / 1e9:.2f} B"
-    elif v >= 1e6:
-        return f"{v / 1e6:.2f} M"
-    elif v >= 1e3:
-        return f"{v / 1e3:.2f} K"
-    elif v > 0:
-        return f"{v:,.0f}"
-    return "-"
+  """แปลงตัวเลข Volume เป็นหน่วย K, M, B แบบสากล"""
+  if v >= 1e9:
+    return f"{v / 1e9:.2f} B"
+  elif v >= 1e6:
+    return f"{v / 1e6:.2f} M"
+  elif v >= 1e3:
+    return f"{v / 1e3:.2f} K"
+  elif v > 0:
+    return f"{v:,.0f}"
+  return "-"
 
 
 def _format_price(p: float) -> str:
-    """ฟอร์แมตราคาอัจฉริยะ รองรับทั้งเหรียญหลักและเหรียญทศนิยมเล็ก เช่น LUNC, PEPE"""
-    if p >= 100:
-        return f"{p:,.2f}"
-    elif p >= 1:
-        return f"{p:,.4f}"
-    elif p > 0:
-        s = f"{p:.6f}".rstrip('0').rstrip('.')
-        return s if s else f"{p:.6f}"
-    return "-"
+  """ฟอร์แมตราคาอัจฉริยะ รองรับทั้งเหรียญหลักและเหรียญทศนิยมเล็ก เช่น LUNC, PEPE"""
+  if p >= 100:
+    return f"{p:,.2f}"
+  elif p >= 1:
+    return f"{p:,.4f}"
+  elif p > 0:
+    s = f"{p:.6f}".rstrip("0").rstrip(".")
+    return s if s else f"{p:.6f}"
+  return "-"
 
 
 @st.cache_data(ttl=5, show_spinner=False)
 def _get_live_ticker(sym: str):
-    """ดึงราคา, % 24h, และ Volume รวม 24h จาก fetch_ticker_24h รองรับทุกกระดาน"""
-    try:
-        t = fetch_ticker_24h(sym)
-        if t and (t.get("last_price", 0) > 0 or t.get("price_change_pct", 0) != 0 or t.get("volume_24h", 0) > 0):
-            p = float(t["last_price"])
-            c = float(t.get("price_change_pct", 0.0))
-            v = float(t.get("volume_24h", 0.0))
-            p_str = _format_price(p)
-            c_str = f"{c:+.2f}%" if abs(c) >= 0.01 else (f"{c:+.4f}%" if c != 0 else "+0.00%")
-            v_str = _format_vol(v)
-            return p_str, c_str, v_str, (c >= 0), c, v
-    except Exception:
-        pass
-    return None
+  """ดึงราคา, % 24h, และ Volume รวม 24h จาก fetch_ticker_24h รองรับทุกกระดาน"""
+  try:
+    t = fetch_ticker_24h(sym)
+    if t and (
+        t.get("last_price", 0) > 0
+        or t.get("price_change_pct", 0) != 0
+        or t.get("volume_24h", 0) > 0
+    ):
+      p = float(t["last_price"])
+      c = float(t.get("price_change_pct", 0.0))
+      v = float(t.get("volume_24h", 0.0))
+      p_str = _format_price(p)
+      c_str = (
+          f"{c:+.2f}%"
+          if abs(c) >= 0.01
+          else (f"{c:+.4f}%" if c != 0 else "+0.00%")
+      )
+      v_str = _format_vol(v)
+      return p_str, c_str, v_str, (c >= 0), c, v
+  except Exception:
+    pass
+  return None
 
 
 @st.cache_data(ttl=5, show_spinner=False)
 def _get_active_candle(sym: str, tf_str: str = "1h"):
-    """ดึงแท่งเทียนล่าสุดตามไทม์เฟรมของกราฟ เพื่อให้ % Change ตรงกับกราฟหลัก 100%"""
-    try:
-        df = fetch_ohlcv(sym, tf=tf_str, limit=2)
-        if df is not None and len(df) >= 2:
-            prev_close = float(df["close"].iloc[-2])
-            last_close = float(df["close"].iloc[-1])
-            vol = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0.0
-            diff = last_close - prev_close
-            pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
-            p_str = _format_price(last_close)
-            c_str = f"{pct:+.2f}%" if abs(pct) >= 0.01 else (f"{pct:+.4f}%" if pct != 0 else "+0.00%")
-            v_str = _format_vol(vol)
-            return p_str, c_str, v_str, (diff >= 0), pct, vol
-    except Exception:
-        pass
-    return None
+  """ดึงแท่งเทียนล่าสุดตามไทม์เฟรมของกราฟ เพื่อให้ % Change ตรงกับกราฟหลัก 100%"""
+  try:
+    df = fetch_ohlcv(sym, tf=tf_str, limit=2)
+    if df is not None and len(df) >= 2:
+      prev_close = float(df["close"].iloc[-2])
+      last_close = float(df["close"].iloc[-1])
+      vol = float(df["volume"].iloc[-1]) if "volume" in df.columns else 0.0
+      diff = last_close - prev_close
+      pct = (diff / prev_close) * 100 if prev_close != 0 else 0.0
+      p_str = _format_price(last_close)
+      c_str = (
+          f"{pct:+.2f}%"
+          if abs(pct) >= 0.01
+          else (f"{pct:+.4f}%" if pct != 0 else "+0.00%")
+      )
+      v_str = _format_vol(vol)
+      return p_str, c_str, v_str, (diff >= 0), pct, vol
+  except Exception:
+    pass
+  return None
+
+
+# ==============================================================================
+# 24H MARKET RANKING DATA FETCHER (BINANCE + BITKUB)
+# ==============================================================================
+@st.cache_data(ttl=15, show_spinner=False)
+def fetch_all_24h_markets():
+  """ดึงข้อมูล 24 ชั่วโมงของทุกสินทรัพย์ทั้ง Binance (USDT) และ Bitkub (THB)"""
+  items = []
+
+  # 1. คู่เหรียญ USDT จาก Binance
+  try:
+    res = requests.get(
+        "https://api.binance.com/api/v3/ticker/24hr", timeout=3.5
+    ).json()
+    for t in res:
+      sym = t.get("symbol", "")
+      if sym.endswith("USDT"):
+        items.append({
+            "symbol": sym,
+            "display_name": sym.replace("USDT", ""),
+            "pair": "USDT",
+            "last_price": float(t.get("lastPrice", 0)),
+            "change_pct": float(t.get("priceChangePercent", 0)),
+            "volume_quote": float(t.get("quoteVolume", 0)),
+        })
+  except Exception:
+    pass
+
+  # 2. คู่เหรียญ THB จาก Bitkub
+  try:
+    res_bk = requests.get(
+        "https://api.bitkub.com/api/market/ticker", timeout=3.5
+    ).json()
+    for k, v in res_bk.items():
+      if k.startswith("THB_"):
+        sym_clean = k.replace("THB_", "")
+        items.append({
+            "symbol": f"{sym_clean}THB",
+            "display_name": sym_clean,
+            "pair": "THB",
+            "last_price": float(v.get("last", 0)),
+            "change_pct": float(v.get("percentChange", 0)),
+            "volume_quote": float(v.get("baseVolume", 0))
+            * float(v.get("last", 0)),
+        })
+  except Exception:
+    pass
+
+  return items
 
 
 def load_saved_data():
-    if os.path.exists(WATCHLIST_STORE_FILE):
-        try:
-            with open(WATCHLIST_STORE_FILE, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return data.get("watchlist", []), data.get("colors", {})
-        except Exception:
-            pass
-    default_watchlist = [
-        ("BTCUSDT", "-", "-", True),
-        ("ETHUSDT", "-", "-", True),
-        ("SOLUSDT", "-", "-", True),
-        ("BNBUSDT", "-", "-", True),
-        ("ADAUSDT", "-", "-", True)
-    ]
-    return default_watchlist, {}
+  if os.path.exists(WATCHLIST_STORE_FILE):
+    try:
+      with open(WATCHLIST_STORE_FILE, "r", encoding="utf-8") as f:
+        data = json.load(f)
+        return data.get("watchlist", []), data.get("colors", {})
+    except Exception:
+      pass
+  default_watchlist = [
+      ("BTCUSDT", "-", "-", True),
+      ("ETHUSDT", "-", "-", True),
+      ("SOLUSDT", "-", "-", True),
+      ("BNBUSDT", "-", "-", True),
+      ("ADAUSDT", "-", "-", True),
+  ]
+  return default_watchlist, {}
 
 
 def save_watchlist_data():
-    try:
-        raw_rows = st.session_state.get("custom_watchlist", [])
-        clean_list = [_normalize_row(r) for r in raw_rows]
-        color_map = {}
-        for r in clean_list:
-            s = r[0]
-            ckey = get_sym_color_key(s)
-            if ckey:
-                color_map[s] = ckey
-        with open(WATCHLIST_STORE_FILE, "w", encoding="utf-8") as f:
-            json.dump({"watchlist": clean_list, "colors": color_map}, f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
+  try:
+    raw_rows = st.session_state.get("custom_watchlist", [])
+    clean_list = [_normalize_row(r) for r in raw_rows]
+    color_map = {}
+    for r in clean_list:
+      s = r[0]
+      ckey = get_sym_color_key(s)
+      if ckey:
+        color_map[s] = ckey
+    with open(WATCHLIST_STORE_FILE, "w", encoding="utf-8") as f:
+      json.dump(
+          {"watchlist": clean_list, "colors": color_map},
+          f,
+          ensure_ascii=False,
+          indent=2,
+      )
+  except Exception:
+    pass
 
 
 def add_to_watchlist(sym_code: str):
-    """เพิ่มเหรียญเข้า Watchlist โดยตรง (ไม่เพิ่มซ้ำ) พร้อมซิงก์ลง LocalStorage"""
-    if not sym_code:
-        return
-    clean = standardize_symbol(sym_code)
-    raw = norm_sym(sym_code).upper()
-    existing = [norm_sym(r[0] if isinstance(r, (list, tuple)) else (r.get("symbol") if isinstance(r, dict) else r)).upper() for r in st.session_state.get("custom_watchlist", [])]
-    existing_clean = [standardize_symbol(s) for s in existing]
-    if raw not in existing and clean not in existing_clean:
-        if "custom_watchlist" not in st.session_state:
-            st.session_state["custom_watchlist"] = []
-        st.session_state["custom_watchlist"].insert(0, (raw, "-", "-", True))
-        save_watchlist_data()
-        _sync_watchlist_to_url()
-
-
-def remove_from_watchlist(target_sym: str):
-    """ลบเหรียญออกจาก Watchlist ทันทีแบบ 1-Click และซิงก์อัปเดต LocalStorage"""
-    t_clean = standardize_symbol(target_sym)
-    target_norm = norm_sym(target_sym).upper()
-
-    st.session_state["custom_watchlist"] = [
-        item for item in st.session_state.get("custom_watchlist", [])
-        if norm_sym(item[0] if isinstance(item, (list, tuple)) else item).upper() not in [target_norm, t_clean]
-        and standardize_symbol(item[0] if isinstance(item, (list, tuple)) else item) != t_clean
-    ]
-    assign_color(target_sym, None)
-    assign_color(t_clean, None)
+  """เพิ่มเหรียญเข้า Watchlist โดยตรง (ไม่เพิ่มซ้ำ) พร้อมซิงก์ลง LocalStorage"""
+  if not sym_code:
+    return
+  clean = standardize_symbol(sym_code)
+  raw = norm_sym(sym_code).upper()
+  existing = [
+      norm_sym(
+          r[0]
+          if isinstance(r, (list, tuple))
+          else (r.get("symbol") if isinstance(r, dict) else r)
+      ).upper()
+      for r in st.session_state.get("custom_watchlist", [])
+  ]
+  existing_clean = [standardize_symbol(s) for s in existing]
+  if raw not in existing and clean not in existing_clean:
+    if "custom_watchlist" not in st.session_state:
+      st.session_state["custom_watchlist"] = []
+    st.session_state["custom_watchlist"].insert(0, (raw, "-", "-", True))
     save_watchlist_data()
     _sync_watchlist_to_url()
 
-    cur_sel = st.session_state.get("current_symbol", "BTCUSDT")
-    if standardize_symbol(cur_sel) == t_clean or norm_sym(cur_sel).upper() == target_norm:
-        rem = st.session_state.get("custom_watchlist", [])
-        fallback = rem[0][0] if rem else "BTCUSDT"
-        set_active_symbol(fallback)
+
+def remove_from_watchlist(target_sym: str):
+  """ลบเหรียญออกจาก Watchlist ทันทีแบบ 1-Click และซิงก์อัปเดต LocalStorage"""
+  t_clean = standardize_symbol(target_sym)
+  target_norm = norm_sym(target_sym).upper()
+
+  st.session_state["custom_watchlist"] = [
+      item
+      for item in st.session_state.get("custom_watchlist", [])
+      if norm_sym(
+          item[0] if isinstance(item, (list, tuple)) else item
+      ).upper()
+      not in [target_norm, t_clean]
+      and standardize_symbol(
+          item[0] if isinstance(item, (list, tuple)) else item
+      )
+      != t_clean
+  ]
+  assign_color(target_sym, None)
+  assign_color(t_clean, None)
+  save_watchlist_data()
+  _sync_watchlist_to_url()
+
+  cur_sel = st.session_state.get("current_symbol", "BTCUSDT")
+  if (
+      standardize_symbol(cur_sel) == t_clean
+      or norm_sym(cur_sel).upper() == target_norm
+  ):
+    rem = st.session_state.get("custom_watchlist", [])
+    fallback = rem[0][0] if rem else "BTCUSDT"
+    set_active_symbol(fallback)
 
 
 @st.dialog("⚙️ การตั้งค่าระบบและชาร์ต (Unified Settings)")
 def show_chart_settings_dialog():
-    tab_chart, tab_ui = st.tabs([
-        "🎨 กราฟ & ธีม", 
-        "🖥️ พื้นที่ทำงาน"
-    ])
+  tab_chart, tab_ui = st.tabs(["🎨 กราฟ & ธีม", "🖥️ พื้นที่ทำงาน"])
 
-    with tab_chart:
-        st.caption("🎨 โทนสีแท่งเทียนและพื้นหลัง")
-        c1, c2 = st.columns(2)
-        with c1:
-            st.session_state["candle_up_color"] = st.color_picker(
-                "แท่งขึ้น (Bullish)", value=st.session_state.get("candle_up_color", "#089981")
-            )
-        with c2:
-            st.session_state["candle_down_color"] = st.color_picker(
-                "แท่งลง (Bearish)", value=st.session_state.get("candle_down_color", "#F23645")
-            )
-        c3, c4 = st.columns(2)
-        with c3:
-            st.session_state["chart_bg_color"] = st.color_picker(
-                "พื้นหลังกราฟ (Background)", value=st.session_state.get("chart_bg_color", "#131722")
-            )
-        with c4:
-            st.session_state["chart_grid_color"] = st.color_picker(
-                "เส้นกริด (Grid)", value=st.session_state.get("chart_grid_color", "#1e222d")
-            )
+  with tab_chart:
+    st.caption("🎨 โทนสีแท่งเทียนและพื้นหลัง")
+    c1, c2 = st.columns(2)
+    with c1:
+      st.session_state["candle_up_color"] = st.color_picker(
+          "แท่งขึ้น (Bullish)",
+          value=st.session_state.get("candle_up_color", "#089981"),
+      )
+    with c2:
+      st.session_state["candle_down_color"] = st.color_picker(
+          "แท่งลง (Bearish)",
+          value=st.session_state.get("candle_down_color", "#F23645"),
+      )
+    c3, c4 = st.columns(2)
+    with c3:
+      st.session_state["chart_bg_color"] = st.color_picker(
+          "พื้นหลังกราฟ (Background)",
+          value=st.session_state.get("chart_bg_color", "#131722"),
+      )
+    with c4:
+      st.session_state["chart_grid_color"] = st.color_picker(
+          "เส้นกริด (Grid)",
+          value=st.session_state.get("chart_grid_color", "#1e222d"),
+      )
 
-    with tab_ui:
-        st.caption("🖥 ควบคุมการแสดงผลแถบ 'กราฟเปรียบเทียบ'")
-        st.session_state["show_draw_toolbar"] = st.toggle(
-            "✏️ แถบวาดรูป (Draw Toolbar)", value=st.session_state.get("show_draw_toolbar", True)
-        )
-        st.session_state["show_top_bar"] = st.toggle(
-            "💻 แถบควบคุมบน (Top Bar)", value=st.session_state.get("show_top_bar", True)
-        )
+  with tab_ui:
+    st.caption("🖥 ควบคุมการแสดงผลแถบ 'กราฟเปรียบเทียบ'")
+    st.session_state["show_draw_toolbar"] = st.toggle(
+        "✏️ แถบวาดรูป (Draw Toolbar)",
+        value=st.session_state.get("show_draw_toolbar", True),
+    )
+    st.session_state["show_top_bar"] = st.toggle(
+        "💻 แถบควบคุมบน (Top Bar)",
+        value=st.session_state.get("show_top_bar", True),
+    )
 
-    st.divider()
-    b1, b2 = st.columns(2)
-    with b1:
-        if st.button("🔄 รีเซ็ตเป็นค่าเริ่มต้น", use_container_width=True):
-            st.session_state["candle_up_color"] = "#089981"
-            st.session_state["candle_down_color"] = "#F23645"
-            st.session_state["chart_bg_color"] = "#131722"
-            st.session_state["chart_grid_color"] = "#1e222d"
-            st.session_state["show_draw_toolbar"] = True
-            st.session_state["show_top_bar"] = True
-            st.rerun()
-    with b2:
-        if st.button("💾 บันทึกและปรับใช้", type="primary", use_container_width=True):
-            st.rerun()
+  st.divider()
+  b1, b2 = st.columns(2)
+  with b1:
+    if st.button("🔄 รีเซ็ตเป็นค่าเริ่มต้น", use_container_width=True):
+      st.session_state["candle_up_color"] = "#089981"
+      st.session_state["candle_down_color"] = "#F23645"
+      st.session_state["chart_bg_color"] = "#131722"
+      st.session_state["chart_grid_color"] = "#1e222d"
+      st.session_state["show_draw_toolbar"] = True
+      st.session_state["show_top_bar"] = True
+      st.rerun()
+  with b2:
+    if st.button(
+        "💾 บันทึกและปรับใช้", type="primary", use_container_width=True
+    ):
+      st.rerun()
 
 
 def set_active_symbol(sym_code: str):
-    """สลับเหรียญบนกราฟหลักและแท็บบนโดยตรงแบบ Single Source of Truth"""
-    clean_sym = standardize_symbol(sym_code)
-    st.session_state["current_symbol"] = clean_sym
-    st.session_state["selected_symbol"] = clean_sym
+  """สลับเหรียญบนกราฟหลักและแท็บบนโดยตรงแบบ Single Source of Truth"""
+  clean_sym = standardize_symbol(sym_code)
+  st.session_state["current_symbol"] = clean_sym
+  st.session_state["selected_symbol"] = clean_sym
 
-    if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
-        active_id = st.session_state.get("active_tab_id")
-        for t in st.session_state["chart_tabs"]:
-            if t.get("id") == active_id:
-                t["symbol"] = clean_sym
-                break
+  if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
+    active_id = st.session_state.get("active_tab_id")
+    for t in st.session_state["chart_tabs"]:
+      if t.get("id") == active_id:
+        t["symbol"] = clean_sym
+        break
 
-    for k in ("active_key", "df_data", "last_fetch_time"):
-        st.session_state.pop(k, None)
+  for k in ("active_key", "df_data", "last_fetch_time"):
+    st.session_state.pop(k, None)
 
 
 def _color_menu(sym: str, prefix: str = "wl") -> None:
-    s = norm_sym(sym)
-    current = get_sym_color_key(s)
-    st.caption(f"กลุ่มสีของ {s}")
-    for ckey in SORTED_COLOR_KEYS:
-        cinfo = COLOR_TAGS[ckey]
-        mark = " ✓" if ckey == current else ""
-        if st.button(f"{cinfo['dot']} {cinfo['label']}{mark}", key=f"{prefix}_clr_{s}_{ckey}", use_container_width=True):
-            assign_color(s, None if ckey == current else ckey)
-            save_watchlist_data()
-            st.rerun()
+  s = norm_sym(sym)
+  current = get_sym_color_key(s)
+  st.caption(f"กลุ่มสีของ {s}")
+  for ckey in SORTED_COLOR_KEYS:
+    cinfo = COLOR_TAGS[ckey]
+    mark = " ✓" if ckey == current else ""
+    if st.button(
+        f"{cinfo['dot']} {cinfo['label']}{mark}",
+        key=f"{prefix}_clr_{s}_{ckey}",
+        use_container_width=True,
+    ):
+      assign_color(s, None if ckey == current else ckey)
+      save_watchlist_data()
+      st.rerun()
 
-    st.divider()
-    if st.button("✖ ปลดกลุ่มสี", key=f"{prefix}_clr_{s}_none", use_container_width=True, disabled=(current is None)):
-        assign_color(s, None)
-        save_watchlist_data()
-        st.rerun()
+  st.divider()
+  if st.button(
+      "✖ ปลดกลุ่มสี",
+      key=f"{prefix}_clr_{s}_none",
+      use_container_width=True,
+      disabled=(current is None),
+  ):
+    assign_color(s, None)
+    save_watchlist_data()
+    st.rerun()
 
 
 def _normalize_row(row):
-    if isinstance(row, dict):
-        return (norm_sym(row.get("symbol") or row.get("sym")), row.get("price", "-"), row.get("change", "-"), bool(row.get("is_up", True)))
-    if isinstance(row, (list, tuple)):
-        vals = list(row) + ["-", "-", True]
-        return (norm_sym(vals[0]), vals[1], vals[2], bool(vals[3]))
-    return (norm_sym(row), "-", "-", True)
+  if isinstance(row, dict):
+    return (
+        norm_sym(row.get("symbol") or row.get("sym")),
+        row.get("price", "-"),
+        row.get("change", "-"),
+        bool(row.get("is_up", True)),
+    )
+  if isinstance(row, (list, tuple)):
+    vals = list(row) + ["-", "-", True]
+    return (norm_sym(vals[0]), vals[1], vals[2], bool(vals[3]))
+  return (norm_sym(row), "-", "-", True)
 
 
 def render_sidebar():
-    st.markdown('<div id="custom-left-menu-anchor" style="display:none;"></div>', unsafe_allow_html=True)
-    ensure_color_state()
-    inject_localstorage_sync_bridge()
+  st.markdown(
+      '<div id="custom-left-menu-anchor" style="display:none;"></div>',
+      unsafe_allow_html=True,
+  )
+  ensure_color_state()
+  inject_localstorage_sync_bridge()
 
-    if "custom_watchlist" not in st.session_state:
-        saved_wl, saved_colors = load_saved_data()
-        st.session_state["custom_watchlist"] = saved_wl
-        for s, ckey in saved_colors.items():
-            assign_color(s, ckey)
+  if "custom_watchlist" not in st.session_state:
+    saved_wl, saved_colors = load_saved_data()
+    st.session_state["custom_watchlist"] = saved_wl
+    for s, ckey in saved_colors.items():
+      assign_color(s, ckey)
 
-    _sync_localstorage_to_watchlist()
+  _sync_localstorage_to_watchlist()
 
-    # --- กรองรายการซ้ำใน Watchlist ออกทันที (ป้องกันปัญหา Duplicate Key) ---
-    seen_syms = set()
-    deduped_wl = []
-    for r in st.session_state.get("custom_watchlist", []):
-        sym_name = r[0] if isinstance(r, (list, tuple)) else (r.get("symbol") if isinstance(r, dict) else r)
-        s_norm = norm_sym(sym_name).upper()
-        if s_norm not in seen_syms:
-            seen_syms.add(s_norm)
-            deduped_wl.append(r)
-    st.session_state["custom_watchlist"] = deduped_wl
+  # --- กรองรายการซ้ำใน Watchlist ออกทันที ---
+  seen_syms = set()
+  deduped_wl = []
+  for r in st.session_state.get("custom_watchlist", []):
+    sym_name = (
+        r[0]
+        if isinstance(r, (list, tuple))
+        else (r.get("symbol") if isinstance(r, dict) else r)
+    )
+    s_norm = norm_sym(sym_name).upper()
+    if s_norm not in seen_syms:
+      seen_syms.add(s_norm)
+      deduped_wl.append(r)
+  st.session_state["custom_watchlist"] = deduped_wl
 
-    if "sidebar_active_tab" not in st.session_state:
-        st.session_state["sidebar_active_tab"] = "market"
-    if "color_filter" not in st.session_state:
-        st.session_state["color_filter"] = None
-    if "wl_sort_mode" not in st.session_state:
-        st.session_state["wl_sort_mode"] = "none"
+  if "sidebar_active_tab" not in st.session_state:
+    st.session_state["sidebar_active_tab"] = "market"
+  if "color_filter" not in st.session_state:
+    st.session_state["color_filter"] = None
+  if "wl_sort_mode" not in st.session_state:
+    st.session_state["wl_sort_mode"] = "none"
 
-    st.markdown("""
+  st.markdown(
+      """
     <style>
     .tv-sort-wrap div[data-testid="stBaseButton-tertiary"] button,
     .tv-sort-wrap button {
@@ -480,254 +613,597 @@ def render_sidebar():
         white-space: nowrap !important;
     }
     </style>
-    """, unsafe_allow_html=True)
+    """,
+      unsafe_allow_html=True,
+  )
 
-    t_c1, t_c2 = st.columns(2)
-    with t_c1:
-        if st.button("ตลาด", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "market" else "secondary"):
-            st.session_state["sidebar_active_tab"] = "market"
-            st.rerun()
-    with t_c2:
-        if st.button("กราฟเปรียบเทียบ", use_container_width=True, type="primary" if st.session_state["sidebar_active_tab"] == "tools" else "secondary"):
-            st.session_state["sidebar_active_tab"] = "tools"
-            st.rerun()
+  # --- แถบปุ่มแท็บ 3 แท็บหลัก ---
+  t_c1, t_c2, t_c3 = st.columns([1, 1.3, 1.1], gap="small")
+  with t_c1:
+    if st.button(
+        "ตลาด",
+        use_container_width=True,
+        type=(
+            "primary"
+            if st.session_state["sidebar_active_tab"] == "market"
+            else "secondary"
+        ),
+    ):
+      st.session_state["sidebar_active_tab"] = "market"
+      st.rerun()
+  with t_c2:
+    if st.button(
+        "กราฟเปรียบเทียบ",
+        use_container_width=True,
+        type=(
+            "primary"
+            if st.session_state["sidebar_active_tab"] == "tools"
+            else "secondary"
+        ),
+    ):
+      st.session_state["sidebar_active_tab"] = "tools"
+      st.rerun()
+  with t_c3:
+    if st.button(
+        "อันดับ 24h",
+        use_container_width=True,
+        type=(
+            "primary"
+            if st.session_state["sidebar_active_tab"] == "ranking"
+            else "secondary"
+        ),
+    ):
+      st.session_state["sidebar_active_tab"] = "ranking"
+      st.rerun()
 
-    # ──────────────────────────────────────────────────────────
-    # TAB 1: ตลาด (Watchlist สไตล์ TradingView)
-    # ──────────────────────────────────────────────────────────
-    if st.session_state["sidebar_active_tab"] == "market":
-        active_tab_sym = "BTCUSDT"
-        if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
-            active_id = st.session_state.get("active_tab_id")
-            for t in st.session_state["chart_tabs"]:
-                if t.get("id") == active_id:
-                    active_tab_sym = t.get("symbol", "BTCUSDT")
-                    break
-        else:
-            active_tab_sym = st.session_state.get("current_symbol", "BTCUSDT")
-
-        selected_sym = active_tab_sym
-        clean_selected = standardize_symbol(selected_sym)
-
-        raw_rows = [_normalize_row(r) for r in st.session_state.get("custom_watchlist", [])]
-        wl_syms_clean = [standardize_symbol(r[0]) for r in raw_rows]
-
-        if clean_selected not in wl_syms_clean:
-            st.session_state["custom_watchlist"].append((clean_selected, "-", "-", True))
-            save_watchlist_data()
-            _sync_watchlist_to_url()
-            raw_rows = [_normalize_row(r) for r in st.session_state.get("custom_watchlist", [])]
-        st.session_state["last_active_wl_sym"] = clean_selected
-
-        if st.button("🔍 ค้นหาเหรียญ / สัญลักษณ์สินทรัพย์...", key="btn_open_symbol_modal", use_container_width=True, type="secondary"):
-            render_symbol_modal()
-        f_cols = st.columns([1.1, 1, 1, 1, 1, 1], gap="small")
-        active = st.session_state.get("color_filter")
-
-        with f_cols[0]:
-            if st.button("ALL" if active else "⭐", key="cf_all", use_container_width=True, type="primary" if active is None else "tertiary"):
-                st.session_state["color_filter"] = None
-                st.rerun()
-
-        for i, ckey in enumerate(SORTED_COLOR_KEYS):
-            with f_cols[i + 1]:
-                btn_type = "primary" if active == ckey else "tertiary"
-                dot_char = COLOR_TAGS[ckey]["dot"]
-                if st.button(dot_char, key=f"cf_{ckey}", use_container_width=True, type=btn_type):
-                    st.session_state["color_filter"] = None if active == ckey else ckey
-                    st.rerun()
-
-        h_title, h_add = st.columns([1.8, 0.4], gap="small", vertical_alignment="center")
-        with h_title:
-            st.markdown("<div style='font-size:12px; font-weight:700; color:#8b949e;'>📋 รายการสินทรัพย์เฝ้าดู</div>", unsafe_allow_html=True)
-        with h_add:
-            with st.popover("➕", help="เพิ่มเหรียญ/หุ้น เข้า Watchlist"):
-                st.markdown("<b style='font-size:12px; color:#00e676;'>➕ เพิ่มเหรียญเข้า Watchlist</b>", unsafe_allow_html=True)
-                new_sym_in = st.text_input("พิมพ์ชื่อเหรียญหรือหุ้น:", placeholder="เช่น BTC, ETH, DELTABK, PERPTHB", key="quick_add_sym_input")
-                c_add_btn, c_browse = st.columns([0.6, 0.4])
-                with c_add_btn:
-                    if st.button("เพิ่ม", key="btn_confirm_quick_add", type="primary", use_container_width=True):
-                        if new_sym_in.strip():
-                            add_to_watchlist(new_sym_in.strip())
-                            st.toast(f"เพิ่ม '{new_sym_in.strip().upper()}' แล้ว!")
-                            st.rerun()
-                with c_browse:
-                    if st.button("ค้นหา...", key="btn_browse_symbols", use_container_width=True):
-                        render_symbol_modal()
-
-        h_c1, h_c2, h_c3, h_c4 = st.columns([1.44, 0.90, 0.86, 0.28], gap="small", vertical_alignment="center")
-        sort_mode = st.session_state.get("wl_sort_mode", "none")
-
-        with h_c1:
-            lbl_sym = "สัญลักษณ์"
-            if sort_mode == "sym_asc": lbl_sym = "สัญลักษณ์ ▲"
-            elif sort_mode == "sym_desc": lbl_sym = "สัญลักษณ์ ▼"
-            st.markdown('<div class="tv-sort-wrap">', unsafe_allow_html=True)
-            if st.button(lbl_sym, key="btn_sort_sym", type="tertiary", use_container_width=True):
-                st.session_state["wl_sort_mode"] = "sym_desc" if sort_mode == "sym_asc" else ("none" if sort_mode == "sym_desc" else "sym_asc")
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with h_c2:
-            lbl_pct = "เปลี่ยน"
-            if sort_mode == "pct_desc": lbl_pct = "เปลี่ยน ▼"
-            elif sort_mode == "pct_asc": lbl_pct = "เปลี่ยน ▲"
-            st.markdown('<div class="tv-sort-wrap">', unsafe_allow_html=True)
-            if st.button(lbl_pct, key="btn_sort_pct", type="tertiary", use_container_width=True):
-                st.session_state["wl_sort_mode"] = "pct_asc" if sort_mode == "pct_desc" else ("none" if sort_mode == "pct_asc" else "pct_desc")
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with h_c3:
-            lbl_vol = "ปริมาณ"
-            if sort_mode == "vol_desc": lbl_vol = "ปริมาณ ▼"
-            st.markdown('<div class="tv-sort-right">', unsafe_allow_html=True)
-            if st.button(lbl_vol, key="btn_sort_vol", type="tertiary", use_container_width=True):
-                st.session_state["wl_sort_mode"] = "none" if sort_mode == "vol_desc" else "vol_desc"
-                st.rerun()
-            st.markdown('</div>', unsafe_allow_html=True)
-
-        with h_c4:
-            st.markdown("<span style='font-size:10px; color:#555e6d;'>ลบ</span>", unsafe_allow_html=True)
-
-        rows = [r for r in raw_rows if get_sym_color_key(r[0]) == active] if active else raw_rows
-
-        if not rows:
-            st.caption("ไม่มีเหรียญในกลุ่มนี้ กดปุ่ม ➕ ด้านบนเพื่อเพิ่มเหรียญ")
-
-        display_rows = []
-        for sym, p_val, c_val, is_up in rows:
-            dot = get_sym_color_dot(sym)
-            c_num = 0.0
-            v_num = 0.0
-            v_val = "-"
-            p_val = "-"
-            c_val = "+0.00%"
-            is_up = True
-
-            s_std = standardize_symbol(sym)
-            row_active = (s_std == clean_selected) or (norm_sym(sym).upper() == norm_sym(selected_sym).upper())
-
-            ticker_data = _get_live_ticker(sym)
-            if ticker_data:
-                p_val, c_val, v_val, is_up, c_num, v_num = ticker_data
-
-            display_rows.append({
-                "sym": sym,
-                "dot": dot,
-                "p_val": p_val,
-                "c_val": c_val,
-                "v_val": v_val,
-                "is_up": is_up,
-                "c_num": c_num,
-                "v_num": v_num,
-                "is_active": row_active
-            })
-
-        if sort_mode == "sym_asc":
-            display_rows.sort(key=lambda x: x["sym"])
-        elif sort_mode == "sym_desc":
-            display_rows.sort(key=lambda x: x["sym"], reverse=True)
-        elif sort_mode == "pct_desc":
-            display_rows.sort(key=lambda x: x["c_num"], reverse=True)
-        elif sort_mode == "pct_asc":
-            display_rows.sort(key=lambda x: x["c_num"])
-        elif sort_mode == "vol_desc":
-            display_rows.sort(key=lambda x: x["v_num"], reverse=True)
-
-        with st.container(height=480):
-            for idx, item in enumerate(display_rows):
-                sym = item["sym"]
-                dot = item["dot"]
-                c_val = item["c_val"]
-                v_val = item["v_val"]
-                is_up = item["is_up"]
-                row_active = item["is_active"]
-
-                c_sym, c_tag, c_pct, c_vol, c_del = st.columns([1.18, 0.26, 0.90, 0.86, 0.28], gap="small", vertical_alignment="center")
-                with c_sym:
-                    active_badge = "🔶 " if row_active else ""
-                    btn_title = f"{active_badge}{dot} {sym}".strip()
-                    btn_type = "primary" if row_active else "secondary"
-                    if st.button(btn_title, key=f"wl_btn_{sym}_{idx}", type=btn_type, use_container_width=True):
-                        set_active_symbol(sym)
-                        st.session_state["last_active_wl_sym"] = standardize_symbol(sym)
-                        st.rerun()
-
-                with c_tag:
-                    st.markdown('<div class="tv-neon-wrap">', unsafe_allow_html=True)
-                    with st.popover("●", use_container_width=True, help=f"จัดกลุ่มสี {sym}"):
-                        _color_menu(sym, prefix=f"wl_{idx}")
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-                with c_pct:
-                    cls = "tv-val-up" if is_up else "tv-val-down"
-                    st.markdown(f'<div style="text-align:right;"><span class="{cls}">{c_val}</span></div>', unsafe_allow_html=True)
-
-                with c_vol:
-                    st.markdown(f'<div style="text-align:right;"><span class="tv-vol-text">{v_val}</span></div>', unsafe_allow_html=True)
-
-                with c_del:
-                    st.markdown('<div class="tv-del-btn">', unsafe_allow_html=True)
-                    if st.button("✕", key=f"wl_del_{sym}_{idx}", help=f"ลบ {sym} ออกจาก Watchlist"):
-                        remove_from_watchlist(sym)
-                        st.rerun()
-                    st.markdown('</div>', unsafe_allow_html=True)
-
-    # ──────────────────────────────────────────────────────────
-    # TAB 2: กราฟเปรียบเทียบ
-    # ──────────────────────────────────────────────────────────
+  # ──────────────────────────────────────────────────────────
+  # TAB 1: ตลาด (Watchlist สไตล์ TradingView)
+  # ──────────────────────────────────────────────────────────
+  if st.session_state["sidebar_active_tab"] == "market":
+    active_tab_sym = "BTCUSDT"
+    if "chart_tabs" in st.session_state and st.session_state["chart_tabs"]:
+      active_id = st.session_state.get("active_tab_id")
+      for t in st.session_state["chart_tabs"]:
+        if t.get("id") == active_id:
+          active_tab_sym = t.get("symbol", "BTCUSDT")
+          break
     else:
-        st.markdown("<div style='font-size:11px; color:#00FFA3; margin-bottom:8px;'>⚡ หมวดหมู่เปรียบเทียบ</div>", unsafe_allow_html=True)
+      active_tab_sym = st.session_state.get("current_symbol", "BTCUSDT")
 
-        c1, c2 = st.columns(2)
-        with c1:
-            if st.button("🌾 ตลาดข้าว", key="btn_rice_modal", use_container_width=True, type="secondary"):
-                from ui import rice_seasonality_modal
-                rice_seasonality_modal.show_rice_market_modal()
-        with c2:
-            if st.button("🪙 คริปโต", key="btn_crypto_modal", use_container_width=True, type="secondary"):
-                from ui import macro_comparison_modal
-                macro_comparison_modal.show_crypto_modal()
+    selected_sym = active_tab_sym
+    clean_selected = standardize_symbol(selected_sym)
 
-        c3, c4 = st.columns(2)
-        with c3:
-            if st.button("📈 หุ้น (GICS)", key="btn_stocks_modal", use_container_width=True, type="secondary"):
-                from ui import macro_comparison_modal
-                macro_comparison_modal.show_stocks_gics_modal()
-        with c4:
-            if st.button("⛏️ แร่ & เหมือง", key="btn_metals_modal", use_container_width=True, type="secondary"):
-                from ui import macro_comparison_modal
-                macro_comparison_modal.show_metals_mining_modal()
+    raw_rows = [
+        _normalize_row(r)
+        for r in st.session_state.get("custom_watchlist", [])
+    ]
+    wl_syms_clean = [standardize_symbol(r[0]) for r in raw_rows]
 
-        c5, c6 = st.columns(2)
-        with c5:
-            if st.button("💵 สกุลเงิน FX", key="btn_forex_modal", use_container_width=True, type="secondary"):
-                from ui import macro_comparison_modal
-                macro_comparison_modal.show_forex_modal()
-        with c6:
-            if st.button("🌐 เทียบข้ามกลุ่ม", key="btn_macro_modal", use_container_width=True, type="secondary"):
-                from ui import macro_comparison_modal
-                macro_comparison_modal.show_macro_comparison_modal()
+    if clean_selected not in wl_syms_clean:
+      st.session_state["custom_watchlist"].append(
+          (clean_selected, "-", "-", True)
+      )
+      save_watchlist_data()
+      _sync_watchlist_to_url()
+      raw_rows = [
+          _normalize_row(r)
+          for r in st.session_state.get("custom_watchlist", [])
+      ]
+    st.session_state["last_active_wl_sym"] = clean_selected
 
-        st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
-        if st.button("🧭 บทวิเคราะห์เงินทุนไหล (Capital Flow)", key="btn_flow_modal", use_container_width=True, type="primary"):
-            from ui import macro_comparison_modal
-            macro_comparison_modal.show_flow_analysis_modal()
+    if st.button(
+        "🔍 ค้นหาเหรียญ / สัญลักษณ์สินทรัพย์...",
+        key="btn_open_symbol_modal",
+        use_container_width=True,
+        type="secondary",
+    ):
+      render_symbol_modal()
+    f_cols = st.columns([1.1, 1, 1, 1, 1, 1], gap="small")
+    active = st.session_state.get("color_filter")
 
-    # -------------------------------------------------------------
-    # แถบล่างสุด: ตั้งค่า + นาฬิกา
-    # -------------------------------------------------------------
-    st.markdown("<hr style='margin: 14px 0 10px 0; border: 0.5px solid #2a2e39;'>", unsafe_allow_html=True)
+    with f_cols[0]:
+      if st.button(
+          "ALL" if active else "⭐",
+          key="cf_all",
+          use_container_width=True,
+          type="primary" if active is None else "tertiary",
+      ):
+        st.session_state["color_filter"] = None
+        st.rerun()
 
-    col_set, col_clk = st.columns([0.42, 0.58], vertical_alignment="center")
-    with col_set:
-        if st.button("⚙️ ตั้งค่า", key="btn_chart_settings", use_container_width=True, type="secondary", help="ตั้งค่ากราฟ"):
-            show_chart_settings_dialog()
+    for i, ckey in enumerate(SORTED_COLOR_KEYS):
+      with f_cols[i + 1]:
+        btn_type = "primary" if active == ckey else "tertiary"
+        dot_char = COLOR_TAGS[ckey]["dot"]
+        if st.button(
+            dot_char,
+            key=f"cf_{ckey}",
+            use_container_width=True,
+            type=btn_type,
+        ):
+          st.session_state["color_filter"] = (
+              None if active == ckey else ckey
+          )
+          st.rerun()
 
-    with col_clk:
-        now_bkk = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
-        st.markdown(f"""
+    h_title, h_add = st.columns(
+        [1.8, 0.4], gap="small", vertical_alignment="center"
+    )
+    with h_title:
+      st.markdown(
+          "<div style='font-size:12px; font-weight:700; color:#8b949e;'>📋"
+          " รายการสินทรัพย์เฝ้าดู</div>",
+          unsafe_allow_html=True,
+      )
+    with h_add:
+      with st.popover("➕", help="เพิ่มเหรียญ/หุ้น เข้า Watchlist"):
+        st.markdown(
+            "<b style='font-size:12px; color:#00e676;'>➕ เพิ่มเหรียญเข้า"
+            " Watchlist</b>",
+            unsafe_allow_html=True,
+        )
+        new_sym_in = st.text_input(
+            "พิมพ์ชื่อเหรียญหรือหุ้น:",
+            placeholder="เช่น BTC, ETH, DELTABK, PERPTHB",
+            key="quick_add_sym_input",
+        )
+        c_add_btn, c_browse = st.columns([0.6, 0.4])
+        with c_add_btn:
+          if st.button(
+              "เพิ่ม",
+              key="btn_confirm_quick_add",
+              type="primary",
+              use_container_width=True,
+          ):
+            if new_sym_in.strip():
+              add_to_watchlist(new_sym_in.strip())
+              st.toast(f"เพิ่ม '{new_sym_in.strip().upper()}' แล้ว!")
+              st.rerun()
+        with c_browse:
+          if st.button(
+              "ค้นหา...", key="btn_browse_symbols", use_container_width=True
+          ):
+            render_symbol_modal()
+
+    h_c1, h_c2, h_c3, h_c4 = st.columns(
+        [1.44, 0.90, 0.86, 0.28], gap="small", vertical_alignment="center"
+    )
+    sort_mode = st.session_state.get("wl_sort_mode", "none")
+
+    with h_c1:
+      lbl_sym = "สัญลักษณ์"
+      if sort_mode == "sym_asc":
+        lbl_sym = "สัญลักษณ์ ▲"
+      elif sort_mode == "sym_desc":
+        lbl_sym = "สัญลักษณ์ ▼"
+      st.markdown('<div class="tv-sort-wrap">', unsafe_allow_html=True)
+      if st.button(
+          lbl_sym, key="btn_sort_sym", type="tertiary", use_container_width=True
+      ):
+        st.session_state["wl_sort_mode"] = (
+            "sym_desc"
+            if sort_mode == "sym_asc"
+            else ("none" if sort_mode == "sym_desc" else "sym_asc")
+        )
+        st.rerun()
+      st.markdown("</div>", unsafe_allow_html=True)
+
+    with h_c2:
+      lbl_pct = "เปลี่ยน"
+      if sort_mode == "pct_desc":
+        lbl_pct = "เปลี่ยน ▼"
+      elif sort_mode == "pct_asc":
+        lbl_pct = "เปลี่ยน ▲"
+      st.markdown('<div class="tv-sort-wrap">', unsafe_allow_html=True)
+      if st.button(
+          lbl_pct, key="btn_sort_pct", type="tertiary", use_container_width=True
+      ):
+        st.session_state["wl_sort_mode"] = (
+            "pct_asc"
+            if sort_mode == "pct_desc"
+            else ("none" if sort_mode == "pct_asc" else "pct_desc")
+        )
+        st.rerun()
+      st.markdown("</div>", unsafe_allow_html=True)
+
+    with h_c3:
+      lbl_vol = "ปริมาณ"
+      if sort_mode == "vol_desc":
+        lbl_vol = "ปริมาณ ▼"
+      st.markdown('<div class="tv-sort-right">', unsafe_allow_html=True)
+      if st.button(
+          lbl_vol, key="btn_sort_vol", type="tertiary", use_container_width=True
+      ):
+        st.session_state["wl_sort_mode"] = (
+            "none" if sort_mode == "vol_desc" else "vol_desc"
+        )
+        st.rerun()
+      st.markdown("</div>", unsafe_allow_html=True)
+
+    with h_c4:
+      st.markdown(
+          "<span style='font-size:10px; color:#555e6d;'>ลบ</span>",
+          unsafe_allow_html=True,
+      )
+
+    rows = (
+        [r for r in raw_rows if get_sym_color_key(r[0]) == active]
+        if active
+        else raw_rows
+    )
+
+    if not rows:
+      st.caption("ไม่มีเหรียญในกลุ่มนี้ กดปุ่ม ➕ ด้านบนเพื่อเพิ่มเหรียญ")
+
+    display_rows = []
+    for sym, p_val, c_val, is_up in rows:
+      dot = get_sym_color_dot(sym)
+      c_num = 0.0
+      v_num = 0.0
+      v_val = "-"
+      p_val = "-"
+      c_val = "+0.00%"
+      is_up = True
+
+      s_std = standardize_symbol(sym)
+      row_active = (s_std == clean_selected) or (
+          norm_sym(sym).upper() == norm_sym(selected_sym).upper()
+      )
+
+      ticker_data = _get_live_ticker(sym)
+      if ticker_data:
+        p_val, c_val, v_val, is_up, c_num, v_num = ticker_data
+
+      display_rows.append({
+          "sym": sym,
+          "dot": dot,
+          "p_val": p_val,
+          "c_val": c_val,
+          "v_val": v_val,
+          "is_up": is_up,
+          "c_num": c_num,
+          "v_num": v_num,
+          "is_active": row_active,
+      })
+
+    if sort_mode == "sym_asc":
+      display_rows.sort(key=lambda x: x["sym"])
+    elif sort_mode == "sym_desc":
+      display_rows.sort(key=lambda x: x["sym"], reverse=True)
+    elif sort_mode == "pct_desc":
+      display_rows.sort(key=lambda x: x["c_num"], reverse=True)
+    elif sort_mode == "pct_asc":
+      display_rows.sort(key=lambda x: x["c_num"])
+    elif sort_mode == "vol_desc":
+      display_rows.sort(key=lambda x: x["v_num"], reverse=True)
+
+    with st.container(height=480):
+      for idx, item in enumerate(display_rows):
+        sym = item["sym"]
+        dot = item["dot"]
+        c_val = item["c_val"]
+        v_val = item["v_val"]
+        is_up = item["is_up"]
+        row_active = item["is_active"]
+
+        c_sym, c_tag, c_pct, c_vol, c_del = st.columns(
+            [1.18, 0.26, 0.90, 0.86, 0.28],
+            gap="small",
+            vertical_alignment="center",
+        )
+        with c_sym:
+          active_badge = "🔶 " if row_active else ""
+          btn_title = f"{active_badge}{dot} {sym}".strip()
+          btn_type = "primary" if row_active else "secondary"
+          if st.button(
+              btn_title,
+              key=f"wl_btn_{sym}_{idx}",
+              type=btn_type,
+              use_container_width=True,
+          ):
+            set_active_symbol(sym)
+            st.session_state["last_active_wl_sym"] = standardize_symbol(sym)
+            st.rerun()
+
+        with c_tag:
+          st.markdown('<div class="tv-neon-wrap">', unsafe_allow_html=True)
+          with st.popover(
+              "●", use_container_width=True, help=f"จัดกลุ่มสี {sym}"
+          ):
+            _color_menu(sym, prefix=f"wl_{idx}")
+          st.markdown("</div>", unsafe_allow_html=True)
+
+        with c_pct:
+          cls = "tv-val-up" if is_up else "tv-val-down"
+          st.markdown(
+              '<div style="text-align:right;"><span'
+              f' class="{cls}">{c_val}</span></div>',
+              unsafe_allow_html=True,
+          )
+
+        with c_vol:
+          st.markdown(
+              '<div style="text-align:right;"><span'
+              f' class="tv-vol-text">{v_val}</span></div>',
+              unsafe_allow_html=True,
+          )
+
+        with c_del:
+          st.markdown('<div class="tv-del-btn">', unsafe_allow_html=True)
+          if st.button(
+              "✕",
+              key=f"wl_del_{sym}_{idx}",
+              help=f"ลบ {sym} ออกจาก Watchlist",
+          ):
+            remove_from_watchlist(sym)
+            st.rerun()
+          st.markdown("</div>", unsafe_allow_html=True)
+
+  # ──────────────────────────────────────────────────────────
+  # TAB 2: กราฟเปรียบเทียบ
+  # ──────────────────────────────────────────────────────────
+  elif st.session_state["sidebar_active_tab"] == "tools":
+    st.markdown(
+        "<div style='font-size:11px; color:#00FFA3;"
+        " margin-bottom:8px;'>⚡ หมวดหมู่เปรียบเทียบ</div>",
+        unsafe_allow_html=True,
+    )
+
+    c1, c2 = st.columns(2)
+    with c1:
+      if st.button(
+          "🌾 ตลาดข้าว",
+          key="btn_rice_modal",
+          use_container_width=True,
+          type="secondary",
+      ):
+        from ui import rice_seasonality_modal
+
+        rice_seasonality_modal.show_rice_market_modal()
+    with c2:
+      if st.button(
+          "🪙 คริปโต",
+          key="btn_crypto_modal",
+          use_container_width=True,
+          type="secondary",
+      ):
+        from ui import macro_comparison_modal
+
+        macro_comparison_modal.show_crypto_modal()
+
+    c3, c4 = st.columns(2)
+    with c3:
+      if st.button(
+          "📈 หุ้น (GICS)",
+          key="btn_stocks_modal",
+          use_container_width=True,
+          type="secondary",
+      ):
+        from ui import macro_comparison_modal
+
+        macro_comparison_modal.show_stocks_gics_modal()
+    with c4:
+      if st.button(
+          "⛏️ แร่ & เหมือง",
+          key="btn_metals_modal",
+          use_container_width=True,
+          type="secondary",
+      ):
+        from ui import macro_comparison_modal
+
+        macro_comparison_modal.show_metals_mining_modal()
+
+    c5, c6 = st.columns(2)
+    with c5:
+      if st.button(
+          "💵 สกุลเงิน FX",
+          key="btn_forex_modal",
+          use_container_width=True,
+          type="secondary",
+      ):
+        from ui import macro_comparison_modal
+
+        macro_comparison_modal.show_forex_modal()
+    with c6:
+      if st.button(
+          "🌐 เทียบข้ามกลุ่ม",
+          key="btn_macro_modal",
+          use_container_width=True,
+          type="secondary",
+      ):
+        from ui import macro_comparison_modal
+
+        macro_comparison_modal.show_macro_comparison_modal()
+
+    st.markdown("<div style='margin-top:6px;'></div>", unsafe_allow_html=True)
+    if st.button(
+        "🧭 บทวิเคราะห์เงินทุนไหล (Capital Flow)",
+        key="btn_flow_modal",
+        use_container_width=True,
+        type="primary",
+    ):
+      from ui import macro_comparison_modal
+
+      macro_comparison_modal.show_flow_analysis_modal()
+
+  # ──────────────────────────────────────────────────────────
+  # TAB 3: อันดับ 24h (Market Scanner 24 ชม.)
+  # ──────────────────────────────────────────────────────────
+  elif st.session_state["sidebar_active_tab"] == "ranking":
+    if "rank_sort_mode" not in st.session_state:
+      st.session_state["rank_sort_mode"] = "vol"
+    if "rank_currency_filter" not in st.session_state:
+      st.session_state["rank_currency_filter"] = "all"
+
+    # ตัวเลือกจัดอันดับ 3 หัวข้อหลัก
+    col_s1, col_s2, col_s3 = st.columns(3, gap="small")
+    with col_s1:
+      if st.button(
+          "ปริมาณ 24 ชม.",
+          key="rk_sort_vol",
+          type=(
+              "primary"
+              if st.session_state["rank_sort_mode"] == "vol"
+              else "secondary"
+          ),
+          use_container_width=True,
+      ):
+        st.session_state["rank_sort_mode"] = "vol"
+        st.rerun()
+    with col_s2:
+      if st.button(
+          "% เพิ่มสูงสุด",
+          key="rk_sort_gain",
+          type=(
+              "primary"
+              if st.session_state["rank_sort_mode"] == "gain"
+              else "secondary"
+          ),
+          use_container_width=True,
+      ):
+        st.session_state["rank_sort_mode"] = "gain"
+        st.rerun()
+    with col_s3:
+      if st.button(
+          "% ลดสูงสุด",
+          key="rk_sort_loss",
+          type=(
+              "primary"
+              if st.session_state["rank_sort_mode"] == "loss"
+              else "secondary"
+          ),
+          use_container_width=True,
+      ):
+        st.session_state["rank_sort_mode"] = "loss"
+        st.rerun()
+
+    # ตัวเลือกกรองสกุลเงิน
+    col_f1, col_f2, col_f3 = st.columns(3, gap="small")
+    with col_f1:
+      if st.button(
+          "ทั้งหมด",
+          key="rk_curr_all",
+          type=(
+              "primary"
+              if st.session_state["rank_currency_filter"] == "all"
+              else "secondary"
+          ),
+          use_container_width=True,
+      ):
+        st.session_state["rank_currency_filter"] = "all"
+        st.rerun()
+    with col_f2:
+      if st.button(
+          "THB",
+          key="rk_curr_thb",
+          type=(
+              "primary"
+              if st.session_state["rank_currency_filter"] == "THB"
+              else "secondary"
+          ),
+          use_container_width=True,
+      ):
+        st.session_state["rank_currency_filter"] = "THB"
+        st.rerun()
+    with col_f3:
+      if st.button(
+          "USDT",
+          key="rk_curr_usdt",
+          type=(
+              "primary"
+              if st.session_state["rank_currency_filter"] == "USDT"
+              else "secondary"
+          ),
+          use_container_width=True,
+      ):
+        st.session_state["rank_currency_filter"] = "USDT"
+        st.rerun()
+
+    raw_ranking = fetch_all_24h_markets()
+    curr = st.session_state["rank_currency_filter"]
+    if curr != "all":
+      filtered_ranking = [x for x in raw_ranking if x["pair"] == curr]
+    else:
+      filtered_ranking = raw_ranking
+
+    sort_m = st.session_state["rank_sort_mode"]
+    if sort_m == "vol":
+      sorted_ranking = sorted(
+          filtered_ranking, key=lambda x: x["volume_quote"], reverse=True
+      )
+    elif sort_m == "gain":
+      sorted_ranking = sorted(
+          filtered_ranking, key=lambda x: x["change_pct"], reverse=True
+      )
+    elif sort_m == "loss":
+      sorted_ranking = sorted(filtered_ranking, key=lambda x: x["change_pct"])
+
+    st.markdown(
+        """
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#8b949e; padding:6px 4px 2px 4px; border-bottom:1px solid #1e2433;">
+            <span style="flex:1.2;">สินทรัพย์</span>
+            <span style="flex:1; text-align:right;">ราคาล่าสุด</span>
+            <span style="flex:1; text-align:right;">24 ชม.</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    with st.container(height=480):
+      for idx, item in enumerate(sorted_ranking[:60]):
+        sym = item["symbol"]
+        chg = item["change_pct"]
+        price = item["last_price"]
+        p_str = _format_price(price)
+        chg_color = "#00e676" if chg >= 0 else "#ff3366"
+        sign = "+" if chg > 0 else ""
+
+        c_row1, c_row2 = st.columns([1.2, 1.8], gap="small", vertical_alignment="center")
+        with c_row1:
+          if st.button(
+              f"🪙 {item['display_name']}",
+              key=f"rk_btn_{sym}_{idx}",
+              use_container_width=True,
+          ):
+            set_active_symbol(sym)
+            st.rerun()
+
+        with c_row2:
+          st.markdown(
+              f"""
+                <div style="display:flex; justify-content:space-between; align-items:center; height:24px; font-size:12px; font-family:'JetBrains Mono', monospace; font-weight:600;">
+                    <span style="color:#d1d4dc;">{p_str}</span>
+                    <span style="color:{chg_color}; background:rgba({ '0,230,118' if chg >= 0 else '255,51,102' }, 0.15); padding:1px 6px; border-radius:4px;">
+                        {sign}{chg:.2f}%
+                    </span>
+                </div>
+                """,
+              unsafe_allow_html=True,
+          )
+
+  # -------------------------------------------------------------
+  # แถบล่างสุด: ตั้งค่า + นาฬิกา
+  # -------------------------------------------------------------
+  st.markdown(
+      "<hr style='margin: 14px 0 10px 0; border: 0.5px solid #2a2e39;'>",
+      unsafe_allow_html=True,
+  )
+
+  col_set, col_clk = st.columns([0.42, 0.58], vertical_alignment="center")
+  with col_set:
+    if st.button(
+        "⚙️ ตั้งค่า",
+        key="btn_chart_settings",
+        use_container_width=True,
+        type="secondary",
+        help="ตั้งค่ากราฟ",
+    ):
+      show_chart_settings_dialog()
+
+  with col_clk:
+    now_bkk = datetime.datetime.utcnow() + datetime.timedelta(hours=7)
+    st.markdown(
+        f"""
         <div style="padding:6px 8px; background:#131722; border:1px solid #2a2e39; border-radius:6px; display:flex; justify-content:space-between; align-items:center;">
             <div>
                 <div style="font-size:10px; color:#787b86; display:flex; align-items:center; gap:3px;">
@@ -739,9 +1215,11 @@ def render_sidebar():
             </div>
             <span style="background:rgba(38,166,154,0.15); color:#26a69a; border:1px solid #26a69a; padding:1px 5px; border-radius:3px; font-size:9px; font-weight:bold;">LIVE</span>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
-    return {
-        "show_top_bar": st.session_state.get("show_top_bar", True),
-        "show_draw_toolbar": st.session_state.get("show_draw_toolbar", True)
-    }
+  return {
+      "show_top_bar": st.session_state.get("show_top_bar", True),
+      "show_draw_toolbar": st.session_state.get("show_draw_toolbar", True),
+  }
