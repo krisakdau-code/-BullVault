@@ -8,6 +8,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from color_store import ensure_color_state
+
 ensure_color_state()
 
 from config import BROWSER_HEADERS
@@ -247,7 +248,8 @@ st.markdown(
         color: #ff8c00 !important;
         box-shadow: 0 0 8px rgba(255, 140, 0, 0.3) !important;
     }
-   /* ปุ่มเครื่องมือวาดรูปบนเดสท็อป (ต่อท้าย Timeframe) - Dark Amber Glass */
+
+    /* ปุ่มเครื่องมือวาดรูปบนเดสท็อป (ต่อท้าย Timeframe) - Dark Amber Glass */
     div[data-testid="stHorizontalBlock"]:has(div[data-testid="stRadio"]) > div:nth-child(2) button,
     button[key="btn_toggle_draw_desktop"] {
         height: 28px !important;
@@ -320,26 +322,28 @@ st.markdown(
         border-left: 1px solid #161a23 !important;
     }
 
-    /* Dark Amber Glass: ปุ่ม Active ฝั่งซ้าย (ตลาด, กราฟเปรียบเทียบ, ⭐, เหรียญที่เลือก, บทวิเคราะห์เงินทุนไหล) */
-    div[data-testid="column"]:has(#custom-left-menu-anchor) button[kind="primary"],
-    div[data-testid="column"]:has(#custom-left-menu-anchor) button[data-testid="baseButton-primary"],
-    div[data-testid="stColumn"]:has(#custom-left-menu-anchor) button[kind="primary"],
-    div[data-testid="stColumn"]:has(#custom-left-menu-anchor) button[data-testid="baseButton-primary"] {
-        background: rgba(255, 125, 30, 0.16) !important;
-        border: 1.5px solid rgba(255, 125, 30, 0.55) !important;
-        box-shadow: 0 0 12px rgba(255, 125, 30, 0.25) !important;
-        backdrop-filter: blur(8px) !important;
-        color: #ff9d42 !important;
+    /* สไตล์ปุ่ม Active โฟกัสจอแบบ TradingView: สีส้มสะท้อนแสงเด่นชัด */
+    div[data-testid="column"]:has(#custom-center-chart-anchor) button[kind="primary"],
+    div[data-testid="column"]:has(#custom-center-chart-anchor) button[data-testid="baseButton-primary"],
+    div[data-testid="stColumn"]:has(#custom-center-chart-anchor) button[kind="primary"],
+    div[data-testid="stColumn"]:has(#custom-center-chart-anchor) button[data-testid="baseButton-primary"] {
+        background: linear-gradient(135deg, rgba(255, 125, 30, 0.35), rgba(255, 157, 66, 0.45)) !important;
+        border: 2px solid #ff7d1e !important;
+        box-shadow: 0 0 15px rgba(255, 125, 30, 0.5) !important;
+        color: #ffffff !important;
         font-weight: 700 !important;
+        font-size: 13px !important;
     }
-    div[data-testid="column"]:has(#custom-left-menu-anchor) button[kind="primary"]:hover,
-    div[data-testid="column"]:has(#custom-left-menu-anchor) button[data-testid="baseButton-primary"]:hover,
-    div[data-testid="stColumn"]:has(#custom-left-menu-anchor) button[kind="primary"]:hover,
-    div[data-testid="stColumn"]:has(#custom-left-menu-anchor) button[data-testid="baseButton-primary"]:hover {
-        background: rgba(255, 125, 30, 0.26) !important;
-        border-color: #ff7d1e !important;
-        box-shadow: 0 0 14px rgba(255, 125, 30, 0.45) !important;
-        color: #ffa858 !important;
+
+    div[data-testid="column"]:has(#custom-center-chart-anchor) button[kind="secondary"],
+    div[data-testid="column"]:has(#custom-center-chart-anchor) button[data-testid="baseButton-secondary"],
+    div[data-testid="stColumn"]:has(#custom-center-chart-anchor) button[kind="secondary"],
+    div[data-testid="stColumn"]:has(#custom-center-chart-anchor) button[data-testid="baseButton-secondary"] {
+        background: #0e1118 !important;
+        border: 1px solid #1e2433 !important;
+        color: #8b949e !important;
+        font-size: 13px !important;
+        opacity: 0.8 !important;
     }
 
     /* 8. สไตล์ตัวเลข % และราคา */
@@ -359,16 +363,14 @@ st.markdown(
     ::-webkit-scrollbar-track { background: #07080a; }
     ::-webkit-scrollbar-thumb { background: #1a202e; border-radius: 2px; }
     ::-webkit-scrollbar-thumb:hover { background: #ff8c00; }
-
-    
 </style>
 """,
     unsafe_allow_html=True,
 )
 
 def inject_workspace_resizers():
-  components.html(
-      """
+    components.html(
+        """
     <style>
         #custom-color-context-menu {
             position: fixed;
@@ -459,7 +461,6 @@ def inject_workspace_resizers():
                 return el ? el.closest('[data-testid="stColumn"], [data-testid="column"], .stColumn') : null;
             }
 
-            // คำสั่งโหมดเต็มจอ Fullscreen (เสมือนกด F11)
             function toggleFullScreen(e) {
                 if (e) { e.stopPropagation(); e.preventDefault(); }
                 const de = doc.documentElement;
@@ -478,7 +479,6 @@ def inject_workspace_resizers():
                 }
             }
 
-            // คำสั่งพับ/กางเมนูขวา (เฉพาะปุ่มแถบ Resizer)
             function toggleRightPanel(e) {
                 if (e) { e.stopPropagation(); e.preventDefault(); }
                 const rCol = getCol('custom-right-menu-anchor');
@@ -747,26 +747,33 @@ def inject_workspace_resizers():
     })();
     </script>
     """,
-      height=0,
-      width=0,
-  )
+        height=0,
+        width=0,
+    )
+
 if "chart_tabs" not in st.session_state:
-  st.session_state["chart_tabs"] = [
-      {"id": "tab_1", "symbol": "BTCUSDT", "tf": "1h"}
-  ]
+    st.session_state["chart_tabs"] = [
+        {"id": "tab_1", "symbol": "BTCUSDT", "tf": "1h"}
+    ]
 if "active_tab_id" not in st.session_state:
-  st.session_state["active_tab_id"] = "tab_1"
+    st.session_state["active_tab_id"] = "tab_1"
 
 if "current_symbol" not in st.session_state:
-  st.session_state["current_symbol"] = "BTCUSDT"
+    st.session_state["current_symbol"] = "BTCUSDT"
 if "selected_tf" not in st.session_state:
-  st.session_state["selected_tf"] = "1h"
+    st.session_state["selected_tf"] = "1h"
 if "fast_ema" not in st.session_state:
-  st.session_state["fast_ema"] = 7
+    st.session_state["fast_ema"] = 7
 if "slow_ema" not in st.session_state:
-  st.session_state["slow_ema"] = 13
+    st.session_state["slow_ema"] = 13
 if "trend_ema" not in st.session_state:
-  st.session_state["trend_ema"] = 45
+    st.session_state["trend_ema"] = 45
+
+# State ระบบ Multi-Pane แยกกระเป๋าอิสระแบบ TradingView
+if "active_chart_focus" not in st.session_state:
+    st.session_state["active_chart_focus"] = 1
+if "dual_sec_symbol" not in st.session_state:
+    st.session_state["dual_sec_symbol"] = "ETHUSDT"
 
 HTTP_SESSION = requests.Session()
 HTTP_SESSION.headers.update(BROWSER_HEADERS)
@@ -776,294 +783,476 @@ retry_strategy = Retry(
 HTTP_SESSION.mount("https://", HTTPAdapter(max_retries=retry_strategy))
 
 def fetch_ohlcv(symbol: str, tf: str, bars: int) -> pd.DataFrame:
-  if (
-      symbol.startswith("RICE:")
-      or symbol.startswith("FOB:")
-      or "ZR=F" in symbol
-  ):
-    df = generate_rice_ohlcv(symbol, bars=bars)
-  else:
-    df = fetch_market_ohlcv(symbol=symbol, tf=tf, limit=bars)
+    if (
+        symbol.startswith("RICE:")
+        or symbol.startswith("FOB:")
+        or "ZR=F" in symbol
+    ):
+        df = generate_rice_ohlcv(symbol, bars=bars)
+    else:
+        df = fetch_market_ohlcv(symbol=symbol, tf=tf, limit=bars)
 
-  if not df.empty and "time" in df.columns:
-    if pd.api.types.is_datetime64_any_dtype(df["time"]):
-      df["time"] = df["time"].astype("int64") // 10**9
-    df = (
-        df.dropna()
-        .drop_duplicates(subset=["time"])
-        .sort_values("time")
-        .tail(bars)
-        .reset_index(drop=True)
-    )
+    if not df.empty and "time" in df.columns:
+        if pd.api.types.is_datetime64_any_dtype(df["time"]):
+            df["time"] = df["time"].astype("int64") // 10**9
+        df = (
+            df.dropna()
+            .drop_duplicates(subset=["time"])
+            .sort_values("time")
+            .tail(bars)
+            .reset_index(drop=True)
+        )
 
-  if df is not None and not df.empty:
-    st.session_state["df_data"] = df
-
-  return df
+    return df
 
 # 1. Fragment แท็บด้านบน (อัปเดต % ทุก 5 วินาที)
 @st.fragment(run_every=5)
 def render_top_tabs_fragment():
-  tabs = st.session_state["chart_tabs"]
-  active_id = st.session_state["active_tab_id"]
-  active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
-  symbol = active_tab["symbol"]
+    tabs = st.session_state["chart_tabs"]
+    active_id = st.session_state["active_tab_id"]
+    active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
+    symbol = active_tab["symbol"]
 
-  ticker_24h = fetch_ticker_24h(symbol)
-  live_pct = (
-      float(ticker_24h["price_change_pct"])
-      if ticker_24h and "price_change_pct" in ticker_24h
-      else 0.0
-  )
-  pct_sign = "+" if live_pct >= 0 else ""
-  pct_str = f"{pct_sign}{live_pct:.2f}%"
-
-  has_close = len(tabs) > 1
-  col_widths = [0.01]
-  for _ in tabs:
-    col_widths.append(1.0)
-    if has_close:
-      col_widths.append(0.18)
-  col_widths.append(0.22)
-  col_widths.append(8.0)
-
-  t_cols = st.columns(col_widths, gap="small")
-  col_iter = iter(t_cols)
-
-  with next(col_iter):
-    st.markdown('<div id="top-tabs-marker"></div>', unsafe_allow_html=True)
-
-  for t in tabs:
-    is_active = t["id"] == active_id
-    t_meta = resolve_market_info(t["symbol"])
-    t_label = (
-        f"💎 {t_meta['display_name']} {pct_str if is_active else ''}".strip()
+    ticker_24h = fetch_ticker_24h(symbol)
+    live_pct = (
+        float(ticker_24h["price_change_pct"])
+        if ticker_24h and "price_change_pct" in ticker_24h
+        else 0.0
     )
-    btn_type = "primary" if is_active else "secondary"
+    pct_sign = "+" if live_pct >= 0 else ""
+    pct_str = f"{pct_sign}{live_pct:.2f}%"
+
+    has_close = len(tabs) > 1
+    col_widths = [0.01]
+    for _ in tabs:
+        col_widths.append(1.0)
+        if has_close:
+            col_widths.append(0.18)
+    col_widths.append(0.22)
+    col_widths.append(8.0)
+
+    t_cols = st.columns(col_widths, gap="small")
+    col_iter = iter(t_cols)
 
     with next(col_iter):
-      if st.button(
-          t_label,
-          key=f"t_btn_{t['id']}",
-          type=btn_type,
-          use_container_width=True,
-      ):
-        st.session_state["active_tab_id"] = t["id"]
-        st.session_state["current_symbol"] = t["symbol"]
-        st.session_state["selected_tf"] = t["tf"]
-        st.session_state.pop("selected_symbol", None)
-        try:
-          st.rerun(scope="app")
-        except TypeError:
-          st.rerun()
+        st.markdown('<div id="top-tabs-marker"></div>', unsafe_allow_html=True)
 
-    if has_close:
-      with next(col_iter):
+    for t in tabs:
+        is_active = t["id"] == active_id
+        t_meta = resolve_market_info(t["symbol"])
+        t_label = (
+            f"💎 {t_meta['display_name']} {pct_str if is_active else ''}".strip()
+        )
+        btn_type = "primary" if is_active else "secondary"
+
+        with next(col_iter):
+            if st.button(
+                t_label,
+                key=f"t_btn_{t['id']}",
+                type=btn_type,
+                use_container_width=True,
+            ):
+                st.session_state["active_tab_id"] = t["id"]
+                st.session_state["current_symbol"] = t["symbol"]
+                st.session_state["selected_tf"] = t["tf"]
+                st.session_state.pop("selected_symbol", None)
+                try:
+                    st.rerun(scope="app")
+                except TypeError:
+                    st.rerun()
+
+        if has_close:
+            with next(col_iter):
+                if st.button(
+                    "✕",
+                    key=f"t_close_{t['id']}",
+                    help="ปิดแท็บนี้",
+                    use_container_width=True,
+                ):
+                    st.session_state["chart_tabs"] = [
+                        x for x in tabs if x["id"] != t["id"]
+                    ]
+                    if t["id"] == active_id:
+                        st.session_state["active_tab_id"] = st.session_state["chart_tabs"][
+                            0
+                        ]["id"]
+                        st.session_state["current_symbol"] = st.session_state["chart_tabs"][
+                            0
+                        ]["symbol"]
+                    try:
+                        st.rerun(scope="app")
+                    except TypeError:
+                        st.rerun()
+
+    with next(col_iter):
         if st.button(
-            "✕",
-            key=f"t_close_{t['id']}",
-            help="ปิดแท็บนี้",
+            "＋",
+            key="btn_add_tab_global",
+            help="เพิ่มแท็บกราฟใหม่",
             use_container_width=True,
         ):
-          st.session_state["chart_tabs"] = [
-              x for x in tabs if x["id"] != t["id"]
-          ]
-          if t["id"] == active_id:
-            st.session_state["active_tab_id"] = st.session_state["chart_tabs"][
-                0
-            ]["id"]
-            st.session_state["current_symbol"] = st.session_state["chart_tabs"][
-                0
-            ]["symbol"]
-          try:
-            st.rerun(scope="app")
-          except TypeError:
-            st.rerun()
-
-  with next(col_iter):
-    if st.button(
-        "＋",
-        key="btn_add_tab_global",
-        help="เพิ่มแท็บกราฟใหม่",
-        use_container_width=True,
-    ):
-      new_tab_id = f"tab_{int(time.time() * 1000)}"
-      new_sym = "ETHUSDT" if symbol == "BTCUSDT" else "BTCUSDT"
-      st.session_state["chart_tabs"].append(
-          {"id": new_tab_id, "symbol": new_sym, "tf": active_tab.get("tf", "1h")}
-      )
-      st.session_state["active_tab_id"] = new_tab_id
-      st.session_state["current_symbol"] = new_sym
-      try:
-        st.rerun(scope="app")
-      except TypeError:
-        st.rerun()
+            new_tab_id = f"tab_{int(time.time() * 1000)}"
+            new_sym = "ETHUSDT" if symbol == "BTCUSDT" else "BTCUSDT"
+            st.session_state["chart_tabs"].append(
+                {"id": new_tab_id, "symbol": new_sym, "tf": active_tab.get("tf", "1h")}
+            )
+            st.session_state["active_tab_id"] = new_tab_id
+            st.session_state["current_symbol"] = new_sym
+            try:
+                st.rerun(scope="app")
+            except TypeError:
+                st.rerun()
 
 def render_sidebar_fragment():
-  render_sidebar()
+    render_sidebar()
 
 def render_right_panel_fragment(df, meta, is_thb_mode, fx_rate):
-  render_right_panel(
-      df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
-  )
+    render_right_panel(
+        df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
+    )
 
 def dashboard():
-  if "clear_cache" in st.query_params:
-    st.cache_data.clear()
-    st.cache_resource.clear()
-    st.session_state.clear()
-    st.query_params.clear()
-    st.rerun()
-
-  apply_theme()
-  init_settings_state()
-
-  tabs = st.session_state["chart_tabs"]
-  active_id = st.session_state["active_tab_id"]
-  active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
-
-  incoming_sym = st.session_state.pop("selected_symbol", None)
-  if incoming_sym:
-    active_tab["symbol"] = incoming_sym
-
-  symbol = active_tab["symbol"]
-  st.session_state["current_symbol"] = symbol
-
-  tf = active_tab.get("tf", st.session_state.get("selected_tf", "1h"))
-  st.session_state["selected_tf"] = tf
-
-  bars = TF_TARGET_BARS.get(tf, 25000)
-
-  meta = resolve_market_info(symbol)
-  fx_rate = get_usd_thb_rate()
-  is_thb_mode = st.session_state.get("currency_mode_thb", False)
-
-  df = fetch_ohlcv(symbol, tf, bars)
-  if not df.empty:
-    df, stats = diamond_armor(
-        df,
-        fast=st.session_state["fast_ema"],
-        slow=st.session_state["slow_ema"],
-        trend=st.session_state["trend_ema"],
-    )
-
-  raw_charts = build_charts(df, symbol, tf, 520, 120, 120)
-  filtered_charts = raw_charts
-
-  is_mobile = st.session_state.get("mobile_mode", False)
-
-  if is_mobile:
-    render_mobile_view(
-        df=df,
-        meta=meta,
-        is_thb_mode=is_thb_mode,
-        fx_rate=fx_rate,
-        chart_renderer=lambda: render_drawing_chart(
-            filtered_charts,
-            height=480,
-            key=f"c_{symbol}_{tf}_mobile",
-            show_toolbar=st.session_state.get("show_draw_toolbar", True),
-        ),
-        watchlist_renderer=lambda: render_sidebar_fragment(),
-    )
-  else:
-    render_top_tabs_fragment()
-
-    c_tf, c_draw, c_ind, c_right_blank = st.columns(
-        [5.15, 0.45, 2.0, 1.8], gap="small"
-    )
-    with c_right_blank:
-      is_m = st.toggle("📱 มือถือ", value=False, key="toggle_mobile_mode")
-      if is_m:
-        st.session_state["mobile_mode"] = True
-        st.rerun()
-   
-    with c_tf:
-      st.markdown('<div class="notranslate" translate="no">', unsafe_allow_html=True)
-      primary_tfs = [
-          "5m", "15m", "30m", "1h", "2h", "3h", "4h",
-          "D", "2D", "3D", "W", "M",
-      ]
-      cur_tf = tf
-      def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 3
-      new_tf = st.radio(
-          "TF",
-          primary_tfs,
-          index=def_idx,
-          horizontal=True,
-          label_visibility="collapsed",
-          key="toolbar_tf_horizontal",
-      )
-      if new_tf != cur_tf:
-        active_tab["tf"] = new_tf
-        st.session_state["selected_tf"] = new_tf
-        st.rerun()
-      st.markdown("</div>", unsafe_allow_html=True)
-
-    with c_draw:
-      draw_active = st.session_state.get("show_draw_toolbar", True)
-      btn_type = "primary" if draw_active else "secondary"
-      if st.button(
-          "✏️",
-          key="btn_toggle_draw_desktop",
-          help="เปิด/ปิด แถบเครื่องมือวาดรูป (Draw Toolbar)",
-          type=btn_type,
-          use_container_width=True,
-      ):
-        st.session_state["show_draw_toolbar"] = not draw_active
+    if "clear_cache" in st.query_params:
+        st.cache_data.clear()
+        st.cache_resource.clear()
+        st.session_state.clear()
+        st.query_params.clear()
         st.rerun()
 
-    with c_ind:
-      if st.button(
-          "📊 Indicators",
-          key="btn_open_ind_modal",
-          type="secondary",
-          use_container_width=True,
-      ):
-        st.session_state["modal_indicators_open"] = True
+    apply_theme()
+    init_settings_state()
 
-      if st.session_state.get("modal_indicators_open", False):
-        show_indicators_modal()
+    tabs = st.session_state["chart_tabs"]
+    active_id = st.session_state["active_tab_id"]
+    active_tab = next((t for t in tabs if t["id"] == active_id), tabs[0])
 
-    col_side, col_chart, col_quote = st.columns(
-        [0.88, 3.87, 1.25], gap="small"
-    )
+    mode = st.session_state.get("dual_layout_mode", "1 จอ (ปกติ)")
+    if mode == "1 จอ (ปกติ)":
+        st.session_state["active_chart_focus"] = 1
 
-    with col_side:
-      st.markdown(
-          '<div id="custom-left-menu-anchor"></div>', unsafe_allow_html=True
-      )
-      render_sidebar_fragment()
+    # Callback สลับโฟกัสจอ
+    def switch_focus(pane_no: int):
+        st.session_state["active_chart_focus"] = pane_no
 
-    with col_chart:
-      st.markdown(
-          '<div id="custom-center-chart-anchor"></div>', unsafe_allow_html=True
-      )
-      render_drawing_chart(
-          filtered_charts,
-          height=530,
-          key=f"c_{symbol}_{tf}",
-          show_toolbar=st.session_state.get("show_draw_toolbar", True),
-      )
+    active_focus = st.session_state.get("active_chart_focus", 1)
 
-    with col_quote:
-      st.markdown(
-          '<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True
-      )
-      st.markdown(
-          """
-              <div style="display:flex; align-items:center; margin-bottom:6px;">
-                  <span id="btn-collapse-right" title="คลิกเพื่อพับเก็บเมนูขวา" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#FF3366; border-radius:50%; margin-right:6px; box-shadow:0 0 6px #FF3366; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
-                  <span id="btn-fullscreen-app" title="คลิกเพื่อขยายเต็มจอ / ออกจากเต็มจอ" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#00FF66; border-radius:50%; margin-right:8px; box-shadow:0 0 6px #00FF66; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
-                  <b style='font-size:13px; color:#ffffff;'>บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>
-              </div>
-          """,
-          unsafe_allow_html=True,
-      )
-      render_right_panel_fragment(
-          df=df, meta=meta, is_thb_mode=is_thb_mode, fx_rate=fx_rate
-      )
+    # -------------------------------------------------------------------------
+    # TRADINGVIEW DISPATCHER: ส่งเหรียญเข้าเฉพาะจอที่เลือก (แยกขาดจากกัน 100%)
+    # -------------------------------------------------------------------------
+    incoming_sym = st.session_state.pop("selected_symbol", None)
+    if incoming_sym:
+        if mode != "1 จอ (ปกติ)" and active_focus == 2:
+            st.session_state["dual_sec_symbol"] = incoming_sym
+        else:
+            active_tab["symbol"] = incoming_sym
 
-      inject_workspace_resizers()
+    # แยกกระเป๋าข้อมูลของทั้ง 2 จอ
+    sym_1 = active_tab.get("symbol", "BTCUSDT")
+    sym_2 = st.session_state.get("dual_sec_symbol", "ETHUSDT").strip().upper() or "ETHUSDT"
+
+    # เหรียญที่กำลัง Active สำหรับระบบส่วนกลาง
+    current_active_sym = sym_2 if (mode != "1 จอ (ปกติ)" and active_focus == 2) else sym_1
+    st.session_state["current_symbol"] = current_active_sym
+
+    tf = active_tab.get("tf", st.session_state.get("selected_tf", "1h"))
+    st.session_state["selected_tf"] = tf
+
+    bars = TF_TARGET_BARS.get(tf, 25000)
+    fx_rate = get_usd_thb_rate()
+    is_thb_mode = st.session_state.get("currency_mode_thb", False)
+
+    # 1. โหลดข้อมูลกราฟจอที่ 1
+    meta_1 = resolve_market_info(sym_1)
+    df_1 = fetch_ohlcv(sym_1, tf, bars)
+    if not df_1.empty:
+        df_1, _ = diamond_armor(
+            df_1,
+            fast=st.session_state["fast_ema"],
+            slow=st.session_state["slow_ema"],
+            trend=st.session_state["trend_ema"],
+        )
+    filtered_charts_1 = build_charts(df_1, sym_1, tf, 520, 120, 120)
+
+    # 2. โหลดข้อมูลกราฟจอที่ 2 (เฉพาะเมื่อเปิดโหมด 2 จอ)
+    df_2 = pd.DataFrame()
+    meta_2 = {}
+    filtered_charts_2 = []
+    if mode != "1 จอ (ปกติ)" and sym_2:
+        meta_2 = resolve_market_info(sym_2)
+        df_2 = fetch_ohlcv(sym_2, tf, bars)
+        if not df_2.empty:
+            df_2, _ = diamond_armor(
+                df_2,
+                fast=st.session_state["fast_ema"],
+                slow=st.session_state["slow_ema"],
+                trend=st.session_state["trend_ema"],
+            )
+            filtered_charts_2 = build_charts(df_2, sym_2, tf, 520, 120, 120)
+
+    is_mobile = st.session_state.get("mobile_mode", False)
+
+    if is_mobile:
+        st.session_state["current_symbol"] = sym_1
+        if not df_1.empty:
+            st.session_state["df_data"] = df_1
+        render_mobile_view(
+            df=df_1,
+            meta=meta_1,
+            is_thb_mode=is_thb_mode,
+            fx_rate=fx_rate,
+            chart_renderer=lambda: render_drawing_chart(
+                filtered_charts_1,
+                height=480,
+                key=f"c_{sym_1}_{tf}_mobile",
+                show_toolbar=st.session_state.get("show_draw_toolbar", True),
+            ),
+            watchlist_renderer=lambda: render_sidebar_fragment(),
+        )
+    else:
+        render_top_tabs_fragment()
+
+        c_tf, c_dual, c_draw, c_ind, c_right_blank = st.columns(
+            [3.95, 1.2, 0.45, 2.0, 1.8], gap="small"
+        )
+        with c_right_blank:
+            is_m = st.toggle("📱 มือถือ", value=False, key="toggle_mobile_mode")
+            if is_m:
+                st.session_state["mobile_mode"] = True
+                st.rerun()
+
+        with c_tf:
+            st.markdown(
+                '<div class="notranslate" translate="no">', unsafe_allow_html=True
+            )
+            primary_tfs = [
+                "5m",
+                "15m",
+                "30m",
+                "1h",
+                "2h",
+                "3h",
+                "4h",
+                "D",
+                "2D",
+                "3D",
+                "W",
+                "M",
+            ]
+            cur_tf = tf
+            def_idx = primary_tfs.index(cur_tf) if cur_tf in primary_tfs else 3
+            new_tf = st.radio(
+                "TF",
+                primary_tfs,
+                index=def_idx,
+                horizontal=True,
+                label_visibility="collapsed",
+                key="toolbar_tf_horizontal",
+            )
+            if new_tf != cur_tf:
+                active_tab["tf"] = new_tf
+                st.session_state["selected_tf"] = new_tf
+                st.rerun()
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with c_dual:
+            if hasattr(st, "popover"):
+                with st.popover("◫ 2 จอ", use_container_width=True):
+                    st.markdown(
+                        "<b style='font-size:12px; color:#d1d4dc;'>รูปแบบหน้าจอ (Dual Chart)</b>",
+                        unsafe_allow_html=True,
+                    )
+                    dual_choice = st.radio(
+                        "เลือกเลย์เอาต์:",
+                        ["1 จอ (ปกติ)", "2 จอ (บน-ล่าง)", "2 จอ (ซ้าย-ขวา)"],
+                        key="dual_layout_mode",
+                    )
+                    if dual_choice != "1 จอ (ปกติ)":
+                        st.markdown(
+                            f"<div style='font-size:12px; color:#ff9d42; margin-top:4px;'>เหรียญจอ 2: <b>{sym_2}</b></div>",
+                            unsafe_allow_html=True,
+                        )
+            else:
+                dual_choice = st.selectbox(
+                    "จอ",
+                    ["1 จอ (ปกติ)", "2 จอ (บน-ล่าง)", "2 จอ (ซ้าย-ขวา)"],
+                    label_visibility="collapsed",
+                    key="dual_layout_mode",
+                )
+
+        with c_draw:
+            draw_active = st.session_state.get("show_draw_toolbar", True)
+            btn_type = "primary" if draw_active else "secondary"
+            if st.button(
+                "✏️",
+                key="btn_toggle_draw_desktop",
+                help="เปิด/ปิด แถบเครื่องมือวาดรูป (Draw Toolbar)",
+                type=btn_type,
+                use_container_width=True,
+            ):
+                st.session_state["show_draw_toolbar"] = not draw_active
+                st.rerun()
+
+        with c_ind:
+            if st.button(
+                "📊 Indicators",
+                key="btn_open_ind_modal",
+                type="secondary",
+                use_container_width=True,
+            ):
+                st.session_state["modal_indicators_open"] = True
+
+            if st.session_state.get("modal_indicators_open", False):
+                show_indicators_modal()
+
+        col_side, col_chart, col_quote = st.columns(
+            [0.88, 3.87, 1.25], gap="small"
+        )
+
+        with col_side:
+            st.markdown(
+                '<div id="custom-left-menu-anchor"></div>', unsafe_allow_html=True
+            )
+            render_sidebar_fragment()
+
+        with col_chart:
+            st.markdown(
+                '<div id="custom-center-chart-anchor"></div>', unsafe_allow_html=True
+            )
+
+            # -------------------------------------------------------------
+            # 1. โหมด 1 จอปกติ (Original Single View)
+            # -------------------------------------------------------------
+            if mode == "1 จอ (ปกติ)" or not sym_2:
+                st.session_state["current_symbol"] = sym_1
+                if not df_1.empty:
+                    st.session_state["df_data"] = df_1
+                render_drawing_chart(
+                    filtered_charts_1,
+                    height=530,
+                    key=f"c_{sym_1}_{tf}",
+                    show_toolbar=st.session_state.get("show_draw_toolbar", True),
+                )
+            else:
+                # -------------------------------------------------------------
+                # 2. โหมด 2 จอ: บน-ล่าง (Top-Bottom)
+                # -------------------------------------------------------------
+                if mode == "2 จอ (บน-ล่าง)":
+                    f1 = (active_focus == 1)
+                    st.button(
+                        f"{'🟢' if f1 else '⚪'} จอ 1: {sym_1} {'(กำลังเลือก)' if f1 else 'คลิกเพื่อเลือก'}",
+                        key="btn_focus_tb_1",
+                        type="primary" if f1 else "secondary",
+                        use_container_width=True,
+                        on_click=switch_focus,
+                        args=(1,),
+                    )
+                    st.session_state["current_symbol"] = sym_1
+                    if not df_1.empty:
+                        st.session_state["df_data"] = df_1
+                    render_drawing_chart(
+                        filtered_charts_1,
+                        height=360,
+                        key=f"c_{sym_1}_{tf}_top",
+                        show_toolbar=st.session_state.get("show_draw_toolbar", True),
+                    )
+
+                    f2 = (active_focus == 2)
+                    st.button(
+                        f"{'🟢' if f2 else '⚪'} จอ 2: {sym_2} {'(กำลังเลือก)' if f2 else 'คลิกเพื่อเลือก'}",
+                        key="btn_focus_tb_2",
+                        type="primary" if f2 else "secondary",
+                        use_container_width=True,
+                        on_click=switch_focus,
+                        args=(2,),
+                    )
+                    if filtered_charts_2:
+                        st.session_state["current_symbol"] = sym_2
+                        if not df_2.empty:
+                            st.session_state["df_data"] = df_2
+                        render_drawing_chart(
+                            filtered_charts_2,
+                            height=360,
+                            key=f"c_{sym_2}_{tf}_bottom",
+                            show_toolbar=False,
+                        )
+
+                # -------------------------------------------------------------
+                # 3. โหมด 2 จอ: ซ้าย-ขวา (Side-by-Side)
+                # -------------------------------------------------------------
+                elif mode == "2 จอ (ซ้าย-ขวา)":
+                    c_left, c_right = st.columns(2, gap="small")
+                    with c_left:
+                        f1 = (active_focus == 1)
+                        st.button(
+                            f"{'🟢' if f1 else '⚪'} จอ 1: {sym_1} {'(กำลังเลือก)' if f1 else 'คลิกเพื่อเลือก'}",
+                            key="btn_focus_lr_1",
+                            type="primary" if f1 else "secondary",
+                            use_container_width=True,
+                            on_click=switch_focus,
+                            args=(1,),
+                        )
+                        st.session_state["current_symbol"] = sym_1
+                        if not df_1.empty:
+                            st.session_state["df_data"] = df_1
+                        render_drawing_chart(
+                            filtered_charts_1,
+                            height=530,
+                            key=f"c_{sym_1}_{tf}_left",
+                            show_toolbar=st.session_state.get("show_draw_toolbar", True),
+                        )
+
+                    with c_right:
+                        f2 = (active_focus == 2)
+                        st.button(
+                            f"{'🟢' if f2 else '⚪'} จอ 2: {sym_2} {'(กำลังเลือก)' if f2 else 'คลิกเพื่อเลือก'}",
+                            key="btn_focus_lr_2",
+                            type="primary" if f2 else "secondary",
+                            use_container_width=True,
+                            on_click=switch_focus,
+                            args=(2,),
+                        )
+                        if filtered_charts_2:
+                            st.session_state["current_symbol"] = sym_2
+                            if not df_2.empty:
+                                st.session_state["df_data"] = df_2
+                            render_drawing_chart(
+                                filtered_charts_2,
+                                height=530,
+                                key=f"c_{sym_2}_{tf}_right",
+                                show_toolbar=False,
+                            )
+
+            # คืนค่าตัวแปรกลางให้เป็นของจอที่กำลังโฟกัสอยู่
+            active_df = df_2 if (mode != "1 จอ (ปกติ)" and active_focus == 2 and not df_2.empty) else df_1
+            st.session_state["current_symbol"] = current_active_sym
+            if not active_df.empty:
+                st.session_state["df_data"] = active_df
+
+        with col_quote:
+            st.markdown(
+                '<div id="custom-right-menu-anchor"></div>', unsafe_allow_html=True
+            )
+            st.markdown(
+                """
+            <div style="display:flex; align-items:center; margin-bottom:6px;">
+                <span id="btn-collapse-right" title="คลิกเพื่อพับเก็บเมนูขวา" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#FF3366; border-radius:50%; margin-right:6px; box-shadow:0 0 6px #FF3366; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
+                <span id="btn-fullscreen-app" title="คลิกเพื่อขยายเต็มจอ / ออกจากเต็มจอ" style="cursor:pointer; display:inline-block; width:11px; height:11px; background:#00FF66; border-radius:50%; margin-right:8px; box-shadow:0 0 6px #00FF66; transition:transform 0.15s;" onmouseover="this.style.transform='scale(1.25)'" onmouseout="this.style.transform='scale(1)'"></span>
+                <b style='font-size:13px; color:#ffffff;'>บทวิเคราะห์เทคนิค 24h <span style='background:#FF7A1A; color:#000; font-size:9px; padding:2px 4px; border-radius:3px; font-weight:bold;'>PRO</span></b>
+            </div>
+        """,
+                unsafe_allow_html=True,
+            )
+
+            # ให้เมนูขวาทำการวิเคราะห์เหรียญของจอที่กำลังเปิดไฟสถานะ 🟢 อยู่
+            if mode != "1 จอ (ปกติ)" and active_focus == 2 and not df_2.empty:
+                render_right_panel_fragment(
+                    df=df_2, meta=meta_2, is_thb_mode=is_thb_mode, fx_rate=fx_rate
+                )
+            else:
+                render_right_panel_fragment(
+                    df=df_1, meta=meta_1, is_thb_mode=is_thb_mode, fx_rate=fx_rate
+                )
+
+            inject_workspace_resizers()
 
 dashboard()
