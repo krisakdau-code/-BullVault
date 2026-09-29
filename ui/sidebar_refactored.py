@@ -17,6 +17,7 @@ from data.fetchers import (
     resolve_market_info,
     standardize_symbol,
 )
+from data.rice_ohlcv import generate_rice_ohlcv
 import requests
 import streamlit as st
 import streamlit.components.v1 as components
@@ -30,12 +31,53 @@ SORTED_COLOR_KEYS = [
     k for k in PREFERRED_COLOR_ORDER if k in COLOR_KEYS
 ] + [k for k in COLOR_KEYS if k not in PREFERRED_COLOR_ORDER]
 
+# รายการสินทรัพย์มาโครสากล หุ้น โภคภัณฑ์ คู่เงิน และตลาดข้าว
+MACRO_CATALOG = {
+    "stock": [
+        ("NVDA", "Nvidia", 125.50, 2.45),
+        ("TSLA", "Tesla", 248.20, -1.80),
+        ("AAPL", "Apple", 228.10, 0.65),
+        ("MSFT", "Microsoft", 428.90, 0.40),
+        ("GOOGL", "Alphabet", 165.30, -0.30),
+        ("DELTA.BK", "Delta Thai", 108.50, 1.40),
+        ("PTT.BK", "PTT Thai", 33.50, 0.00),
+        ("CPALL.BK", "CP ALL", 65.25, 0.77),
+        ("ADVANC.BK", "AIS Thai", 264.00, -0.75),
+        ("KBANK.BK", "KBANK", 152.00, 1.33),
+        ("SPY", "S&P 500 ETF", 570.20, 0.35),
+        ("QQQ", "Nasdaq ETF", 485.40, 0.55),
+    ],
+    "commodity": [
+        ("XAUUSD", "ทองคำ (Gold)", 2658.40, 0.85),
+        ("XAGUSD", "แร่เงิน (Silver)", 31.85, 1.42),
+        ("BRENT", "น้ำมันดิบ Brent", 74.20, -1.15),
+        ("WTI", "น้ำมันดิบ WTI", 70.80, -0.95),
+        ("COPPER", "ทองแดง (Copper)", 4.35, 0.50),
+        ("NATGAS", "ก๊าซธรรมชาติ", 2.85, -2.10),
+    ],
+    "forex": [
+        ("DXY", "ดัชนีดอลลาร์", 100.85, -0.25),
+        ("EURUSD", "EUR / USD", 1.1160, 0.30),
+        ("USDJPY", "USD / JPY", 143.20, -0.55),
+        ("GBPUSD", "GBP / USD", 1.3380, 0.45),
+        ("USDTHB", "USD / THB", 32.45, -0.35),
+        ("AUDUSD", "AUD / USD", 0.6890, 0.20),
+    ],
+    "rice": [
+        ("ZR=F", "ข้าวฟิวเจอร์ส CBOT", 15.20, 0.66),
+        ("RICE:TH_JASMINE", "ข้าวหอมมะลิไทย", 890.00, 0.25),
+        ("RICE:TH_WHITE5", "ข้าวขาว 5% ไทย", 565.00, -0.50),
+        ("FOB:TH_5PCT", "FOB ข้าวขาวไทย", 575.00, -0.35),
+        ("RICE:VN_5PCT", "ข้าวขาวเวียดนาม 5%", 535.00, -0.80),
+        ("RICE:IN_5PCT", "ข้าวขาวอินเดีย 5%", 490.00, 0.00),
+    ],
+}
+
 
 # ==============================================================================
 # LOCALSTORAGE WATCHLIST ENGINE (BROWSER PERSISTENCE)
 # ==============================================================================
 def _sync_localstorage_to_watchlist():
-  """อ่านค่าจาก URL Query Params (ที่ดึงมาจาก LocalStorage) เข้าสู่ custom_watchlist"""
   url_intl = st.query_params.get("intl_wl", "")
   if url_intl:
     saved_list = [s.strip().upper() for s in url_intl.split(",") if s.strip()]
@@ -54,7 +96,6 @@ def _sync_localstorage_to_watchlist():
 
 
 def _sync_watchlist_to_url():
-  """อัปเดต Query Params เพื่อส่งสัญญาณให้ LocalStorage บันทึกข้อมูลลงเครื่อง"""
   if "custom_watchlist" in st.session_state:
     syms = [
         norm_sym(r[0] if isinstance(r, (list, tuple)) else r).upper()
@@ -64,7 +105,6 @@ def _sync_watchlist_to_url():
 
 
 def inject_localstorage_sync_bridge():
-  """ซิงก์รายการ Watchlist ระหว่าง Browser LocalStorage กับ Python Session"""
   components.html(
       """
         <script>
@@ -95,7 +135,6 @@ def inject_localstorage_sync_bridge():
 
 
 def _format_vol(v: float) -> str:
-  """แปลงตัวเลข Volume เป็นหน่วย K, M, B แบบสากล"""
   if v >= 1e9:
     return f"{v / 1e9:.2f} B"
   elif v >= 1e6:
@@ -108,7 +147,6 @@ def _format_vol(v: float) -> str:
 
 
 def _format_price(p: float) -> str:
-  """ฟอร์แมตราคาอัจฉริยะ รองรับทั้งเหรียญหลักและเหรียญทศนิยมเล็ก เช่น LUNC, PEPE"""
   if p >= 100:
     return f"{p:,.2f}"
   elif p >= 1:
@@ -121,7 +159,6 @@ def _format_price(p: float) -> str:
 
 @st.cache_data(ttl=5, show_spinner=False)
 def _get_live_ticker(sym: str):
-  """ดึงราคา, % 24h, และ Volume รวม 24h จาก fetch_ticker_24h รองรับทุกกระดาน"""
   try:
     t = fetch_ticker_24h(sym)
     if t and (
@@ -147,9 +184,12 @@ def _get_live_ticker(sym: str):
 
 @st.cache_data(ttl=5, show_spinner=False)
 def _get_active_candle(sym: str, tf_str: str = "1h"):
-  """ดึงแท่งเทียนล่าสุดตามไทม์เฟรมของกราฟ เพื่อให้ % Change ตรงกับกราฟหลัก 100%"""
   try:
-    df = fetch_ohlcv(sym, tf=tf_str, limit=2)
+    if sym.startswith("RICE:") or sym.startswith("FOB:") or "ZR=F" in sym:
+      df = generate_rice_ohlcv(sym, bars=2)
+    else:
+      df = fetch_ohlcv(sym, tf=tf_str, limit=2)
+
     if df is not None and len(df) >= 2:
       prev_close = float(df["close"].iloc[-2])
       last_close = float(df["close"].iloc[-1])
@@ -170,14 +210,13 @@ def _get_active_candle(sym: str, tf_str: str = "1h"):
 
 
 # ==============================================================================
-# 24H MARKET RANKING DATA FETCHER (BINANCE + BITKUB)
+# UNIFIED 24H MARKET RANKING (CRYPTO + STOCKS + COMMODITIES + FOREX + RICE)
 # ==============================================================================
 @st.cache_data(ttl=15, show_spinner=False)
 def fetch_all_24h_markets():
-  """ดึงข้อมูล 24 ชั่วโมงของทุกสินทรัพย์ทั้ง Binance (USDT) และ Bitkub (THB)"""
   items = []
 
-  # 1. คู่เหรียญ USDT จาก Binance
+  # 1. คริปโต Binance (USDT)
   try:
     res = requests.get(
         "https://api.binance.com/api/v3/ticker/24hr", timeout=3.5
@@ -188,7 +227,7 @@ def fetch_all_24h_markets():
         items.append({
             "symbol": sym,
             "display_name": sym.replace("USDT", ""),
-            "pair": "USDT",
+            "category": "crypto_usdt",
             "last_price": float(t.get("lastPrice", 0)),
             "change_pct": float(t.get("priceChangePercent", 0)),
             "volume_quote": float(t.get("quoteVolume", 0)),
@@ -196,7 +235,7 @@ def fetch_all_24h_markets():
   except Exception:
     pass
 
-  # 2. คู่เหรียญ THB จาก Bitkub
+  # 2. คริปโต Bitkub (THB)
   try:
     res_bk = requests.get(
         "https://api.bitkub.com/api/market/ticker", timeout=3.5
@@ -207,7 +246,7 @@ def fetch_all_24h_markets():
         items.append({
             "symbol": f"{sym_clean}THB",
             "display_name": sym_clean,
-            "pair": "THB",
+            "category": "crypto_thb",
             "last_price": float(v.get("last", 0)),
             "change_pct": float(v.get("percentChange", 0)),
             "volume_quote": float(v.get("baseVolume", 0))
@@ -215,6 +254,31 @@ def fetch_all_24h_markets():
         })
   except Exception:
     pass
+
+  # 3. หุ้น, โภคภัณฑ์, คู่เงิน Forex, และตลาดข้าว
+  for cat_key, asset_list in MACRO_CATALOG.items():
+    for sym_code, disp_name, def_p, def_chg in asset_list:
+      p = def_p
+      chg = def_chg
+      vol = 50000000.0
+
+      try:
+        t_live = fetch_ticker_24h(sym_code)
+        if t_live and t_live.get("last_price", 0) > 0:
+          p = float(t_live["last_price"])
+          chg = float(t_live.get("price_change_pct", def_chg))
+          vol = float(t_live.get("volume_24h", vol))
+      except Exception:
+        pass
+
+      items.append({
+          "symbol": sym_code,
+          "display_name": disp_name,
+          "category": cat_key,
+          "last_price": p,
+          "change_pct": chg,
+          "volume_quote": vol,
+      })
 
   return items
 
@@ -259,7 +323,6 @@ def save_watchlist_data():
 
 
 def add_to_watchlist(sym_code: str):
-  """เพิ่มเหรียญเข้า Watchlist โดยตรง (ไม่เพิ่มซ้ำ) พร้อมซิงก์ลง LocalStorage"""
   if not sym_code:
     return
   clean = standardize_symbol(sym_code)
@@ -282,7 +345,6 @@ def add_to_watchlist(sym_code: str):
 
 
 def remove_from_watchlist(target_sym: str):
-  """ลบเหรียญออกจาก Watchlist ทันทีแบบ 1-Click และซิงก์อัปเดต LocalStorage"""
   t_clean = standardize_symbol(target_sym)
   target_norm = norm_sym(target_sym).upper()
 
@@ -372,7 +434,6 @@ def show_chart_settings_dialog():
 
 
 def set_active_symbol(sym_code: str):
-  """สลับเหรียญบนกราฟหลักและแท็บบนโดยตรงแบบ Single Source of Truth"""
   clean_sym = standardize_symbol(sym_code)
   st.session_state["current_symbol"] = clean_sym
   st.session_state["selected_symbol"] = clean_sym
@@ -446,7 +507,6 @@ def render_sidebar():
 
   _sync_localstorage_to_watchlist()
 
-  # --- กรองรายการซ้ำใน Watchlist ออกทันที ---
   seen_syms = set()
   deduped_wl = []
   for r in st.session_state.get("custom_watchlist", []):
@@ -612,13 +672,26 @@ def render_sidebar():
         text-align: right !important;
         white-space: nowrap !important;
     }
+
+    /* ป้องกันข้อความบนปุ่มตัดคำเป็นจุดไข่ปลา (...) */
+    div[data-testid="stHorizontalBlock"]:has(.main-tabs-marker) button,
+    div[data-testid="stHorizontalBlock"]:has(.rk-sort-marker) button {
+        padding: 0 1px !important;
+        font-size: 11px !important;
+        white-space: nowrap !important;
+        letter-spacing: -0.4px !important;
+    }
     </style>
     """,
       unsafe_allow_html=True,
   )
 
   # --- แถบปุ่มแท็บ 3 แท็บหลัก ---
-  t_c1, t_c2, t_c3 = st.columns([1, 1.3, 1.1], gap="small")
+  st.markdown(
+      '<div class="main-tabs-marker" style="display:none;"></div>',
+      unsafe_allow_html=True,
+  )
+  t_c1, t_c2, t_c3 = st.columns([1.0, 1.25, 1.05], gap="small")
   with t_c1:
     if st.button(
         "ตลาด",
@@ -633,7 +706,7 @@ def render_sidebar():
       st.rerun()
   with t_c2:
     if st.button(
-        "กราฟเปรียบเทียบ",
+        "กราฟเปรียบ",
         use_container_width=True,
         type=(
             "primary"
@@ -1027,19 +1100,23 @@ def render_sidebar():
       macro_comparison_modal.show_flow_analysis_modal()
 
   # ──────────────────────────────────────────────────────────
-  # TAB 3: อันดับ 24h (Market Scanner 24 ชม.)
+  # TAB 3: อันดับ 24h (Global Market Scanner)
   # ──────────────────────────────────────────────────────────
   elif st.session_state["sidebar_active_tab"] == "ranking":
     if "rank_sort_mode" not in st.session_state:
-      st.session_state["rank_sort_mode"] = "vol"
-    if "rank_currency_filter" not in st.session_state:
-      st.session_state["rank_currency_filter"] = "all"
+      st.session_state["rank_sort_mode"] = "gain"
+    if "rank_market_category" not in st.session_state:
+      st.session_state["rank_market_category"] = "all"
 
     # ตัวเลือกจัดอันดับ 3 หัวข้อหลัก
+    st.markdown(
+        '<div class="rk-sort-marker" style="display:none;"></div>',
+        unsafe_allow_html=True,
+    )
     col_s1, col_s2, col_s3 = st.columns(3, gap="small")
     with col_s1:
       if st.button(
-          "ปริมาณ 24 ชม.",
+          "ปริมาณ 24h",
           key="rk_sort_vol",
           type=(
               "primary"
@@ -1077,52 +1154,34 @@ def render_sidebar():
         st.session_state["rank_sort_mode"] = "loss"
         st.rerun()
 
-    # ตัวเลือกกรองสกุลเงิน
-    col_f1, col_f2, col_f3 = st.columns(3, gap="small")
-    with col_f1:
-      if st.button(
-          "ทั้งหมด",
-          key="rk_curr_all",
-          type=(
-              "primary"
-              if st.session_state["rank_currency_filter"] == "all"
-              else "secondary"
-          ),
-          use_container_width=True,
-      ):
-        st.session_state["rank_currency_filter"] = "all"
-        st.rerun()
-    with col_f2:
-      if st.button(
-          "THB",
-          key="rk_curr_thb",
-          type=(
-              "primary"
-              if st.session_state["rank_currency_filter"] == "THB"
-              else "secondary"
-          ),
-          use_container_width=True,
-      ):
-        st.session_state["rank_currency_filter"] = "THB"
-        st.rerun()
-    with col_f3:
-      if st.button(
-          "USDT",
-          key="rk_curr_usdt",
-          type=(
-              "primary"
-              if st.session_state["rank_currency_filter"] == "USDT"
-              else "secondary"
-          ),
-          use_container_width=True,
-      ):
-        st.session_state["rank_currency_filter"] = "USDT"
-        st.rerun()
+    # เมนูเลือกตลาดแบบกะทัดรัด ครอบคลุมทุกสินทรัพย์
+    cat_options = {
+        "all": "🌐 ทุกตลาดรวมกัน",
+        "crypto_usdt": "🪙 คริปโต (Binance USDT)",
+        "crypto_thb": "🪙 คริปโต (Bitkub THB)",
+        "stock": "📈 หุ้นสากล & หุ้นไทย",
+        "commodity": "🛢️ โภคภัณฑ์ (ทอง/น้ำมัน)",
+        "forex": "💵 คู่เงิน FX & ดอลลาร์",
+        "rice": "🌾 ตลาดข้าวสากล & เกณฑ์ FOB",
+    }
+
+    cur_cat = st.selectbox(
+        "เลือกกลุ่มตลาด",
+        options=list(cat_options.keys()),
+        format_func=lambda x: cat_options[x],
+        index=list(cat_options.keys()).index(
+            st.session_state["rank_market_category"]
+        ),
+        label_visibility="collapsed",
+        key="sb_market_category_select",
+    )
+    if cur_cat != st.session_state["rank_market_category"]:
+      st.session_state["rank_market_category"] = cur_cat
+      st.rerun()
 
     raw_ranking = fetch_all_24h_markets()
-    curr = st.session_state["rank_currency_filter"]
-    if curr != "all":
-      filtered_ranking = [x for x in raw_ranking if x["pair"] == curr]
+    if cur_cat != "all":
+      filtered_ranking = [x for x in raw_ranking if x["category"] == cur_cat]
     else:
       filtered_ranking = raw_ranking
 
@@ -1140,7 +1199,7 @@ def render_sidebar():
 
     st.markdown(
         """
-        <div style="display:flex; justify-content:space-between; font-size:11px; color:#8b949e; padding:6px 4px 2px 4px; border-bottom:1px solid #1e2433;">
+        <div style="display:flex; justify-content:space-between; font-size:11px; color:#8b949e; padding:4px 4px 2px 4px; border-bottom:1px solid #1e2433;">
             <span style="flex:1.2;">สินทรัพย์</span>
             <span style="flex:1; text-align:right;">ราคาล่าสุด</span>
             <span style="flex:1; text-align:right;">24 ชม.</span>
@@ -1150,7 +1209,7 @@ def render_sidebar():
     )
 
     with st.container(height=480):
-      for idx, item in enumerate(sorted_ranking[:60]):
+      for idx, item in enumerate(sorted_ranking[:80]):
         sym = item["symbol"]
         chg = item["change_pct"]
         price = item["last_price"]
@@ -1158,10 +1217,12 @@ def render_sidebar():
         chg_color = "#00e676" if chg >= 0 else "#ff3366"
         sign = "+" if chg > 0 else ""
 
-        c_row1, c_row2 = st.columns([1.2, 1.8], gap="small", vertical_alignment="center")
+        c_row1, c_row2 = st.columns(
+            [1.2, 1.8], gap="small", vertical_alignment="center"
+        )
         with c_row1:
           if st.button(
-              f"🪙 {item['display_name']}",
+              f"{item['display_name']}",
               key=f"rk_btn_{sym}_{idx}",
               use_container_width=True,
           ):
@@ -1173,7 +1234,7 @@ def render_sidebar():
               f"""
                 <div style="display:flex; justify-content:space-between; align-items:center; height:24px; font-size:12px; font-family:'JetBrains Mono', monospace; font-weight:600;">
                     <span style="color:#d1d4dc;">{p_str}</span>
-                    <span style="color:{chg_color}; background:rgba({ '0,230,118' if chg >= 0 else '255,51,102' }, 0.15); padding:1px 6px; border-radius:4px;">
+                    <span style="color:{chg_color}; background:rgba({ '0,230,118' if chg >= 0 else '255,51,102' }, 0.15); padding:1px 5px; border-radius:4px;">
                         {sign}{chg:.2f}%
                     </span>
                 </div>
