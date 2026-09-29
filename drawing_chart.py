@@ -1,22 +1,20 @@
 # drawing_chart.py — Multi-Pane Anchored Drawing Terminal (Modular Clean Edition)
-import json
 import os
-from data.fetchers import resolve_market_info
+import json
 import streamlit as st
 import streamlit.components.v1 as components
+from data.fetchers import resolve_market_info
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 ASSETS_DIR = os.path.join(CURRENT_DIR, "drawing_assets")
 
-
 def _load_asset(filename: str) -> str:
-  path = os.path.join(ASSETS_DIR, filename)
-  with open(path, "r", encoding="utf-8") as f:
-    return f.read()
-
+    path = os.path.join(ASSETS_DIR, filename)
+    with open(path, "r", encoding="utf-8") as f:
+        return f.read()
 
 # =========================================================================
-# 1. CSS รองรับ Touch Dragging, Fullscreen, ตัวเลขหัวชาร์ต และปุ่มลอยวาร์ปกลับปัจจุบัน
+# 1. CSS รองรับ Touch Dragging, Fullscreen และตัวเลขหัวชาร์ต
 # =========================================================================
 EXTRA_TOUCH_CSS = """
 /* ป้องกัน Safari Double-Tap Zoom และล็อกไม่ให้การเลื่อนนิ้วหลุดไปเลื่อนหน้าจอหลัก */
@@ -99,41 +97,10 @@ body.chart-fullscreen-active .chart-container {
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.7) !important;
     backdrop-filter: blur(8px) !important;
 }
-
-/* ปุ่มไอคอนกลมลอยมุมขวาล่างสำหรับวาร์ปกลับแท่งปัจจุบัน (>|) */
-#btn-scroll-realtime, .btn-scroll-realtime {
-    position: fixed !important;
-    bottom: 34px !important;
-    right: 64px !important;
-    width: 30px !important;
-    height: 30px !important;
-    border-radius: 50% !important;
-    background: #1e222d !important;
-    border: 1px solid #363a45 !important;
-    color: #9aa0a6 !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    cursor: pointer !important;
-    z-index: 9999999 !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
-    transition: all 0.2s ease-in-out !important;
-    opacity: 0.85 !important;
-}
-#btn-scroll-realtime:hover, .btn-scroll-realtime:hover {
-    background: #2a2e39 !important;
-    color: #00e676 !important;
-    border-color: #00e676 !important;
-    opacity: 1 !important;
-    transform: scale(1.1) !important;
-}
-#btn-scroll-realtime:active, .btn-scroll-realtime:active {
-    transform: scale(0.92) !important;
-}
 """
 
 # =========================================================================
-# 2. JavaScript จัดการ Touch Dragging, Fullscreen, Badges และปุ่มวาร์ปกลับปัจจุบัน
+# 2. JavaScript จัดการ Touch Dragging, Fullscreen และ Badges
 # =========================================================================
 EXTRA_TOUCH_JS = """
 (function() {
@@ -300,13 +267,13 @@ EXTRA_TOUCH_JS = """
         let lastTap = 0;
 
         chartArea.addEventListener('dblclick', function(e) {
-            if (e.target.closest('button, select, input, [role="button"], .pane-resizer, #btn-exit-fullscreen-float, #btn-scroll-realtime')) return;
+            if (e.target.closest('button, select, input, [role="button"], .pane-resizer, #btn-exit-fullscreen-float')) return;
             e.preventDefault();
             toggleFullscreen();
         });
 
         chartArea.addEventListener('touchend', function(e) {
-            if (e.target.closest('button, select, input, [role="button"], .pane-resizer, #btn-exit-fullscreen-float, #btn-scroll-realtime')) return;
+            if (e.target.closest('button, select, input, [role="button"], .pane-resizer, #btn-exit-fullscreen-float')) return;
             const now = Date.now();
             const diff = now - lastTap;
             if (diff > 40 && diff < 320) {
@@ -353,59 +320,16 @@ EXTRA_TOUCH_JS = """
         }
     }
 
-    // ---------------------------------------------------------------------
-    // D. ปุ่มลอยวาร์ปกลับกราฟปัจจุบัน (TradingView Jump-to-Realtime Button >|)
-    // ---------------------------------------------------------------------
-    function initScrollRealtimeButton() {
-        let realtimeBtn = document.getElementById('btn-scroll-realtime');
-        if (!realtimeBtn) {
-            realtimeBtn = document.createElement('button');
-            realtimeBtn.id = 'btn-scroll-realtime';
-            realtimeBtn.className = 'btn-scroll-realtime';
-            realtimeBtn.title = 'กลับสู่แท่งปัจจุบัน (Real-time)';
-            realtimeBtn.innerHTML = `
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="5 4 15 12 5 20 5 4"></polygon>
-                    <line x1="19" y1="5" x2="19" y2="19"></line>
-                </svg>
-            `;
-            document.body.appendChild(realtimeBtn);
-
-            realtimeBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                try {
-                    if (typeof chart !== 'undefined' && chart && chart.timeScale) {
-                        chart.timeScale().scrollToRealTime();
-                    } else if (window.chart && window.chart.timeScale) {
-                        window.chart.timeScale().scrollToRealTime();
-                    } else if (window.mainChart && window.mainChart.timeScale) {
-                        window.mainChart.timeScale().scrollToRealTime();
-                    } else if (window.charts && window.charts.length > 0) {
-                        window.charts.forEach(c => {
-                            if (c && c.timeScale) c.timeScale().scrollToRealTime();
-                        });
-                    }
-                } catch(err) {
-                    console.error("Scroll to realtime error:", err);
-                }
-            });
-        }
-    }
-
     initTouchResizers();
     bindChartEvents();
     adjustHeaderBadges();
-    initScrollRealtimeButton();
 
     setInterval(() => {
         initTouchResizers();
         adjustHeaderBadges();
-        initScrollRealtimeButton();
     }, 600);
 })();
 """
-
 
 def render_drawing_chart(
     charts_config: list,
@@ -414,63 +338,62 @@ def render_drawing_chart(
     show_toolbar: bool = True,
     change_pct=None,
 ):
-  if not charts_config:
-    return
+    if not charts_config:
+        return
 
-  curr_sym = st.session_state.get("current_symbol", "BTCUSDT")
-  meta = resolve_market_info(curr_sym)
-  display_title = meta.get("display_name", curr_sym)
-  exchange_name = meta.get("exchange", "MARKET")
-  if change_pct is not None:
-    live_pct = float(change_pct)
-  else:
-    from data.fetchers import fetch_ticker_24h
+    curr_sym = st.session_state.get("current_symbol", "BTCUSDT")
+    meta = resolve_market_info(curr_sym)
+    display_title = meta.get("display_name", curr_sym)
+    exchange_name = meta.get("exchange", "MARKET")
+    if change_pct is not None:
+        live_pct = float(change_pct)
+    else:
+        from data.fetchers import fetch_ticker_24h
+        tk_24h = fetch_ticker_24h(curr_sym)
+        live_pct = (
+            float(tk_24h["price_change_pct"])
+            if tk_24h and "price_change_pct" in tk_24h
+            else 0.0
+        )
 
-    tk_24h = fetch_ticker_24h(curr_sym)
-    live_pct = (
-        float(tk_24h["price_change_pct"])
-        if tk_24h and "price_change_pct" in tk_24h
-        else 0.0
+    pct_sign = "+" if live_pct >= 0 else ""
+    pct_str = f"{pct_sign}{live_pct:.2f}%"
+    pct_color = "#00e676" if live_pct >= 0 else "#ff3366"
+
+    if len(charts_config) == 1:
+        charts_config[0]["chart"]["height"] = 650
+        real_total_h = 660
+    elif len(charts_config) == 2:
+        charts_config[0]["chart"]["height"] = 540
+        real_total_h = (
+            540 + int(charts_config[1].get("chart", {}).get("height", 140)) + 10
+        )
+    else:
+        real_total_h = 0
+        for c in charts_config:
+            real_total_h += int(c.get("chart", {}).get("height", 130))
+        _n_sub = max(0, len(charts_config) - 1)
+        real_total_h += (_n_sub * 6) + 20 + 250
+
+    chart_json = json.dumps(charts_config)
+    toolbar_display = "flex" if show_toolbar else "none"
+
+    html_template = _load_asset("drawing_template.html")
+    css_content = _load_asset("drawing_style.css") + "\n" + EXTRA_TOUCH_CSS
+    js_fib = _load_asset("fibonacci_tool.js")
+    js_pat = _load_asset("pattern_tool.js")
+    js_engine = _load_asset("drawing_engine.js")
+    js_content = js_fib + "\n" + js_pat + "\n" + js_engine + "\n" + EXTRA_TOUCH_JS
+
+    rendered_html = (
+        html_template.replace("/* INJECT_CSS_HERE */", css_content)
+        .replace("/* INJECT_JS_HERE */", js_content)
+        .replace("{{TOOLBAR_DISPLAY}}", toolbar_display)
+        .replace("{{DISPLAY_TITLE}}", str(display_title))
+        .replace("{{EXCHANGE_NAME}}", str(exchange_name))
+        .replace("{{CHART_JSON}}", chart_json)
+        .replace("{{CHANGE_PCT}}", pct_str)
+        .replace("{{CHANGE_COLOR}}", pct_color)
     )
 
-  pct_sign = "+" if live_pct >= 0 else ""
-  pct_str = f"{pct_sign}{live_pct:.2f}%"
-  pct_color = "#00e676" if live_pct >= 0 else "#ff3366"
-
-  if len(charts_config) == 1:
-    charts_config[0]["chart"]["height"] = 650
-    real_total_h = 660
-  elif len(charts_config) == 2:
-    charts_config[0]["chart"]["height"] = 540
-    real_total_h = (
-        540 + int(charts_config[1].get("chart", {}).get("height", 140)) + 10
-    )
-  else:
-    real_total_h = 0
-    for c in charts_config:
-      real_total_h += int(c.get("chart", {}).get("height", 130))
-    _n_sub = max(0, len(charts_config) - 1)
-    real_total_h += (_n_sub * 6) + 20 + 250
-
-  chart_json = json.dumps(charts_config)
-  toolbar_display = "flex" if show_toolbar else "none"
-
-  html_template = _load_asset("drawing_template.html")
-  css_content = _load_asset("drawing_style.css") + "\n" + EXTRA_TOUCH_CSS
-  js_fib = _load_asset("fibonacci_tool.js")
-  js_pat = _load_asset("pattern_tool.js")
-  js_engine = _load_asset("drawing_engine.js")
-  js_content = js_fib + "\n" + js_pat + "\n" + js_engine + "\n" + EXTRA_TOUCH_JS
-
-  rendered_html = (
-      html_template.replace("/* INJECT_CSS_HERE */", css_content)
-      .replace("/* INJECT_JS_HERE */", js_content)
-      .replace("{{TOOLBAR_DISPLAY}}", toolbar_display)
-      .replace("{{DISPLAY_TITLE}}", str(display_title))
-      .replace("{{EXCHANGE_NAME}}", str(exchange_name))
-      .replace("{{CHART_JSON}}", chart_json)
-      .replace("{{CHANGE_PCT}}", pct_str)
-      .replace("{{CHANGE_COLOR}}", pct_color)
-  )
-
-  components.html(rendered_html, height=real_total_h)
+    components.html(rendered_html, height=real_total_h)
